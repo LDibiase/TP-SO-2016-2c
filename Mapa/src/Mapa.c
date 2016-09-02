@@ -9,6 +9,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <Utility_Library/socket.h>
 #include "Mapa.h"
 
 int main(void) {

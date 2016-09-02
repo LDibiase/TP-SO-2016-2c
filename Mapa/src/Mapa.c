@@ -9,7 +9,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <Utility_Library/socket.h>
 #include <commons/collections/list.h>
 #include <unistd.h>
 #include <tad_items.h>

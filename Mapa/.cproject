@@ -33,12 +33,10 @@
 								<inputType id="cdt.managedbuild.tool.gnu.c.compiler.input.2012686442" superClass="cdt.managedbuild.tool.gnu.c.compiler.input"/>
 							</tool>
 							<tool id="cdt.managedbuild.tool.gnu.c.linker.exe.debug.754499902" name="GCC C Linker" superClass="cdt.managedbuild.tool.gnu.c.linker.exe.debug">
-								<option id="gnu.c.link.option.libs.563232036" name="Libraries (-l)" superClass="gnu.c.link.option.libs" valueType="libs">
-									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="Utility_Library"/>
+								<option id="gnu.c.link.option.libs.962993502" superClass="gnu.c.link.option.libs" valueType="libs">
 									<listOptionValue builtIn="false" value="commons"/>
-								</option>
-								<option id="gnu.c.link.option.paths.209244542" superClass="gnu.c.link.option.paths" valueType="libPaths">
-									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/Utility_Library/Debug}&quot;"/>
+									<listOptionValue builtIn="false" value="ncurses"/>
+									<listOptionValue builtIn="false" value="nivel-gui"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.2023739894" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
 									<additionalInput kind="additionalinputdependency" paths="$(USER_OBJS)"/>

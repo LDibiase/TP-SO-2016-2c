@@ -30,7 +30,6 @@
 void sigchld_handler(int s)	{
 	while(wait(NULL) > 0);
 }
->>>>>>> 5cbc9b4861d1132e50543bd99dce4b5147035305
 
 int main(void) {
 

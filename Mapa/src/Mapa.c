@@ -14,6 +14,7 @@
 #include <tad_items.h>
 #include <curses.h>
 #include "Mapa.h"
+#include "nivel.h"
 
 int main(void) {
 	puts("Proceso Mapa"); /* prints Proceso Mapa */

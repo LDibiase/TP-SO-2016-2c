@@ -23,9 +23,13 @@
 #include <arpa/inet.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <commons/config.h>
+#include <commons/collections/dictionary.h>
 
 #define MYPORT 3490 // Puerto al que conectarán los usuarios - "telnet localhost 3490" para empezar a jugar
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
+
+
 
 void sigchld_handler(int s) {
 	while (wait(NULL) > 0);
@@ -68,6 +72,9 @@ t_list* cargarPokenest() {
 }
 
 int main(void) {
+	t_mapa_config configMapa;
+	//CARGAR CONFIGURACION
+	//int res = cargarConfiguracion(&configMapa);
 
 	//INICIO SOCKET
 	int sockfd, new_fd; // Escuchar sobre sock_fd, nuevas conexiones sobre new_fd
@@ -205,3 +212,34 @@ int main(void) {
 	nivel_gui_terminar();
 	return EXIT_SUCCESS;
 }
+
+int cargarConfiguracion(t_mapa_config* structConfig)
+{
+	t_config* config;
+	config = config_create("");
+
+	if(config_has_property(config, "TiempoChequeoDeadlock")
+			&& config_has_property(config, "Batalla")
+			&& config_has_property(config, "algoritmo")
+			&& config_has_property(config, "quantum")
+			&& config_has_property(config, "retardo")
+			&& config_has_property(config, "IP")
+			&& config_has_property(config, "Puerto"))
+	{
+		structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
+		structConfig->Batalla = config_get_int_value(config, "Batalla");
+		structConfig->Algoritmo = config_get_string_value(config, "algoritmo");
+		structConfig->Quantum = config_get_int_value(config, "quantum");
+		structConfig->Retardo = config_get_int_value(config, "retardo");
+		structConfig->IP = config_get_string_value(config, "IP");
+		structConfig->Puerto = config_get_string_value(config, "Puerto");
+
+		return 0;
+	}
+	else
+	{
+		return 1;
+	}
+
+}
+

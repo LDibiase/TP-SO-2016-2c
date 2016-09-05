@@ -10,6 +10,15 @@
 
 /* Definición de estructuras */
 
+typedef struct entrenador
+{
+	char* Nombre;
+	char Simbolo;
+	char** HojaDeViaje;
+	int Vidas;
+	int Reintentos;
+}t_entrenador_config;
+
 /* Declaración de funciones */
 
 #endif /* ENTRENADOR_H_ */

@@ -28,16 +28,14 @@
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 
 void sigchld_handler(int s) {
-	while (wait(NULL) > 0)
-		;
+	while (wait(NULL) > 0);
 }
 
-void realizar_movimiento(t_list* items, int x, int y, char personaje,
-		char * mapa) {
+void realizar_movimiento(t_list* items, int x, int y, char personaje, char * mapa) {
 	MoverPersonaje(items, personaje, x, y);
 	nivel_gui_dibujar(items, mapa);
 	usleep(200000);
-	//usleep(100000); Para pasarlo a nafta
+	//usleep(100000); //Para pasarlo a nafta
 }
 
 ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado) {
@@ -62,16 +60,16 @@ t_list* cargarObjetivos() {
 
 t_list* cargarPokenest() {
 	t_list* newlist = list_create();
-	CrearCaja(newlist, 'C', 20, 2, 5);
-	CrearCaja(newlist, 'O', 50, 10, 5);
-	CrearCaja(newlist, 'D', 10, 4, 5);
-	CrearCaja(newlist, 'E', 70, 15, 5);
+	CrearCaja(newlist, 'C', 20, 2, 10); //Charmander
+	CrearCaja(newlist, 'O', 50, 10, 10); //Oddish
+	CrearCaja(newlist, 'D', 10, 4, 10); //Doduo
+	CrearCaja(newlist, 'E', 70, 15, 10); //Eevee
 	return newlist;
 }
 
 int main(void) {
 
-	//START SOCKET
+	//INICIO SOCKET
 	int sockfd, new_fd; // Escuchar sobre sock_fd, nuevas conexiones sobre new_fd
 	struct sockaddr_in my_addr; // información sobre mi dirección
 	struct sockaddr_in their_addr; // información sobre la dirección del cliente
@@ -113,16 +111,16 @@ int main(void) {
 		perror("sigaction");
 		exit(1);
 	}
-
 	//FIN SOCKET
+
 
 	//INICIALIZACION DEL MAPA
 	int rows, cols;
 	int x = 1;
 	int y = 1;
 
-	t_list* items = cargarPokenest(); //Carga de Pokenest del mapa
-	t_list* objetivos = cargarObjetivos(); //Carga de Pokemons a buscar por el personaje
+	t_list* items = cargarPokenest(); //Carga de Pokenest
+	t_list* objetivos = cargarObjetivos(); //Carga de Pokemons a buscar
 
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
@@ -147,6 +145,7 @@ int main(void) {
 			exit(0);
 		}
 		close(new_fd); // El proceso padre no lo necesita
+
 
 		//COMIENZA LA BUSQUEDA POKEMON!
 		int cant = list_size(objetivos);

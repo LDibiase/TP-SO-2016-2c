@@ -28,11 +28,11 @@
 *.x86_64
 *.hex
 
-# Debug files
-*.dSYM/
-*.su
-*/Debug/*
-
 # Project files
 *.cproject
 *.project
+
+# Debug files
+*.dSYM/
+*.su
+/Debug/

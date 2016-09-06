@@ -13,10 +13,12 @@
 typedef struct entrenador
 {
 	char* Nombre;
-	char Simbolo;
+	char* Simbolo;
 	char** HojaDeViaje;
+	char** Objetivos;
 	int Vidas;
 	int Reintentos;
+
 }t_entrenador_config;
 
 /* Declaración de funciones */

@@ -43,12 +43,33 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 		structConfig->Vidas = config_get_int_value(config, "vidas");
 		structConfig->Reintentos = config_get_int_value(config, "reintentos");
 
+		//SE BUSCAN LOS OBJETIVOS DE CADA CIUDAD
+		void _auxIterate(char* ciudad)
+		{
+			char* stringObjetivo = string_new();
+			string_append(&stringObjetivo, "obj[");
+			string_append(&stringObjetivo, ciudad);
+			string_append(&stringObjetivo,"]");
 
+			int i = 0;
+
+			char* arrayObjetivos;
+			arrayObjetivos = (char*)config_get_array_value(config, stringObjetivo);
+
+			while(structConfig->Objetivos[i] != NULL)
+			{
+				i++;
+			}
+			structConfig->Objetivos = realloc(structConfig->Objetivos, (i + 1)*sizeof(char*));
+			structConfig->Objetivos[i] = arrayObjetivos;
+
+			free(stringObjetivo);
+		}
+		string_iterate_lines(hojaDeViaje, (void*)_auxIterate);
 		return 0;
 	}
 	else
 	{
 		return 1;
 	}
-
 }

@@ -25,10 +25,14 @@
 #include <signal.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
+#include <commons/log.h>
 
 #define MYPORT 3490 // Puerto al que conectarán los usuarios - "telnet localhost 3490" para empezar a jugar
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 
+/* Variables */
+t_log* logger;
+t_mapa_config configMapa;
 
 
 void sigchld_handler(int s) {
@@ -72,9 +76,14 @@ t_list* cargarPokenest() {
 }
 
 int main(void) {
-	t_mapa_config configMapa;
-	//CARGAR CONFIGURACION
+
+	/* Creación del log */
+	logger = log_create(LOG_FILE_PATH, "MAPA", true, LOG_LEVEL_INFO);
+
+	/*Cargar Configuración*/
 	//int res = cargarConfiguracion(&configMapa);
+	//log_info(logger, "Cargando archivo configuración");
+
 
 	//INICIO SOCKET
 	int sockfd, new_fd; // Escuchar sobre sock_fd, nuevas conexiones sobre new_fd
@@ -210,13 +219,14 @@ int main(void) {
 		}
 	}
 	nivel_gui_terminar();
+	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
 
 int cargarConfiguracion(t_mapa_config* structConfig)
 {
 	t_config* config;
-	config = config_create("");
+	config = config_create(CONFIG_FILE_PATH);
 
 	if(config_has_property(config, "TiempoChequeoDeadlock")
 			&& config_has_property(config, "Batalla")
@@ -234,10 +244,14 @@ int cargarConfiguracion(t_mapa_config* structConfig)
 		structConfig->IP = config_get_string_value(config, "IP");
 		structConfig->Puerto = config_get_string_value(config, "Puerto");
 
+		log_info(logger, "El archivo de configuración se cargo correctamente");
+		config_destroy(config);
 		return 0;
 	}
 	else
 	{
+		log_error(logger, "El archivo de configuración tiene un formato inválido");
+		config_destroy(config);
 		return 1;
 	}
 

@@ -15,19 +15,31 @@
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
 #include <commons/string.h>
+#include <commons/log.h>
+#include <commons/collections/list.h>
+
+/* Variables */
+t_log* logger;
+t_entrenador_config configEntrenador;
 
 int main(void) {
-	t_entrenador_config configEntrenador;
-	//CARGAR CONFIGURACION
+
+	/* Creación del log */
+	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
+
+	/*Cargar Configuración*/
 	//int res = cargarConfiguracion(&configEntrenador);
+	//log_info(logger, "Cargando archivo configuración");
+
 	puts("Proceso Entrenador"); /* prints Proceso Entrenador */
+	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
 
 int cargarConfiguracion(t_entrenador_config* structConfig)
 {
 	t_config* config;
-	config = config_create("");
+	config = config_create(CONFIG_FILE_PATH);
 
 	if(config_has_property(config, "nombre")
 			&& config_has_property(config, "simbolo")
@@ -66,10 +78,14 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 			free(stringObjetivo);
 		}
 		string_iterate_lines(hojaDeViaje, (void*)_auxIterate);
+		log_info(logger, "El archivo de configuración se cargo correctamente");
+		config_destroy(config);
 		return 0;
 	}
 	else
 	{
+		log_error(logger, "El archivo de configuración tiene un formato inválido");
+		config_destroy(config);
 		return 1;
 	}
 }

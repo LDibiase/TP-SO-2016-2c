@@ -21,6 +21,13 @@ typedef struct entrenador
 
 }t_entrenador_config;
 
+/* Constantes */
+
+// Ruta al archivo de log
+#define LOG_FILE_PATH "entrenadorLog.log"
+// Ruta al archivo de configuración
+#define CONFIG_FILE_PATH "config.cfg"
+
 /* Declaración de funciones */
 
 #endif /* ENTRENADOR_H_ */

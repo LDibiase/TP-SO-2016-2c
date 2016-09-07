@@ -21,6 +21,13 @@ typedef struct mapa
 	char* Puerto;
 }t_mapa_config;
 
+/* Constantes */
+
+// Ruta al archivo de log
+#define LOG_FILE_PATH "mapa.log"
+// Ruta al archivo de configuración
+#define CONFIG_FILE_PATH "config.cfg"
+
 
 /* Declaración de funciones */
 

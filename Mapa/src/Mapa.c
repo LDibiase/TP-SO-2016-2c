@@ -81,8 +81,9 @@ int main(void) {
 	logger = log_create(LOG_FILE_PATH, "MAPA", true, LOG_LEVEL_INFO);
 
 	/*Cargar Configuración*/
-	//int res = cargarConfiguracion(&configMapa);
 	//log_info(logger, "Cargando archivo configuración");
+	//int res = cargarConfiguracion(&configMapa);
+
 
 
 	//INICIO SOCKET

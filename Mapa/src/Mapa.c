@@ -27,7 +27,7 @@
 #include <commons/collections/dictionary.h>
 #include <commons/log.h>
 
-#define MYPORT 3490 // Puerto al que conectarán los usuarios - "telnet localhost 3490" para empezar a jugar
+#define MYPORT 3490 // Puerto al que conectarán los entrenadores - "telnet localhost 3490" para empezar a jugar
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 
 /* Variables */
@@ -35,15 +35,48 @@ t_log* logger;
 t_mapa_config configMapa;
 
 
+
 void sigchld_handler(int s) {
 	while (wait(NULL) > 0);
 }
 
-void realizar_movimiento(t_list* items, int x, int y, char personaje, char * mapa) {
-	MoverPersonaje(items, personaje, x, y);
+void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {
+	MoverPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y);
 	nivel_gui_dibujar(items, mapa);
 	usleep(200000);
 	//usleep(100000); //Para pasarlo a nafta
+}
+
+//FUNCION DE ENTRENADOR
+char ejeAnterior = 'x'; //VAR de entrenador
+t_mapa_pos calcularMovimiento(t_mapa_pos posActual, t_mapa_pos posFinal) {
+			int cantMovimientos = 0;
+			if ((ejeAnterior == 'x') || (posActual.x == posFinal.x)) {
+				if (posActual.y > posFinal.y) {
+					posActual.y--;
+					ejeAnterior = 'y';
+					cantMovimientos = 1;
+				}
+				if (posActual.y < posFinal.y) {
+					posActual.y++;
+					ejeAnterior = 'y';
+					cantMovimientos = 1;
+				}
+			}
+			if (cantMovimientos == 0) {
+				if ((ejeAnterior == 'y') || (posActual.y == posFinal.y)) {
+					if (posActual.x > posFinal.x) {
+						posActual.x--;
+						ejeAnterior = 'x';
+					}
+					if (posActual.x < posFinal.x) {
+						posActual.x++;
+						ejeAnterior = 'x';
+					}
+				}
+			}
+	return posActual;
+
 }
 
 ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado) {
@@ -54,6 +87,16 @@ ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado) {
 	}
 	return list_find(lista, (void*) _is_the_one);
 }
+
+
+t_mapa_pos buscarPokenest(t_list* lista, char pokemon) {
+	ITEM_NIVEL pokenest = *find_by_id(lista, pokemon);
+	t_mapa_pos ubicacion;
+	ubicacion.x= pokenest.posx;
+	ubicacion.y = pokenest.posy;
+	return ubicacion;
+}
+
 
 t_list* cargarObjetivos() {
 	t_list* newlist = list_create();
@@ -75,13 +118,47 @@ t_list* cargarPokenest() {
 	return newlist;
 }
 
+int cargarConfiguracion(t_mapa_config* structConfig)
+{
+	t_config* config;
+	config = config_create(CONFIG_FILE_PATH);
+
+	if(config_has_property(config, "TiempoChequeoDeadlock")
+			&& config_has_property(config, "Batalla")
+			&& config_has_property(config, "algoritmo")
+			&& config_has_property(config, "quantum")
+			&& config_has_property(config, "retardo")
+			&& config_has_property(config, "IP")
+			&& config_has_property(config, "Puerto"))
+	{
+		structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
+		structConfig->Batalla = config_get_int_value(config, "Batalla");
+		structConfig->Algoritmo = config_get_string_value(config, "algoritmo");
+		structConfig->Quantum = config_get_int_value(config, "quantum");
+		structConfig->Retardo = config_get_int_value(config, "retardo");
+		structConfig->IP = config_get_string_value(config, "IP");
+		structConfig->Puerto = config_get_string_value(config, "Puerto");
+
+		log_info(logger, "El archivo de configuración se cargo correctamente");
+		config_destroy(config);
+		return 0;
+	}
+	else
+	{
+		log_error(logger, "El archivo de configuración tiene un formato inválido");
+		config_destroy(config);
+		return 1;
+	}
+
+}
+
 int main(void) {
 
 	/* Creación del log */
 	logger = log_create(LOG_FILE_PATH, "MAPA", true, LOG_LEVEL_INFO);
 
 	/*Cargar Configuración*/
-	//log_info(logger, "Cargando archivo configuración");
+	log_info(logger, "Cargando archivo configuración");
 	//int res = cargarConfiguracion(&configMapa);
 
 
@@ -133,16 +210,11 @@ int main(void) {
 
 	//INICIALIZACION DEL MAPA
 	int rows, cols;
-	int x = 1;
-	int y = 1;
-
-	t_list* items = cargarPokenest(); //Carga de Pokenest
-	t_list* objetivos = cargarObjetivos(); //Carga de Pokemons a buscar
-
+	t_list* items = cargarPokenest(); //Carga de las Pokenest del mapa
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
-	CrearPersonaje(items, '$', x, y); //Carga de personaje TODO: Hacer un TAD
 	nivel_gui_dibujar(items, "CodeTogheter");
+
 
 	//MAIN LOOP
 	while (1) {
@@ -164,56 +236,36 @@ int main(void) {
 		close(new_fd); // El proceso padre no lo necesita
 
 
+		//INGRESO DEL ENTRENADOR
+		t_mapa_pj personaje;
+			personaje.id = '$';
+			personaje.pos.x = 1;
+			personaje.pos.y = 1;
+		CrearPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y); //Carga de entrenador
+		t_list* objetivos = cargarObjetivos(); //Carga de Pokemons a buscar
+		realizar_movimiento(items, personaje, "CodeTogheter");
+
+
 		//COMIENZA LA BUSQUEDA POKEMON!
 		int cant = list_size(objetivos);
-
 		while (cant > 0) {
 
-			int movioX = 1; //Comienza moviendo en eje y
-			int movioY = 0;
-
-			//Obtengo la pokenest correspondiente a mi pokemon
+			//Obtengo la ubicacion de la pokenest correspondiente a mi pokemon
 			char* pokemon = list_get(objetivos, 0);
-			ITEM_NIVEL pokenest = *find_by_id(items, *pokemon);
-			int x1 = pokenest.posx;
-			int y1 = pokenest.posy;
-			char idCaja = pokenest.id;
+			char pokemonID = *pokemon;
+			t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
 
-			//Movimientos hasta la pokenest TODO: Abstraer
-			while ((x != x1) || (y != y1)) {
-				movioY = 0;
-				if ((movioX == 1) || (x == x1)) {
-					if (y > y1) {
-						y--;
-						movioY = 1;
-						realizar_movimiento(items, x, y, '$', "CodeTogheter");
-					}
-					if (y < y1) {
-						y++;
-						movioY = 1;
-						realizar_movimiento(items, x, y, '$', "CodeTogheter");
-					}
-				}
+			//Movimientos hasta la pokenest
+			while ((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) {
 
-				movioX = 0;
-				if ((movioY == 1) || (y == y1)) {
-					if (x > x1) {
-						x--;
-						movioX = 1;
-						realizar_movimiento(items, x, y, '$', "CodeTogheter");
-					}
-					if (x < x1) {
-						x++;
-						movioX = 1;
-						realizar_movimiento(items, x, y, '$', "CodeTogheter");
-					}
-				}
+				personaje.pos = calcularMovimiento(personaje.pos, pokenest);
+				realizar_movimiento(items, personaje, "CodeTogheter");
 
-				//Si llego a la pokenest le resto un pokemon
-				if ((x == x1) && (y == y1)) {
-					restarRecurso(items, idCaja);
-					BorrarItem(objetivos, idCaja); //Quito mi objetivo
-					realizar_movimiento(items, x, y, '$', "CodeTogheter");
+				//Si llego a la pokenest capturo un pokemon
+				if ((personaje.pos.x == pokenest.x) && (personaje.pos.y == pokenest.y)) {
+					restarRecurso(items, pokemonID);  //Resto un pokemon de la pokenest
+					BorrarItem(objetivos, pokemonID); //Quito mi objetivo
+					realizar_movimiento(items, personaje, "CodeTogheter");
 				}
 			}
 			cant = list_size(objetivos);
@@ -223,38 +275,3 @@ int main(void) {
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
-
-int cargarConfiguracion(t_mapa_config* structConfig)
-{
-	t_config* config;
-	config = config_create(CONFIG_FILE_PATH);
-
-	if(config_has_property(config, "TiempoChequeoDeadlock")
-			&& config_has_property(config, "Batalla")
-			&& config_has_property(config, "algoritmo")
-			&& config_has_property(config, "quantum")
-			&& config_has_property(config, "retardo")
-			&& config_has_property(config, "IP")
-			&& config_has_property(config, "Puerto"))
-	{
-		structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
-		structConfig->Batalla = config_get_int_value(config, "Batalla");
-		structConfig->Algoritmo = config_get_string_value(config, "algoritmo");
-		structConfig->Quantum = config_get_int_value(config, "quantum");
-		structConfig->Retardo = config_get_int_value(config, "retardo");
-		structConfig->IP = config_get_string_value(config, "IP");
-		structConfig->Puerto = config_get_string_value(config, "Puerto");
-
-		log_info(logger, "El archivo de configuración se cargo correctamente");
-		config_destroy(config);
-		return 0;
-	}
-	else
-	{
-		log_error(logger, "El archivo de configuración tiene un formato inválido");
-		config_destroy(config);
-		return 1;
-	}
-
-}
-

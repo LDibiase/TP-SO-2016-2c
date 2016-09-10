@@ -8,12 +8,14 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
 //#include <Utility_Library/socket.h>
 #include "socket.h" // BORRAR
 #include "PokeDexServidor.h"
+#include "osada.h"
 
 #define IP "127.0.0.1"
 #define PUERTO "8080"
@@ -22,17 +24,49 @@
 struct socket** clientes;
 
 int main(void) {
+	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 	int idHilo;
 	void* valorRetorno;
 
+	// Variables para el manejo del FileSystem OSADA
+	FILE *fileFS;
+	osada_header cabeceraFS;
+
+	// Creación del hilo en escucha
 	pthread_attr_init(&atributosHilo);
 	idHilo = pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
 
 	if(idHilo == 0)
 		pthread_join(hiloEnEscucha, &valorRetorno);
+
+	// Abre el archivo de File System
+	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r")) == NULL)
+	{
+		puts("Error al abrir el archivo de FS.fs\n");
+		return EXIT_FAILURE;
+	}
+
+	// Lee la cabecera del archivo
+	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
+
+	puts(cabeceraFS.magic_number);
+	printf("%d\n", cabeceraFS.version);
+	printf("%d\n", cabeceraFS.fs_blocks);
+	printf("%d\n", cabeceraFS.bitmap_blocks);
+	printf("%d\n", cabeceraFS.allocations_table_offset);
+	printf("%d\n", cabeceraFS.data_blocks);
+	puts(cabeceraFS.padding);
+
+	fclose(fileFS);
+
+	// Valida que sea un FS OSADA
+	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
+		puts("Es un FS Osada\n");
+	else
+		puts("NO es un FS Osada\n");
 
 	return EXIT_SUCCESS;
 }

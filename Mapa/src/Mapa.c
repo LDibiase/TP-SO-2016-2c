@@ -159,8 +159,16 @@ int main(void) {
 
 	/*Cargar Configuración*/
 	log_info(logger, "Cargando archivo configuración");
-	//int res = cargarConfiguracion(&configMapa);
+	int res = cargarConfiguracion(&configMapa);
 
+	//VAMOS A VER SI FUNCIONA
+	printf("El algoritmo es: %s \n", configMapa.Algoritmo);
+	printf("Batalla: %d \n", configMapa.Batalla);
+	printf("El IP es: %s \n", configMapa.IP);
+	printf("El puerto es: %s \n", configMapa.Puerto);
+	printf("El quantum es: %d \n", configMapa.Quantum);
+	printf("El retardo es: %d \n", configMapa.Retardo);
+	printf("El tiempo de chequeo es: %d \n", configMapa.TiempoChequeoDeadlock);
 
 
 	//INICIO SOCKET

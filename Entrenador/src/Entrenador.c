@@ -61,8 +61,8 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 		structConfig->CiudadesYObjetivos = list_create();
 		char** hojaDeViaje = config_get_array_value(config, "hojaDeViaje");
 
-		structConfig->Nombre = config_get_string_value(config, "nombre");
-		structConfig->Simbolo = config_get_string_value(config, "simbolo");
+		structConfig->Nombre = strdup(config_get_string_value(config, "nombre"));
+		structConfig->Simbolo = strdup(config_get_string_value(config, "simbolo"));
 		structConfig->Vidas = config_get_int_value(config, "vidas");
 		structConfig->Reintentos = config_get_int_value(config, "reintentos");
 

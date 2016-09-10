@@ -133,11 +133,11 @@ int cargarConfiguracion(t_mapa_config* structConfig)
 	{
 		structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
 		structConfig->Batalla = config_get_int_value(config, "Batalla");
-		structConfig->Algoritmo = config_get_string_value(config, "algoritmo");
+		structConfig->Algoritmo = strdup(config_get_string_value(config, "algoritmo"));
 		structConfig->Quantum = config_get_int_value(config, "quantum");
 		structConfig->Retardo = config_get_int_value(config, "retardo");
-		structConfig->IP = config_get_string_value(config, "IP");
-		structConfig->Puerto = config_get_string_value(config, "Puerto");
+		structConfig->IP = strdup(config_get_string_value(config, "IP"));
+		structConfig->Puerto = strdup(config_get_string_value(config, "Puerto"));
 
 		log_info(logger, "El archivo de configuración se cargo correctamente");
 		config_destroy(config);

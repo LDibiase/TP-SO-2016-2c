@@ -12,4 +12,7 @@
 
 /* Declaración de funciones */
 
+// Acepta múltiples conexiones de clientes
+void aceptarConexiones();
+
 #endif /* POKEDEXSERVIDOR_H_ */

@@ -17,11 +17,12 @@
 int main(void) {
 	FILE *fileFS;
 	osada_header cabeceraFS;
+	osada_file archivoFS;
 
 	puts("Proceso Servidor PokéDex\n"); /* prints Proceso Servidor PokéDex */
 
 	// Abre el archivo de File System
-	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r"))==NULL)
+	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/testFile.md","r"))==NULL)
 	{
 		puts("Error al abrir el archivo de FS.fs\n");
 		return EXIT_FAILURE;
@@ -38,13 +39,24 @@ int main(void) {
 	printf("%d\n", cabeceraFS.data_blocks);
 	puts(cabeceraFS.padding);
 
-	fclose(fileFS);
 
-	// Valida que sea un FS Odada
-	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
+
+	// Valida que sea un FS Osada
+	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0) {
 		puts("Es un FS Osada\n");
+
+		fread(&archivoFS, sizeof(archivoFS), 1, fileFS);
+		printf("%d\n", archivoFS.file_size);
+		printf("%d\n", archivoFS.first_block);
+		printf("%d\n", archivoFS.fname);
+		printf("%d\n", archivoFS.lastmod);
+		printf("%d\n", archivoFS.parent_directory);
+		printf("%d\n", archivoFS.state);
+	}
 	else
 		puts("NO es un FS Osada\n");
+
+	fclose(fileFS);
 
 	return EXIT_SUCCESS;
 }

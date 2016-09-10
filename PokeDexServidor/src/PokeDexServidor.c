@@ -63,7 +63,7 @@ int main(void) {
 
 
 	// Valida que sea un FS OSADA
-	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
+	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0) {
 		puts("Es un FS Osada\n");
 
 		fread(&archivoFS, sizeof(archivoFS), 1, fileFS);
@@ -73,9 +73,9 @@ int main(void) {
 		printf("%d\n", archivoFS.lastmod);
 		printf("%d\n", archivoFS.parent_directory);
 		printf("%d\n", archivoFS.state);
-	}
-	else
+	} else {
 		puts("NO es un FS Osada\n");
+	}
 
 	fclose(fileFS);
 

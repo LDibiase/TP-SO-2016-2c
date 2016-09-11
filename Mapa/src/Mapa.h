@@ -31,8 +31,8 @@ typedef struct personaje {
 	t_mapa_pos pos;
 } t_mapa_pj;
 
-/* Constantes */
 
+/* Constantes */
 
 // Ruta al archivo de log
 #define LOG_FILE_PATH "mapa.log"
@@ -42,11 +42,13 @@ typedef struct personaje {
 
 /* Declaración de funciones */
 
-int cargarConfiguracion();
-t_list* cargarPokenest();
-t_mapa_pos buscarPokenest(t_list* lista, char pokemon);
-void realizar_movimiento(t_list* items,t_mapa_pj personaje, char * mapa);
+void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa);
+t_mapa_pos calcularMovimiento(t_mapa_pos posActual, t_mapa_pos posFinal);
 ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado);
-
+t_mapa_pos buscarPokenest(t_list* lista, char pokemon);
+t_list* cargarObjetivos();
+t_list* cargarPokenest();
+int cargarConfiguracion(t_mapa_config* structConfig);
+void aceptarConexiones();
 
 #endif /* MAPA_H_ */

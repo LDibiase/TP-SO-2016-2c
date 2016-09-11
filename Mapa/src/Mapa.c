@@ -7,37 +7,137 @@
  ============================================================================
  */
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <commons/collections/list.h>
 #include <unistd.h>
 #include <tad_items.h>
 #include <curses.h>
-#include "Mapa.h"
-#include "nivel.h"
-#include <errno.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/wait.h>
-#include <signal.h>
+#include <errno.h>
+#include <pthread.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
+#include <commons/string.h>
 #include <commons/log.h>
+#include "socket.h" // BORRAR
+#include "Mapa.h"
+#include "nivel.h"
 
-#define MYPORT 3490 // Puerto al que conectarán los entrenadores - "telnet localhost 3490" para empezar a jugar
-#define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
+#define MYIP "127.0.0.1" // IP
+#define MYPORT "3490"  	 // Puerto al que conectarán los entrenadores - "telnet localhost 3490" para empezar a jugar
+#define BACKLOG 10 	     // Cuántas conexiones pendientes se mantienen en cola
 
 /* Variables */
 t_log* logger;
 t_mapa_config configMapa;
+struct socket** entrenadores;
+
+int main(void) {
+	// Variables para la creación del hilo en escucha
+	pthread_t hiloEnEscucha;
+	pthread_attr_t atributosHilo;
+	int activo;
+
+	// Variables para la diagramación del mapa
+//	int rows, cols;
+//	t_list* items;
 
 
+	//CREACIÓN DEL ARCHIVO DE LOG
+	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
 
-void sigchld_handler(int s) {
-	while (wait(NULL) > 0);
+
+	//CONFIGURACIÓN DEL MAPA
+//	cargarConfiguracion(&configMapa);
+	log_info(logger, "Cargando archivo de configuración");
+
+
+	// CREACIÓN DEL HILO EN ESCUCHA
+	pthread_attr_init(&atributosHilo);
+	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
+	pthread_attr_destroy(&atributosHilo);
+
+	//INICIALIZACIÓN DEL MAPA
+//	items = cargarPokenest(); //Carga de las Pokénest del mapa
+//	nivel_gui_inicializar();
+//	nivel_gui_get_area_nivel(&rows, &cols);
+//	nivel_gui_dibujar(items, "CodeTogether");
+
+	activo = 1;
+
+	while(activo) {
+		int i;
+		int cantidadEntrenadores;
+		ssize_t bytesRecibidos;
+		size_t tamanioMensaje;
+
+		if(entrenadores != NULL) {
+			i = 0;
+			cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket);
+
+			while(i < cantidadEntrenadores) {
+				tamanioMensaje = 255;
+				char mensaje[tamanioMensaje];
+
+				//RECIBIR MENSAJE
+				bytesRecibidos = recv(entrenadores[i]->descriptor, mensaje, tamanioMensaje, 0);
+				if (bytesRecibidos == -1)
+				{
+					log_info(logger, strerror(errno));
+					entrenadores[i]->error = strerror(errno);
+					break;
+				}
+
+				puts(mensaje);
+				t_list* objetivos = cargarObjetivos(mensaje); //Carga de Pokémons a buscar
+
+				//INGRESO DEL ENTRENADOR
+/*				t_mapa_pj personaje;
+					personaje.id = '$';
+					personaje.pos.x = 1;
+					personaje.pos.y = 1;
+				CrearPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y); //Carga de entrenador
+				t_list* objetivos = cargarObjetivos(mensaje); //Carga de Pokémons a buscar
+				realizar_movimiento(items, personaje, "CodeTogether");
+
+				//COMIENZA LA BÚSQUEDA POKÉMON!
+				int cant = list_size(objetivos);
+				while (cant > 0) {
+					//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
+					char* pokemon = list_get(objetivos, 0);
+					char pokemonID = *pokemon;
+					t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
+
+					//Movimientos hasta la Pokénest
+					while ((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) {
+
+						personaje.pos = calcularMovimiento(personaje.pos, pokenest);
+						realizar_movimiento(items, personaje, "CodeTogether");
+
+						//Si llego a la Pokénest, capturo un Pokémon
+						if ((personaje.pos.x == pokenest.x) && (personaje.pos.y == pokenest.y)) {
+							restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
+							BorrarItem(objetivos, pokemonID); //Quito mi objetivo
+							realizar_movimiento(items, personaje, "CodeTogether");
+						}
+					}
+
+					cant = list_size(objetivos);
+				}*/
+
+				i ++;
+			}
+
+			// Borrar las posiciones del array que no hayan enviado mensajes
+			activo = 0;
+		}
+	}
+
+//	nivel_gui_terminar();
+	log_destroy(logger);
+	return EXIT_SUCCESS;
 }
 
 void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {
@@ -47,7 +147,7 @@ void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {
 	//usleep(100000); //Para pasarlo a nafta
 }
 
-//FUNCION DE ENTRENADOR
+//FUNCIÓN DE ENTRENADOR
 char ejeAnterior = 'x'; //VAR de entrenador
 t_mapa_pos calcularMovimiento(t_mapa_pos posActual, t_mapa_pos posFinal) {
 			int cantMovimientos = 0;
@@ -88,7 +188,6 @@ ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado) {
 	return list_find(lista, (void*) _is_the_one);
 }
 
-
 t_mapa_pos buscarPokenest(t_list* lista, char pokemon) {
 	ITEM_NIVEL pokenest = *find_by_id(lista, pokemon);
 	t_mapa_pos ubicacion;
@@ -97,15 +196,24 @@ t_mapa_pos buscarPokenest(t_list* lista, char pokemon) {
 	return ubicacion;
 }
 
-
-t_list* cargarObjetivos() {
+t_list* cargarObjetivos(char* objetivosString) {
 	t_list* newlist = list_create();
-	list_add(newlist, "C");
-	list_add(newlist, "O");
-	list_add(newlist, "D");
-	list_add(newlist, "E");
-	list_add(newlist, "O");
-	list_add(newlist, "D");
+	char** objetivos;
+
+	void _agregarObjetivo(char* objetivo) {
+		log_info(logger, objetivo);
+		list_add(newlist, objetivo);
+	}
+
+	objetivos = string_split(objetivosString, ",");
+	string_iterate_lines(objetivos, _agregarObjetivo);
+
+//	list_add(newlist, "C");
+//	list_add(newlist, "O");
+//	list_add(newlist, "D");
+//	list_add(newlist, "E");
+//	list_add(newlist, "O");
+//	list_add(newlist, "D");
 	return newlist;
 }
 
@@ -139,7 +247,7 @@ int cargarConfiguracion(t_mapa_config* structConfig)
 		structConfig->IP = config_get_string_value(config, "IP");
 		structConfig->Puerto = config_get_string_value(config, "Puerto");
 
-		log_info(logger, "El archivo de configuración se cargo correctamente");
+		log_info(logger, "El archivo de configuración se cargó correctamente");
 		config_destroy(config);
 		return 0;
 	}
@@ -149,129 +257,55 @@ int cargarConfiguracion(t_mapa_config* structConfig)
 		config_destroy(config);
 		return 1;
 	}
-
 }
 
-int main(void) {
+void aceptarConexiones() {
+	struct socket* mi_socket_s;
 
-	/* Creación del log */
-	logger = log_create(LOG_FILE_PATH, "MAPA", true, LOG_LEVEL_INFO);
+	int returnValue;
+	int conectado;
+	int cantidadEntrenadores;
 
-	/*Cargar Configuración*/
-	log_info(logger, "Cargando archivo configuración");
-	//int res = cargarConfiguracion(&configMapa);
+	int error = -1;
 
-
-
-	//INICIO SOCKET
-	int sockfd, new_fd; // Escuchar sobre sock_fd, nuevas conexiones sobre new_fd
-	struct sockaddr_in my_addr; // información sobre mi dirección
-	struct sockaddr_in their_addr; // información sobre la dirección del cliente
-	int sin_size;
-	struct sigaction sa;
-	int yes = 1;
-
-	if ((sockfd = socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-		perror("socket");
-		exit(1);
+	mi_socket_s = crearServidor(MYIP, MYPORT);
+	if(mi_socket_s->descriptor == 0)
+	{
+		log_info(logger, "Conexión fallida");
+		log_info(logger, mi_socket_s->error);
+		exit(error);
 	}
 
-	if (setsockopt(sockfd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-		perror("setsockopt");
-		exit(1);
+	returnValue = escucharConexiones(*mi_socket_s, BACKLOG);
+	if(returnValue != 0)
+	{
+		log_info(logger, strerror(returnValue));
+		eliminarSocket(mi_socket_s);
+		exit(error);
 	}
 
-	my_addr.sin_family = AF_INET; // Ordenación de bytes de la máquina
-	my_addr.sin_port = htons(MYPORT); // short, Ordenación de bytes de la red
-	my_addr.sin_addr.s_addr = INADDR_ANY; // Rellenar con mi dirección IP
-	memset(&(my_addr.sin_zero), '\0', 8); // Poner a cero el resto de la estructura
+	conectado = 1;
+	cantidadEntrenadores = 0;
 
-	if (bind(sockfd, (struct sockaddr *) &my_addr, sizeof(struct sockaddr))
-			== -1) {
-		perror("bind");
-		exit(1);
-	}
+	while(conectado) {
+		struct socket* cli_socket_s;
 
-	if (listen(sockfd, BACKLOG) == -1) {
-		perror("listen");
-		exit(1);
-	}
+		log_info(logger, "Escuchando conexiones");
 
-	sa.sa_handler = sigchld_handler; // Eliminar procesos muertos
-	sigemptyset(&sa.sa_mask);
-	sa.sa_flags = SA_RESTART;
-
-	if (sigaction(SIGCHLD, &sa, NULL) == -1) {
-		perror("sigaction");
-		exit(1);
-	}
-	//FIN SOCKET
-
-
-	//INICIALIZACION DEL MAPA
-	int rows, cols;
-	t_list* items = cargarPokenest(); //Carga de las Pokenest del mapa
-	nivel_gui_inicializar();
-	nivel_gui_get_area_nivel(&rows, &cols);
-	nivel_gui_dibujar(items, "CodeTogheter");
-
-
-	//MAIN LOOP
-	while (1) {
-		sin_size = sizeof(struct sockaddr_in);
-		if ((new_fd = accept(sockfd, (struct sockaddr *) &their_addr, &sin_size)) == -1) {
-			perror("accept");
-			continue;
+		cli_socket_s = aceptarConexion(*mi_socket_s);
+		if(cli_socket_s->descriptor == 0)
+		{
+			log_info(logger, "Se rechaza conexión");
+			log_info(logger, cli_socket_s->error);
+			conectado = 0;
+			eliminarSocket(mi_socket_s);
+			exit(error);
 		}
 
-		printf("Conexion entrante de %s\n", inet_ntoa(their_addr.sin_addr));
+		cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket);
+		entrenadores = realloc(entrenadores, (cantidadEntrenadores + 1) * sizeof(struct socket));
+		entrenadores[cantidadEntrenadores] = cli_socket_s;
 
-		if (!fork()) { // Este es el proceso hijo
-			close(sockfd); // El hijo no necesita este descriptor
-			if (send(new_fd, "GAME START!!\n", 14, 0) == -1)
-				perror("send");
-			close(new_fd);
-			exit(0);
-		}
-		close(new_fd); // El proceso padre no lo necesita
-
-
-		//INGRESO DEL ENTRENADOR
-		t_mapa_pj personaje;
-			personaje.id = '$';
-			personaje.pos.x = 1;
-			personaje.pos.y = 1;
-		CrearPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y); //Carga de entrenador
-		t_list* objetivos = cargarObjetivos(); //Carga de Pokemons a buscar
-		realizar_movimiento(items, personaje, "CodeTogheter");
-
-
-		//COMIENZA LA BUSQUEDA POKEMON!
-		int cant = list_size(objetivos);
-		while (cant > 0) {
-
-			//Obtengo la ubicacion de la pokenest correspondiente a mi pokemon
-			char* pokemon = list_get(objetivos, 0);
-			char pokemonID = *pokemon;
-			t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
-
-			//Movimientos hasta la pokenest
-			while ((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) {
-
-				personaje.pos = calcularMovimiento(personaje.pos, pokenest);
-				realizar_movimiento(items, personaje, "CodeTogheter");
-
-				//Si llego a la pokenest capturo un pokemon
-				if ((personaje.pos.x == pokenest.x) && (personaje.pos.y == pokenest.y)) {
-					restarRecurso(items, pokemonID);  //Resto un pokemon de la pokenest
-					BorrarItem(objetivos, pokemonID); //Quito mi objetivo
-					realizar_movimiento(items, personaje, "CodeTogheter");
-				}
-			}
-			cant = list_size(objetivos);
-		}
+		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
 	}
-	nivel_gui_terminar();
-	log_destroy(logger);
-	return EXIT_SUCCESS;
 }

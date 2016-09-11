@@ -26,6 +26,7 @@ typedef struct entrenador
 	int Reintentos;
 }t_entrenador_config;
 
+
 /* Constantes */
 
 // Ruta al archivo de log
@@ -33,6 +34,9 @@ typedef struct entrenador
 // Ruta al archivo de configuración
 #define CONFIG_FILE_PATH "config.cfg"
 
+
 /* Declaración de funciones */
+
+int cargarConfiguracion(t_entrenador_config* structConfig);
 
 #endif /* ENTRENADOR_H_ */

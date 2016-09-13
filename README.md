@@ -21,11 +21,13 @@ Entrenador -> Mapa | t_mapa_pos obtenerUbicacionPokenest(char pokemonID)
 Entrenador -> Mapa | movermeA(t_mapa_pos nuevaPos)
 
 Entrenador -> Mapa | capturarPokemon(char pokemonID)
+
 Mapa -> Entrenador | confirmarCaptura(metadataPokemon)
 
 Entrenador -> Mapa | meMori()
 
 Entrenador -> Mapa | cumpliMisObjetivos()
+
 Mapa -> Entrenador | entregarMedalla()
 
 //TODO: Batallas, Muerte de entrenador y Vidas

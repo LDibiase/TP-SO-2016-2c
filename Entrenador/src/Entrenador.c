@@ -33,17 +33,17 @@ int main(void) {
 	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
 	/*Cargar Configuración*/
-//	cargarConfiguracion(&configEntrenador);
+	cargarConfiguracion(&configEntrenador);
 	log_info(logger, "Cargando archivo de configuración");
 
 	//VAMOS A VER SI FUNCIONA
-//	printf("El nombre es: %s \n", configEntrenador.Nombre);
-//	printf("El simbolo es: %s \n", configEntrenador.Simbolo);
-//	printf("Las vidas son: %d \n", configEntrenador.Vidas);
-//	printf("Los reintentos son: %d \n", configEntrenador.Reintentos);
+	printf("El nombre es: %s \n", configEntrenador.Nombre);
+	printf("El simbolo es: %s \n", configEntrenador.Simbolo);
+	printf("Las vidas son: %d \n", configEntrenador.Vidas);
+	printf("Los reintentos son: %d \n", configEntrenador.Reintentos);
 
-//	t_ciudad_objetivos* test = list_get(configEntrenador.CiudadesYObjetivos, 0);
-//	printf("La ciudad es: %s \n", test->Nombre);
+	t_ciudad_objetivos* test = list_get(configEntrenador.CiudadesYObjetivos, 0);
+	printf("La ciudad es: %s \n", test->Nombre);
 
 	serv_socket_s = conectarAServidor("127.0.0.1", "3490");
 	if(serv_socket_s->descriptor == 0)
@@ -89,8 +89,8 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 		structConfig->CiudadesYObjetivos = list_create();
 		char** hojaDeViaje = config_get_array_value(config, "hojaDeViaje");
 
-		structConfig->Nombre = config_get_string_value(config, "nombre");
-		structConfig->Simbolo = config_get_string_value(config, "simbolo");
+		structConfig->Nombre = strdup(config_get_string_value(config, "nombre"));
+		structConfig->Simbolo = strdup(config_get_string_value(config, "simbolo"));
 		structConfig->Vidas = config_get_int_value(config, "vidas");
 		structConfig->Reintentos = config_get_int_value(config, "reintentos");
 

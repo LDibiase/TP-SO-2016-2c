@@ -41,8 +41,8 @@ int main(void) {
 	int activo;
 
 	// Variables para la diagramación del mapa
-//	int rows, cols;
-//	t_list* items;
+	int rows, cols;
+	t_list* items;
 
 
 	//CREACIÓN DEL ARCHIVO DE LOG
@@ -50,9 +50,17 @@ int main(void) {
 
 
 	//CONFIGURACIÓN DEL MAPA
-//	cargarConfiguracion(&configMapa);
+	cargarConfiguracion(&configMapa);
 	log_info(logger, "Cargando archivo de configuración");
 
+	//VAMOS A VER SI FUNCIONA
+	printf("El algoritmo es: %s \n", configMapa.Algoritmo);
+	printf("Batalla: %d \n", configMapa.Batalla);
+	printf("El IP es: %s \n", configMapa.IP);
+	printf("El puerto es: %s \n", configMapa.Puerto);
+	printf("El quantum es: %d \n", configMapa.Quantum);
+	printf("El retardo es: %d \n", configMapa.Retardo);
+	printf("El tiempo de chequeo es: %d \n", configMapa.TiempoChequeoDeadlock);
 
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
@@ -60,10 +68,10 @@ int main(void) {
 	pthread_attr_destroy(&atributosHilo);
 
 	//INICIALIZACIÓN DEL MAPA
-//	items = cargarPokenest(); //Carga de las Pokénest del mapa
-//	nivel_gui_inicializar();
-//	nivel_gui_get_area_nivel(&rows, &cols);
-//	nivel_gui_dibujar(items, "CodeTogether");
+	items = cargarPokenest(); //Carga de las Pokénest del mapa
+	nivel_gui_inicializar();
+	nivel_gui_get_area_nivel(&rows, &cols);
+	nivel_gui_dibujar(items, "CodeTogether");
 
 	activo = 1;
 
@@ -75,9 +83,10 @@ int main(void) {
 
 		if(entrenadores != NULL) {
 			i = 0;
-			cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket);
+//			cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket); // TODO Arreglar cálculo (está dando segmentation fault)
+			cantidadEntrenadores = 1; // Para pruebas con una única conexión
 
-			while(i < cantidadEntrenadores) {
+			while(i < cantidadEntrenadores) { // TODO Condición para pruebas
 				tamanioMensaje = 255;
 				char mensaje[tamanioMensaje];
 
@@ -90,10 +99,8 @@ int main(void) {
 					break;
 				}
 
-				t_list* objetivos = cargarObjetivos(mensaje); //Carga de Pokémons a buscar
-
 				//INGRESO DEL ENTRENADOR
-/*				t_mapa_pj personaje;
+				t_mapa_pj personaje;
 					personaje.id = '$';
 					personaje.pos.x = 1;
 					personaje.pos.y = 1;
@@ -124,19 +131,19 @@ int main(void) {
 					}
 
 					cant = list_size(objetivos);
-				}*/
+				}
 
 				i ++;
 			}
 
-			// Borrar las posiciones del array que no hayan enviado mensajes
+			// TODO Borrar las posiciones del array que no hayan enviado mensajes
 			activo = 0;
 		}
 	}
 
-	while(1);
+	while(1); // Para pruebas
 
-//	nivel_gui_terminar();
+	nivel_gui_terminar();
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -243,11 +250,11 @@ int cargarConfiguracion(t_mapa_config* structConfig)
 	{
 		structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
 		structConfig->Batalla = config_get_int_value(config, "Batalla");
-		structConfig->Algoritmo = config_get_string_value(config, "algoritmo");
+		structConfig->Algoritmo = strdup(config_get_string_value(config, "algoritmo"));
 		structConfig->Quantum = config_get_int_value(config, "quantum");
 		structConfig->Retardo = config_get_int_value(config, "retardo");
-		structConfig->IP = config_get_string_value(config, "IP");
-		structConfig->Puerto = config_get_string_value(config, "Puerto");
+		structConfig->IP = strdup(config_get_string_value(config, "IP"));
+		structConfig->Puerto = strdup(config_get_string_value(config, "Puerto"));
 
 		log_info(logger, "El archivo de configuración se cargó correctamente");
 		config_destroy(config);
@@ -304,7 +311,7 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket);
+//		cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket); // TODO Arreglar cálculo (está dando segmentation fault)
 		entrenadores = realloc(entrenadores, (cantidadEntrenadores + 1) * sizeof(struct socket));
 		entrenadores[cantidadEntrenadores] = cli_socket_s;
 

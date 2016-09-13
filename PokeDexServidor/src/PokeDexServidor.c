@@ -17,6 +17,7 @@
 #include "socket.h" // BORRAR
 #include "PokeDexServidor.h"
 #include "osada.h"
+#include <commons/bitarray.h>
 
 #define IP "127.0.0.1"			 // IP
 #define PUERTO "8080"			 // Puerto al que conectarán los Clientes de PokéDex
@@ -35,6 +36,10 @@ int main(void) {
 	// Variables para el manejo del FileSystem OSADA
 	FILE *fileFS;
 	osada_header cabeceraFS;
+	unsigned char * bitmapS;
+	t_bitarray * bitarray;
+	int i;
+	int j;
 
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", true, LOG_LEVEL_INFO);
@@ -46,30 +51,67 @@ int main(void) {
 
 	while(1);
 	// Abre el archivo de File System
-//	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r")) == NULL)
-//	{
-//		puts("Error al abrir el archivo de FS.fs\n");
-//		return EXIT_FAILURE;
-//	}
-
-	// Lee la cabecera del archivo
-//	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
-
-//	puts(cabeceraFS.magic_number);
-//	printf("%d\n", cabeceraFS.version);
-//	printf("%d\n", cabeceraFS.fs_blocks);
-//	printf("%d\n", cabeceraFS.bitmap_blocks);
-//	printf("%d\n", cabeceraFS.allocations_table_offset);
-//	printf("%d\n", cabeceraFS.data_blocks);
-//	puts(cabeceraFS.padding);
-
-//	fclose(fileFS);
+	if ((fileFS=fopen("/home/utnso/workspace/Osada1.bin","r"))==NULL)
+	{
+		puts("Error al abrir el archivo de FS.\n");
+		return EXIT_FAILURE;
+	}
 
 	// Valida que sea un FS OSADA
-//	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
-//		puts("Es un FS Osada\n");
-//	else
-//		puts("NO es un FS Osada\n");
+	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
+		puts("Es un FS Osada\n");
+	else
+	{
+		puts("NO es un FS Osada\n");
+		return EXIT_FAILURE;
+	}
+
+	// Aloca el espacio en memoria para el Bitmap
+	bitmapS=(char *)malloc(cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Verifica que se haya reservado el espacio
+	if (bitmapS== NULL)
+	{
+		fclose(fileFS);
+		puts("No se dispone de memoria para alocar el Bitmap\n");
+		return EXIT_FAILURE;
+	}
+
+	printf("aloco %d\n", sizeof(bitmapS));
+	printf("%d\n", cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Lee el BITMAP
+	fread(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE, 1 , fileFS);
+
+	puts("leyo\n");
+
+	// Crea el array de bits
+	bitarray = bitarray_create(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Imprime todos los bits
+	j = cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE * 8;
+	for (i = 0; i < j; i++)
+		printf("%d = %d\n", i, bitarray_test_bit(bitarray, i));
+
+	// Lee la cabecera del archivo
+	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
+
+	puts(cabeceraFS.magic_number);
+	printf("%d\n", cabeceraFS.version);
+	printf("%d\n", cabeceraFS.fs_blocks);
+	printf("%d\n", cabeceraFS.bitmap_blocks);
+	printf("%d\n", cabeceraFS.allocations_table_offset);
+	printf("%d\n", cabeceraFS.data_blocks);
+	puts(cabeceraFS.padding);
+
+	printf("%d\n", CHAR_BIT);
+	printf("%d\n", cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE * 8);
+	printf("%d\n", bitarray_get_max_bit(bitarray));
+
+	free(bitmapS);
+	bitmapS=NULL;
+
+	fclose(fileFS);
 
 	return EXIT_SUCCESS;
 }
@@ -117,7 +159,7 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		cantidadClientes = sizeof(**clientes) / sizeof(struct socket);
+//		cantidadClientes = sizeof(clientes) / sizeof(struct socket); // TODO Arreglar cálculo (está dando segmentation fault)
 		clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
 		clientes[cantidadClientes + 1] = cli_socket_s;
 

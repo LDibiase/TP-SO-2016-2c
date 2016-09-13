@@ -7,37 +7,25 @@ Pasos para crear el FS
 - Lo formatee con : ./osada-format ../tp-2016-2c-CodeTogether/Osada.bin
 
 
-// Intercambio de mensajes
+# Intercambio de mensajes
 
 ***********************
-** MAPA Y ENTRENADOR **
+MAPA - ENTRENADOR
 ***********************
-Entrenador -> Mapa
-entrarAlMapa(char entrenadorID)
+Entrenador -> Mapa | entrarAlMapa(char entrenadorID)
 
-Mapa -> Entrenador
-turnoConcedido()
+Mapa -> Entrenador | turnoConcedido()
 
-Entrenador -> Mapa
-t_mapa_pos obtenerUbicacionPokenest(char pokemonID)
+Entrenador -> Mapa | t_mapa_pos obtenerUbicacionPokenest(char pokemonID)
 
-Entrenador -> Mapa
-movermeA(t_mapa_pos nuevaPos)
+Entrenador -> Mapa | movermeA(t_mapa_pos nuevaPos)
 
-Entrenador -> Mapa
-capturarPokemon(char pokemonID)
+Entrenador -> Mapa | capturarPokemon(char pokemonID)
+Mapa -> Entrenador | confirmarCaptura(metadataPokemon)
 
-Mapa -> Entrenador
-confirmarCaptura(metadataPokemon)
+Entrenador -> Mapa | meMori()
 
-Entrenador -> Mapa
-cumpliMisObjetivos()
-
-Entrenador -> Mapa
-meMori()
-
-Mapa -> Entrenador
-entregarMedalla()
-
+Entrenador -> Mapa | cumpliMisObjetivos()
+Mapa -> Entrenador | entregarMedalla()
 
 //TODO: Batallas, Muerte de entrenador y Vidas

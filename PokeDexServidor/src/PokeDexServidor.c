@@ -13,17 +13,22 @@
 #include <string.h>
 #include "PokeDexServidor.h"
 #include "osada.h"
+#include <commons/bitarray.h>
 
 int main(void) {
 	FILE *fileFS;
 	osada_header cabeceraFS;
+	unsigned char * bitmapS;
+	t_bitarray * bitarray;
+	int i;
+	int j;
 
 	puts("Proceso Servidor PokéDex\n"); /* prints Proceso Servidor PokéDex */
 
 	// Abre el archivo de File System
-	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r"))==NULL)
+	if ((fileFS=fopen("/home/utnso/workspace/Osada1.bin","r"))==NULL)
 	{
-		puts("Error al abrir el archivo de FS.fs\n");
+		puts("Error al abrir el archivo de FS.\n");
 		return EXIT_FAILURE;
 	}
 
@@ -38,13 +43,58 @@ int main(void) {
 	printf("%d\n", cabeceraFS.data_blocks);
 	puts(cabeceraFS.padding);
 
-	fclose(fileFS);
-
 	// Valida que sea un FS Odada
 	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
 		puts("Es un FS Osada\n");
 	else
+	{
 		puts("NO es un FS Osada\n");
+		return EXIT_FAILURE;
+	}
+
+	// Aloca el espacio en memoria para el Bitmap
+	bitmapS=(char *)malloc(cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Verifica que se haya reservado el espacio
+	if (bitmapS== NULL)
+	{
+		fclose(fileFS);
+		puts("No se dispone de memoria para alocar el Bitmap\n");
+		return EXIT_FAILURE;
+	}
+
+	printf("aloco %d\n", sizeof(bitmapS));
+	printf("%d\n", cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Lee el BITMAP
+	fread(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE, 1 , fileFS);
+
+	puts("leyo\n");
+
+	// Crea el array de bits
+	bitarray = bitarray_create(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Imprime todos los bits
+	j = cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE * 8;
+	for (i = 0; i < j; i++)
+		printf("%d = %d\n", i, bitarray_test_bit(bitarray, i));
+
+	puts(cabeceraFS.magic_number);
+	printf("%d\n", cabeceraFS.version);
+	printf("%d\n", cabeceraFS.fs_blocks);
+	printf("%d\n", cabeceraFS.bitmap_blocks);
+	printf("%d\n", cabeceraFS.allocations_table_offset);
+	printf("%d\n", cabeceraFS.data_blocks);
+	puts(cabeceraFS.padding);
+
+	printf("%d\n", CHAR_BIT);
+	printf("%d\n", cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE * 8);
+	printf("%d\n", bitarray_get_max_bit(bitarray));
+
+	free(bitmapS);
+	bitmapS=NULL;
+
+	fclose(fileFS);
 
 	return EXIT_SUCCESS;
 }

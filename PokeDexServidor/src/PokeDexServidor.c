@@ -12,61 +12,64 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+#include <commons/log.h>
 //#include <Utility_Library/socket.h>
 #include "socket.h" // BORRAR
 #include "PokeDexServidor.h"
 #include "osada.h"
 
-#define IP "127.0.0.1"
-#define PUERTO "8080"
-#define CANTIDAD_MAXIMA_CONEXIONES 1000
+#define IP "127.0.0.1"			 // IP
+#define PUERTO "8080"			 // Puerto al que conectarán los Clientes de PokéDex
+#define CONEXIONES_PENDIENTES 10 // Cantidad de conexiones pendientes que se pueden mantener en simultáneo
+#define LOG_FILE_PATH "PokeDexServidor.log"
 
+/* Variables */
+t_log* logger;
 struct socket** clientes;
 
 int main(void) {
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
-	int idHilo;
-	void* valorRetorno;
 
 	// Variables para el manejo del FileSystem OSADA
 	FILE *fileFS;
 	osada_header cabeceraFS;
 
+	//CREACIÓN DEL ARCHIVO DE LOG
+	logger = log_create(LOG_FILE_PATH, "MAPA", true, LOG_LEVEL_INFO);
+
 	// Creación del hilo en escucha
 	pthread_attr_init(&atributosHilo);
-	idHilo = pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
+	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
 
-	if(idHilo == 0)
-		pthread_join(hiloEnEscucha, &valorRetorno);
-
+	while(1);
 	// Abre el archivo de File System
-	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r")) == NULL)
-	{
-		puts("Error al abrir el archivo de FS.fs\n");
-		return EXIT_FAILURE;
-	}
+//	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r")) == NULL)
+//	{
+//		puts("Error al abrir el archivo de FS.fs\n");
+//		return EXIT_FAILURE;
+//	}
 
 	// Lee la cabecera del archivo
-	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
+//	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
 
-	puts(cabeceraFS.magic_number);
-	printf("%d\n", cabeceraFS.version);
-	printf("%d\n", cabeceraFS.fs_blocks);
-	printf("%d\n", cabeceraFS.bitmap_blocks);
-	printf("%d\n", cabeceraFS.allocations_table_offset);
-	printf("%d\n", cabeceraFS.data_blocks);
-	puts(cabeceraFS.padding);
+//	puts(cabeceraFS.magic_number);
+//	printf("%d\n", cabeceraFS.version);
+//	printf("%d\n", cabeceraFS.fs_blocks);
+//	printf("%d\n", cabeceraFS.bitmap_blocks);
+//	printf("%d\n", cabeceraFS.allocations_table_offset);
+//	printf("%d\n", cabeceraFS.data_blocks);
+//	puts(cabeceraFS.padding);
 
-	fclose(fileFS);
+//	fclose(fileFS);
 
 	// Valida que sea un FS OSADA
-	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
-		puts("Es un FS Osada\n");
-	else
-		puts("NO es un FS Osada\n");
+//	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
+//		puts("Es un FS Osada\n");
+//	else
+//		puts("NO es un FS Osada\n");
 
 	return EXIT_SUCCESS;
 }
@@ -79,55 +82,45 @@ void aceptarConexiones() {
 	int cantidadClientes;
 
 	int error = -1;
-	int exito = 0;
 
 	mi_socket_s = crearServidor(IP, PUERTO);
 	if(mi_socket_s->descriptor == 0)
 	{
-		puts("Conexión fallida");
-		puts(mi_socket_s->error);
-		pthread_exit(&error);
+		log_info(logger, "Conexión fallida");
+		log_info(logger, mi_socket_s->error);
+		exit(error);
 	}
 
-	returnValue = escucharConexiones(*mi_socket_s, CANTIDAD_MAXIMA_CONEXIONES);
+	returnValue = escucharConexiones(*mi_socket_s, CONEXIONES_PENDIENTES);
 	if(returnValue != 0)
 	{
-		puts(strerror(returnValue));
-		pthread_exit(&error);
+		log_info(logger, strerror(returnValue));
+		eliminarSocket(mi_socket_s);
+		exit(error);
 	}
-
-	puts("Escuchando conexiones");
 
 	conectado = 1;
 	cantidadClientes = 0;
 
 	while(conectado) {
-		cantidadClientes = sizeof(clientes) / sizeof(struct socket);
-		if(cantidadClientes < CANTIDAD_MAXIMA_CONEXIONES)
+		struct socket* cli_socket_s;
+
+		log_info(logger, "Escuchando conexiones");
+
+		cli_socket_s = aceptarConexion(*mi_socket_s);
+		if(cli_socket_s->descriptor == 0)
 		{
-			struct socket* cli_socket_s;
-
-			cli_socket_s = aceptarConexion(*mi_socket_s);
-			if(cli_socket_s->descriptor == 0)
-			{
-				puts("Se rechaza conexión");
-				puts(cli_socket_s->error);
-			}
-
-			clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
-			clientes[cantidadClientes + 1] = cli_socket_s;
-
-
-			printf("Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
-		}
-		else
-		{
+			log_info(logger, "Se rechaza conexión");
+			log_info(logger, cli_socket_s->error);
 			conectado = 0;
+			eliminarSocket(mi_socket_s);
+			exit(error);
 		}
 
-		puts("Escuchando conexiones");
-	}
+		cantidadClientes = sizeof(**clientes) / sizeof(struct socket);
+		clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
+		clientes[cantidadClientes + 1] = cli_socket_s;
 
-	eliminarSocket(mi_socket_s);
-	pthread_exit(&exito);
+		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
+	}
 }

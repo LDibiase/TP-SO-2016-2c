@@ -90,7 +90,6 @@ int main(void) {
 					break;
 				}
 
-				puts(mensaje);
 				t_list* objetivos = cargarObjetivos(mensaje); //Carga de Pokémons a buscar
 
 				//INGRESO DEL ENTRENADOR
@@ -134,6 +133,8 @@ int main(void) {
 			activo = 0;
 		}
 	}
+
+	while(1);
 
 //	nivel_gui_terminar();
 	log_destroy(logger);
@@ -201,6 +202,7 @@ t_list* cargarObjetivos(char* objetivosString) {
 	char** objetivos;
 
 	void _agregarObjetivo(char* objetivo) {
+		puts(objetivo);
 		log_info(logger, objetivo);
 		list_add(newlist, objetivo);
 	}

@@ -111,6 +111,7 @@ int main(void) {
 
 				//COMIENZA LA BÚSQUEDA POKÉMON!
 				int cant = list_size(objetivos);
+				log_info(logger, string_itoa(cant));
 				while (cant > 0) {
 					//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
 					char* pokemon = list_get(objetivos, 0);
@@ -209,6 +210,7 @@ t_list* cargarObjetivos(char* objetivosString) {
 	char** objetivos;
 
 	void _agregarObjetivo(char* objetivo) {
+		list_add(newlist, objetivo);
 		log_info(logger, objetivo);
 	}
 

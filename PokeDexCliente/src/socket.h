@@ -42,4 +42,10 @@ socket_t* aceptarConexion(socket_t servidor);
 // Conecta a un cliente al servidor indicado durante la invocación
 socket_t* conectarAServidor(char* ip, char* puerto);
 
+// Envía un mensaje
+void enviarMensaje(socket_t* socket, char* mensaje);
+
+// Recibe un mensaje
+char* recibirMensaje(socket_t* socket);
+
 #endif /* UTILITY_LIBRARY_SOCKET_H_ */

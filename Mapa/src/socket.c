@@ -197,3 +197,31 @@ void* crearMensaje(void** componentes) {
 
 	return mensaje;
 }
+
+void enviarMensaje(socket_t* socket, char* mensaje) {
+	ssize_t bytesEnviados;
+	size_t tamanioMensaje;
+
+	tamanioMensaje = strlen(mensaje) + 1;
+
+	bytesEnviados = send(socket->descriptor, mensaje, tamanioMensaje, 0);
+	if (bytesEnviados == -1)
+		socket->error = strerror(errno);
+
+	free(mensaje);
+}
+
+char* recibirMensaje(socket_t* socket) {
+	ssize_t bytesRecibidos;
+	size_t tamanioMensaje;
+	char* mensaje;
+
+	tamanioMensaje = 255;
+	mensaje = malloc(tamanioMensaje);
+
+	bytesRecibidos = recv(socket->descriptor, mensaje, tamanioMensaje, 0);
+	if (bytesRecibidos == -1)
+		socket->error = strerror(errno);
+
+	return mensaje;
+}

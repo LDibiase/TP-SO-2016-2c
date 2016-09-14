@@ -79,8 +79,6 @@ int main(void) {
 	while(activo) {
 		int i;
 		int cantidadEntrenadores;
-		ssize_t bytesRecibidos;
-		size_t tamanioMensaje;
 
 		if(entrenadores != NULL) {
 			i = 0;
@@ -88,17 +86,37 @@ int main(void) {
 			cantidadEntrenadores = 1; // Para pruebas con una única conexión
 
 			while(i < cantidadEntrenadores) { // TODO Condición para pruebas
-				tamanioMensaje = 255;
-				char mensaje[tamanioMensaje];
+				char* mensaje;
 
 				//RECIBIR MENSAJE
-				bytesRecibidos = recv(entrenadores[i]->descriptor, mensaje, tamanioMensaje, 0);
-				if (bytesRecibidos == -1)
+				mensaje = recibirMensaje(entrenadores[i]);
+				if (entrenadores[i]->error != NULL)
 				{
-					log_info(logger, strerror(errno));
-					entrenadores[i]->error = strerror(errno);
-					break;
+					log_info(logger, entrenadores[i]->error);
+					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
 				}
+
+				log_info(logger, "Socket %d: %s", entrenadores[i]->descriptor, mensaje);
+
+				// ENVIAR MENSAJE
+				mensaje = strdup("¿Cuáles son tus objetivos?");
+
+				enviarMensaje(entrenadores[i], mensaje);
+				if(entrenadores[i]->error != NULL)
+				{
+					log_info(logger, entrenadores[i]->error);
+					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
+				}
+
+				//RECIBIR MENSAJE
+				mensaje = recibirMensaje(entrenadores[i]);
+				if (entrenadores[i]->error != NULL)
+				{
+					log_info(logger, entrenadores[i]->error);
+					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
+				}
+
+				log_info(logger, "Socket %d: %s", entrenadores[i]->descriptor, mensaje);
 
 				//INGRESO DEL ENTRENADOR
 				t_mapa_pj personaje;
@@ -107,11 +125,11 @@ int main(void) {
 					personaje.pos.y = 1;
 				CrearPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y); //Carga de entrenador
 				t_list* objetivos = cargarObjetivos(mensaje); //Carga de Pokémons a buscar
+				free(mensaje);
 				realizar_movimiento(items, personaje, "CodeTogether");
 
 				//COMIENZA LA BÚSQUEDA POKÉMON!
 				int cant = list_size(objetivos);
-				log_info(logger, string_itoa(cant));
 				while (cant > 0) {
 					//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
 					char* pokemon = list_get(objetivos, 0);
@@ -138,7 +156,7 @@ int main(void) {
 				i ++;
 			}
 
-			// TODO Borrar las posiciones del array que no hayan enviado mensajes
+			// TODO Borrar las posiciones del array que hayan tenido inconvenientes con el envío y/o la recepción de mensajes
 			activo = 0;
 		}
 	}
@@ -211,7 +229,6 @@ t_list* cargarObjetivos(char* objetivosString) {
 
 	void _agregarObjetivo(char* objetivo) {
 		list_add(newlist, objetivo);
-		log_info(logger, objetivo);
 	}
 
 	objetivos = string_split(objetivosString, ",");

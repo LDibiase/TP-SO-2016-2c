@@ -50,27 +50,50 @@ int main(void) {
 	{
 		log_info(logger, "Conexión fallida");
 		log_info(logger, serv_socket_s->error);
+		log_destroy(logger);
 		return EXIT_FAILURE;
 	}
 
 	log_info(logger, "Conexión exitosa");
 
-	// ENVIAR MENSAJE
-	ssize_t bytesEnviados;
-	size_t tamanioMensaje;
-	char* mensaje = strdup("C,O,D,E,O,D");
-	tamanioMensaje = strlen(mensaje) + 1;
+	char* mensaje = string_from_format("Soy el entrenador %s (%s)", configEntrenador.Nombre, configEntrenador.Simbolo);
 
-	bytesEnviados = send(serv_socket_s->descriptor, mensaje, tamanioMensaje, 0);
-	if (bytesEnviados == -1) {
-		log_info(logger, strerror(errno));
-		free(mensaje);
+	// ENVIAR MENSAJE
+	enviarMensaje(serv_socket_s, mensaje);
+	if(serv_socket_s->error != NULL)
+	{
+		log_info(logger, serv_socket_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
+		eliminarSocket(serv_socket_s);
 		log_destroy(logger);
-		return EXIT_FAILURE;
+		return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
 	}
 
-	while(1);
+	//RECIBIR MENSAJE
+	mensaje = recibirMensaje(serv_socket_s);
+	if (serv_socket_s->error != NULL)
+		log_info(logger, serv_socket_s->error); // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
 
+	log_info(logger, "Socket %d: %s", serv_socket_s->descriptor, mensaje);
+	free(mensaje);
+
+	mensaje = strdup("C,O,D,E,O,D"); // TODO Solicitar metadata al FS
+
+	// ENVIAR MENSAJE
+	enviarMensaje(serv_socket_s, mensaje);
+	if(serv_socket_s->error != NULL)
+	{
+		log_info(logger, serv_socket_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
+		eliminarSocket(serv_socket_s);
+		log_destroy(logger);
+		return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
+	}
+
+	while(1); // Para pruebas
+
+	log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
+	eliminarSocket(serv_socket_s);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }

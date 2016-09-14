@@ -37,13 +37,13 @@ int main(void) {
 	log_info(logger, "Cargando archivo de configuración");
 
 	//VAMOS A VER SI FUNCIONA
-	printf("El nombre es: %s \n", configEntrenador.Nombre);
-	printf("El simbolo es: %s \n", configEntrenador.Simbolo);
-	printf("Las vidas son: %d \n", configEntrenador.Vidas);
-	printf("Los reintentos son: %d \n", configEntrenador.Reintentos);
+	log_info(logger, "El nombre es: %s \n", configEntrenador.Nombre);
+	log_info(logger, "El simbolo es: %s \n", configEntrenador.Simbolo);
+	log_info(logger, "Las vidas son: %d \n", configEntrenador.Vidas);
+	log_info(logger, "Los reintentos son: %d \n", configEntrenador.Reintentos);
 
 	t_ciudad_objetivos* test = list_get(configEntrenador.CiudadesYObjetivos, 0);
-	printf("La ciudad es: %s \n", test->Nombre);
+	log_info(logger, "La ciudad es: %s \n", test->Nombre);
 
 	serv_socket_s = conectarAServidor("127.0.0.1", "3490");
 	if(serv_socket_s->descriptor == 0)

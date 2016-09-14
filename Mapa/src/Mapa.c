@@ -54,13 +54,14 @@ int main(void) {
 	log_info(logger, "Cargando archivo de configuración");
 
 	//VAMOS A VER SI FUNCIONA
-	printf("El algoritmo es: %s \n", configMapa.Algoritmo);
-	printf("Batalla: %d \n", configMapa.Batalla);
-	printf("El IP es: %s \n", configMapa.IP);
-	printf("El puerto es: %s \n", configMapa.Puerto);
-	printf("El quantum es: %d \n", configMapa.Quantum);
-	printf("El retardo es: %d \n", configMapa.Retardo);
-	printf("El tiempo de chequeo es: %d \n", configMapa.TiempoChequeoDeadlock);
+	log_info(logger, "El algoritmo es: %s \n", configMapa.Algoritmo);
+	log_info(logger, "Batalla: %d \n", configMapa.Batalla);
+	log_info(logger, "El IP es: %s \n", configMapa.IP);
+	log_info(logger, "El puerto es: %s \n", configMapa.Puerto);
+	log_info(logger, "El quantum es: %d \n", configMapa.Quantum);
+	log_info(logger, "El retardo es: %d \n", configMapa.Retardo);
+	log_info(logger, "El tiempo de chequeo es: %d \n", configMapa.TiempoChequeoDeadlock);
+
 
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
@@ -184,7 +185,6 @@ t_mapa_pos calcularMovimiento(t_mapa_pos posActual, t_mapa_pos posFinal) {
 				}
 			}
 	return posActual;
-
 }
 
 ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado) {
@@ -209,20 +209,12 @@ t_list* cargarObjetivos(char* objetivosString) {
 	char** objetivos;
 
 	void _agregarObjetivo(char* objetivo) {
-		puts(objetivo);
 		log_info(logger, objetivo);
-		list_add(newlist, objetivo);
 	}
 
 	objetivos = string_split(objetivosString, ",");
 	string_iterate_lines(objetivos, _agregarObjetivo);
 
-//	list_add(newlist, "C");
-//	list_add(newlist, "O");
-//	list_add(newlist, "D");
-//	list_add(newlist, "E");
-//	list_add(newlist, "O");
-//	list_add(newlist, "D");
 	return newlist;
 }
 

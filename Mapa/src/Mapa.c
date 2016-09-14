@@ -44,6 +44,9 @@ int main(void) {
 	int rows, cols;
 	t_list* items;
 
+	// Inicialización del array dinámico de entrenadores
+	entrenadores = malloc (sizeof(struct socket));
+	entrenadores[0] = NULL;
 
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
@@ -77,13 +80,12 @@ int main(void) {
 	activo = 1;
 
 	while(activo) {
-		int i;
 		int cantidadEntrenadores;
+		cantidadEntrenadores = cantidadElementosArray((void**) entrenadores);
 
-		if(entrenadores != NULL) {
+		if(cantidadEntrenadores > 0) {
+			int i;
 			i = 0;
-//			cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket); // TODO Arreglar cálculo (está dando segmentation fault)
-			cantidadEntrenadores = 1; // Para pruebas con una única conexión
 
 			while(i < cantidadEntrenadores) { // TODO Condición para pruebas
 				char* mensaje;
@@ -154,6 +156,7 @@ int main(void) {
 				}
 
 				i ++;
+				cantidadEntrenadores = cantidadElementosArray((void**) entrenadores);
 			}
 
 			// TODO Borrar las posiciones del array que hayan tenido inconvenientes con el envío y/o la recepción de mensajes
@@ -322,9 +325,11 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-//		cantidadEntrenadores = sizeof(entrenadores) / sizeof(struct socket); // TODO Arreglar cálculo (está dando segmentation fault)
+		cantidadEntrenadores = cantidadElementosArray((void**) entrenadores);
 		entrenadores = realloc(entrenadores, (cantidadEntrenadores + 1) * sizeof(struct socket));
+		entrenadores[cantidadEntrenadores] = malloc(sizeof(struct socket));
 		entrenadores[cantidadEntrenadores] = cli_socket_s;
+		entrenadores[cantidadEntrenadores + 1] = NULL;
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
 	}

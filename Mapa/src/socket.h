@@ -48,4 +48,6 @@ void enviarMensaje(socket_t* socket, char* mensaje);
 // Recibe un mensaje
 char* recibirMensaje(socket_t* socket);
 
+int cantidadElementosArray(void** arrayDinamico); // TODO Pasar a un archivo utilidades.c
+
 #endif /* UTILITY_LIBRARY_SOCKET_H_ */

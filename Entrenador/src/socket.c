@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <unistd.h>
 #include <netdb.h>
 #include <string.h>
 #include <errno.h>
@@ -81,7 +80,6 @@ socket_t* nuevoSocket() {
 }
 
 void eliminarSocket(socket_t* socket_s) {
-	close(socket_s->descriptor);
 	free(socket_s->error);
 	free(socket_s);
 }
@@ -226,4 +224,13 @@ char* recibirMensaje(socket_t* socket) {
 		socket->error = strerror(errno);
 
 	return mensaje;
+}
+
+int cantidadElementosArray(void** arrayDinamico) {
+	int i = 0;
+
+	while(arrayDinamico[i] != NULL)
+		i ++;
+
+	return i;
 }

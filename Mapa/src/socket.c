@@ -225,3 +225,12 @@ char* recibirMensaje(socket_t* socket) {
 
 	return mensaje;
 }
+
+int cantidadElementosArray(void** arrayDinamico) {
+	int i = 0;
+
+	while(arrayDinamico[i] != NULL)
+		i ++;
+
+	return i;
+}

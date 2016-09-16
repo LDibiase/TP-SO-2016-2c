@@ -139,7 +139,7 @@ int main(void) {
 					t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
 
 					//Movimientos hasta la Pokénest
-					while ((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) {
+					while (((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) && pokenest.cantidad > 0) {
 
 						personaje.pos = calcularMovimiento(personaje.pos, pokenest);
 						realizar_movimiento(items, personaje, "CodeTogether");
@@ -223,6 +223,7 @@ t_mapa_pos buscarPokenest(t_list* lista, char pokemon) {
 	t_mapa_pos ubicacion;
 	ubicacion.x= pokenest.posx;
 	ubicacion.y = pokenest.posy;
+	ubicacion.cantidad = pokenest.quantity;
 	return ubicacion;
 }
 

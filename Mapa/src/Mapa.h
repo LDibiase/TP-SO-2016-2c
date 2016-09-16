@@ -24,6 +24,7 @@ typedef struct mapa
 typedef struct ubicacion {
 	int x;
 	int y;
+	int cantidad;
 } t_mapa_pos;
 
 typedef struct personaje {

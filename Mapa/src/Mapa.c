@@ -200,19 +200,30 @@ void calcularFaltante(t_mapa_pj* entrenador)
 //FUNCIONES PARA COLAS PLANIFICADOR
 void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista)
 {
+	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
 	if(queue_size(lista) == 0)
+	{
+		pthread_mutex_lock(&mutex);
 		queue_push(lista, entrenador);
+		pthread_mutex_unlock(&mutex);
+	}
 	else
 	{
+		pthread_mutex_lock(&mutex);
 		queue_push(lista, entrenador);
+		pthread_mutex_unlock(&mutex);
 
 		bool _auxComparador(t_mapa_pj *entrenador1, t_mapa_pj *entrenador2)
 		{
 			return entrenador->faltaEjecutar < entrenador2->faltaEjecutar;
 		}
 
+		pthread_mutex_lock(&mutex);
 		list_sort(lista.elements, (void*)_auxComparador);
+		pthread_mutex_unlock(&mutex);
 	}
 }
 

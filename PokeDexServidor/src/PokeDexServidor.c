@@ -112,7 +112,7 @@ int main(void) {
 	bitmapS=NULL;
 
 	fclose(fileFS);
-
+	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
 

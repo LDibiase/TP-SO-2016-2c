@@ -29,6 +29,9 @@ typedef struct ubicacion {
 
 typedef struct personaje {
 	char id;
+	char* nombre;
+	int faltaEjecutar;
+	socket_t* socket;
 	t_mapa_pos pos;
 } t_mapa_pj;
 

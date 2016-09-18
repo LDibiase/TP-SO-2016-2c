@@ -19,6 +19,7 @@
 #include <pthread.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
+#include <commons/collections/queue.h>
 #include <commons/string.h>
 #include <commons/log.h>
 #include "socket.h" // BORRAR
@@ -33,6 +34,10 @@
 t_log* logger;
 t_mapa_config configMapa;
 struct socket** entrenadores;
+
+//COLAS PLANIFICADOR
+t_queue* colaReady;
+t_queue* colaBloqueados;
 
 int main(void) {
 	// Variables para la creación del hilo en escucha
@@ -169,6 +174,51 @@ int main(void) {
 	nivel_gui_terminar();
 	log_destroy(logger);
 	return EXIT_SUCCESS;
+}
+
+//FUNCIONES PLANIFICADOR
+void encolarNuevoEntrenador(t_mapa_pj* entrenador)
+{
+	//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
+	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
+	{
+		insertarAlFinal(entrenador, colaReady);
+	}
+	//SI ES SRDF, INSERTO ORDENADO DE MENOR A MAYOR, DE ACUERDO A CUANTO LE FALTE EJECUTAR AL ENTRENADOR
+	else
+	{
+		calcularFaltante(entrenador);
+		insertarOrdenado(entrenador, colaReady);
+	}
+}
+
+void calcularFaltante(t_mapa_pj* entrenador)
+{
+
+}
+
+//FUNCIONES PARA COLAS PLANIFICADOR
+void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista)
+{
+	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
+	if(queue_size(lista) == 0)
+		queue_push(lista, entrenador);
+	else
+	{
+		queue_push(lista, entrenador);
+
+		bool _auxComparador(t_mapa_pj *entrenador1, t_mapa_pj *entrenador2)
+		{
+			return entrenador->faltaEjecutar < entrenador2->faltaEjecutar;
+		}
+
+		list_sort(lista.elements, (void*)_auxComparador);
+	}
+}
+
+void insertarAlFinal(t_mapa_pj* entrenador, t_queue lista)
+{
+	queue_push(lista, entrenador);
 }
 
 void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {

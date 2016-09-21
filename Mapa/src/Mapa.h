@@ -31,6 +31,7 @@ typedef struct personaje {
 	char id;
 	char* nombre;
 	int faltaEjecutar;
+	t_list* objetivos;
 	socket_t* socket;
 	t_mapa_pos pos;
 } t_mapa_pj;

@@ -192,9 +192,26 @@ void encolarNuevoEntrenador(t_mapa_pj* entrenador)
 	}
 }
 
-void calcularFaltante(t_mapa_pj* entrenador)
+void calcularFaltante(t_mapa_pj entrenador, t_mapa_pos pokenest)
 {
+	if(!list_is_empty(entrenador.objetivos))
+	{
+		char* objetivoActual = list_get(entrenador.objetivos, 0);
+		int cantidad = 0;
 
+		while (((entrenador.pos.x != pokenest.x) || (entrenador.pos.y != pokenest.y)) && pokenest.cantidad > 0)
+		{
+			//POSIBLEMENTE TENGAMOS QUE USAR UN ENTRENADOR AUX, PARA NO MODIFICAR EL VALOR DEL ENTRENADOR ORIGINAL
+			entrenador.pos = calcularMovimiento(entrenador.pos, pokenest);
+			cantidad++;
+		}
+
+		entrenador.faltaEjecutar = cantidad;
+	}
+	else
+	{
+		entrenador.faltaEjecutar = 0;
+	}
 }
 
 //FUNCIONES PARA COLAS PLANIFICADOR
@@ -204,16 +221,16 @@ void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista)
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
-	if(queue_size(lista) == 0)
+	if(queue_size(&lista) == 0)
 	{
 		pthread_mutex_lock(&mutex);
-		queue_push(lista, entrenador);
+		queue_push(&lista, entrenador);
 		pthread_mutex_unlock(&mutex);
 	}
 	else
 	{
 		pthread_mutex_lock(&mutex);
-		queue_push(lista, entrenador);
+		queue_push(&lista, entrenador);
 		pthread_mutex_unlock(&mutex);
 
 		bool _auxComparador(t_mapa_pj *entrenador1, t_mapa_pj *entrenador2)
@@ -229,7 +246,7 @@ void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista)
 
 void insertarAlFinal(t_mapa_pj* entrenador, t_queue lista)
 {
-	queue_push(lista, entrenador);
+	queue_push(&lista, entrenador);
 }
 
 void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {

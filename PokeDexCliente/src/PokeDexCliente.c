@@ -111,3 +111,10 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 
 	return size;
 }
+
+static struct fuse_operations fuse_oper = {
+		.getattr = fuse_getattr,
+		//.readdir = fuse_readdir,
+		.open = fuse_open,
+		.read = fuse_read,
+};

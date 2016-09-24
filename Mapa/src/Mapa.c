@@ -34,6 +34,7 @@
 t_log* logger;
 t_mapa_config configMapa;
 struct socket** entrenadores;
+t_list* items;
 
 //COLAS PLANIFICADOR
 t_queue* colaReady;
@@ -47,7 +48,6 @@ int main(void) {
 
 	// Variables para la diagramación del mapa
 	int rows, cols;
-	t_list* items;
 
 	// Inicialización del array dinámico de entrenadores
 	entrenadores = malloc (sizeof(struct socket));
@@ -192,19 +192,19 @@ void encolarNuevoEntrenador(t_mapa_pj* entrenador)
 	}
 }
 
-void calcularFaltante(t_mapa_pj entrenador, t_mapa_pos pokenest)
+void calcularFaltante(t_mapa_pj entrenador)
 {
 	if(!list_is_empty(entrenador.objetivos))
 	{
 		char* objetivoActual = list_get(entrenador.objetivos, 0);
+		char objetivoID = *objetivoActual;
+		t_mapa_pos pokenest = buscarPokenest(items, objetivoID);
+
 		int cantidad = 0;
 
-		while (((entrenador.pos.x != pokenest.x) || (entrenador.pos.y != pokenest.y)) && pokenest.cantidad > 0)
-		{
-			//POSIBLEMENTE TENGAMOS QUE USAR UN ENTRENADOR AUX, PARA NO MODIFICAR EL VALOR DEL ENTRENADOR ORIGINAL
-			entrenador.pos = calcularMovimiento(entrenador.pos, pokenest);
-			cantidad++;
-		}
+		int distX = abs(pokenest.x - entrenador.pos.x);
+		int distY = abs(pokenest.y - entrenador.pos.y);
+		cantidad = distX + distY;
 
 		entrenador.faltaEjecutar = cantidad;
 	}

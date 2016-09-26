@@ -7,6 +7,7 @@
 
 #ifndef UTILITY_LIBRARY_SOCKET_H_
 #define UTILITY_LIBRARY_SOCKET_H_
+#include <stdint.h>
 
 /* Definición de estructuras */
 
@@ -15,6 +16,12 @@ typedef struct socket {
 	int descriptor;
 	char* error;
 } socket_t;
+
+// Estructura paquete
+typedef struct paquete {
+	size_t tamanioPaquete;
+	char* paqueteSerializado;
+} paquete_t;
 
 /* Declaración de funciones */
 
@@ -42,12 +49,16 @@ socket_t* aceptarConexion(socket_t servidor);
 // Conecta a un cliente al servidor indicado durante la invocación
 socket_t* conectarAServidor(char* ip, char* puerto);
 
+// Serializa un mensaje
+void crearPaquete(void* mensaje, paquete_t* paquete);
+
 // Envía un mensaje
-void enviarMensaje(socket_t* socket, char* mensaje);
+void enviarMensaje(socket_t* socket, paquete_t paquete);
 
 // Recibe un mensaje
-char* recibirMensaje(socket_t* socket);
+void recibirMensaje(socket_t* socket, void* mensaje);
 
+// Devuelve la cantidad de elementos de un array
 int cantidadElementosArray(void** arrayDinamico); // TODO Pasar a un archivo utilidades.c
 
 #endif /* UTILITY_LIBRARY_SOCKET_H_ */

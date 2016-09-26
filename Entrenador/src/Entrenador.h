@@ -14,7 +14,7 @@
 typedef struct ciudadObjetivos
 {
 	char* Nombre;
-	char* Objetivos;
+	char** Objetivos;
 }t_ciudad_objetivos;
 
 typedef struct entrenador

@@ -22,6 +22,7 @@
 #include <commons/string.h>
 #include <commons/log.h>
 #include "socket.h" // BORRAR
+#include "protocoloMapaEntrenador.h" // BORRAR
 #include "Mapa.h"
 #include "nivel.h"
 
@@ -48,13 +49,14 @@ int main(void) {
 	entrenadores = malloc (sizeof(struct socket));
 	entrenadores[0] = NULL;
 
+
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
 
 
 	//CONFIGURACIÓN DEL MAPA
-	cargarConfiguracion(&configMapa);
 	log_info(logger, "Cargando archivo de configuración");
+	cargarConfiguracion(&configMapa);
 
 	//VAMOS A VER SI FUNCIONA
 	log_info(logger, "El algoritmo es: %s \n", configMapa.Algoritmo);
@@ -70,6 +72,7 @@ int main(void) {
 	pthread_attr_init(&atributosHilo);
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
+
 
 	//INICIALIZACIÓN DEL MAPA
 	items = cargarPokenest(); //Carga de las Pokénest del mapa
@@ -88,37 +91,79 @@ int main(void) {
 			i = 0;
 
 			while(i < cantidadEntrenadores) { // TODO Condición para pruebas
-				char* mensaje;
+				// HANDSHAKE
 
-				//RECIBIR MENSAJE
-				mensaje = recibirMensaje(entrenadores[i]);
-				if (entrenadores[i]->error != NULL)
-				{
-					log_info(logger, entrenadores[i]->error);
-					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
-				}
+				// Recibir mensaje CONEXION_ENTRENADOR
+				mensaje1_t mensaje1;
 
-				log_info(logger, "Socket %d: %s", entrenadores[i]->descriptor, mensaje);
-
-				// ENVIAR MENSAJE
-				mensaje = strdup("¿Cuáles son tus objetivos?");
-
-				enviarMensaje(entrenadores[i], mensaje);
+				mensaje1.tipoMensaje = CONEXION_ENTRENADOR;
+				recibirMensaje(entrenadores[i], &mensaje1);
 				if(entrenadores[i]->error != NULL)
 				{
 					log_info(logger, entrenadores[i]->error);
-					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
-				}
-
-				//RECIBIR MENSAJE
-				mensaje = recibirMensaje(entrenadores[i]);
-				if (entrenadores[i]->error != NULL)
-				{
-					log_info(logger, entrenadores[i]->error);
 					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
 				}
 
-				log_info(logger, "Socket %d: %s", entrenadores[i]->descriptor, mensaje);
+				if(mensaje1.tipoMensaje != CONEXION_ENTRENADOR)
+				{
+					// Enviar mensaje RECHAZA_CONEXION
+					paquete_t paquete;
+					mensaje_t mensaje3;
+
+					mensaje3.tipoMensaje = RECHAZA_CONEXION;
+					crearPaquete((void*) &mensaje3, &paquete);
+					if(paquete.tamanioPaquete == 0)
+					{
+						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+						//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
+						//eliminarSocket(entrenadores[i]);
+						log_destroy(logger);
+						return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado
+					}
+
+					enviarMensaje(entrenadores[i], paquete);
+					if(entrenadores[i]->error != NULL)
+					{
+						log_info(logger, entrenadores[i]->error);
+						//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
+						//eliminarSocket(entrenadores[i]);
+						log_destroy(logger);
+						return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
+					}
+
+					//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
+					//eliminarSocket(entrenadores[i]); TODO Crear una función que elimine al entrenador de la lista antes de eliminar su socket
+					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
+				}
+
+				log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", entrenadores[i]->descriptor, mensaje1.nombreEntrenador, mensaje1.simboloEntrenador);
+
+				// Enviar mensaje ACEPTA_CONEXION
+				paquete_t paquete;
+				mensaje_t mensaje2;
+
+				mensaje2.tipoMensaje = ACEPTA_CONEXION;
+				crearPaquete((void*) &mensaje2, &paquete);
+				if(paquete.tamanioPaquete == 0)
+				{
+					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+					//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
+					//eliminarSocket(entrenadores[i]);
+					log_destroy(logger);
+					return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado
+				}
+
+				enviarMensaje(entrenadores[i], paquete);
+				if(entrenadores[i]->error != NULL)
+				{
+					log_info(logger, entrenadores[i]->error);
+					//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
+					//eliminarSocket(entrenadores[i]);
+					log_destroy(logger);
+					return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
+				}
+
+				while(1); // Para pruebas
 
 				//INGRESO DEL ENTRENADOR
 				t_mapa_pj personaje;
@@ -126,8 +171,7 @@ int main(void) {
 					personaje.pos.x = 1;
 					personaje.pos.y = 1;
 				CrearPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y); //Carga de entrenador
-				t_list* objetivos = cargarObjetivos(mensaje); //Carga de Pokémons a buscar
-				free(mensaje);
+				t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
 				realizar_movimiento(items, personaje, "CodeTogether");
 
 				//COMIENZA LA BÚSQUEDA POKÉMON!
@@ -159,14 +203,13 @@ int main(void) {
 				cantidadEntrenadores = cantidadElementosArray((void**) entrenadores);
 			}
 
-			// TODO Borrar las posiciones del array que hayan tenido inconvenientes con el envío y/o la recepción de mensajes
+			// TODO Borrar las posiciones del array que hayan tenido inconvenientes con la conexión al servidor o con el envío y/o la recepción de mensajes
 			activo = 0;
 		}
 	}
 
-	while(1); // Para pruebas
-
 	nivel_gui_terminar();
+	// TODO Cerrar la conexión del servidor
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }

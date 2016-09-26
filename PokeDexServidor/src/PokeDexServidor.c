@@ -49,7 +49,6 @@ int main(void) {
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
 
-	while(1);
 	// Abre el archivo de File System
 	if ((fileFS=fopen("/home/utnso/workspace/Osada1.bin","r"))==NULL)
 	{
@@ -113,6 +112,8 @@ int main(void) {
 
 	fclose(fileFS);
 
+	log_destroy(logger);
+	// TODO Cerrar la conexión del servidor
 	return EXIT_SUCCESS;
 }
 
@@ -159,9 +160,11 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-//		cantidadClientes = sizeof(clientes) / sizeof(struct socket); // TODO Arreglar cálculo (está dando segmentation fault)
+		cantidadClientes = cantidadElementosArray((void**) clientes);
 		clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
-		clientes[cantidadClientes + 1] = cli_socket_s;
+		clientes[cantidadClientes] = malloc(sizeof(struct socket));
+		clientes[cantidadClientes] = cli_socket_s;
+		clientes[cantidadClientes + 1] = NULL;
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
 	}

@@ -9,8 +9,8 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-//#include <Utility_Library/socket.h>
 #include <commons/log.h>
+//#include <Utility_Library/socket.h>
 #include "socket.h" // BORRAR
 #include "PokeDexCliente.h"
 
@@ -38,6 +38,6 @@ int main(void) {
 	while(1);
 
 	eliminarSocket(serv_socket_s);
-
+	log_destroy(logger);
 	return EXIT_SUCCESS;
 }

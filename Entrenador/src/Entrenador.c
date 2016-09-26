@@ -19,6 +19,7 @@
 #include <commons/log.h>
 #include <commons/collections/list.h>
 #include "socket.h" // BORRAR
+#include "protocoloMapaEntrenador.h" // BORRAR
 #include "Entrenador.h"
 #include "nivel.h"
 
@@ -33,8 +34,8 @@ int main(void) {
 	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
 	/*Cargar Configuración*/
-	cargarConfiguracion(&configEntrenador);
 	log_info(logger, "Cargando archivo de configuración");
+	cargarConfiguracion(&configEntrenador);
 
 	//VAMOS A VER SI FUNCIONA
 	log_info(logger, "El nombre es: %s \n", configEntrenador.Nombre);
@@ -56,10 +57,28 @@ int main(void) {
 
 	log_info(logger, "Conexión exitosa");
 
-	char* mensaje = string_from_format("Soy el entrenador %s (%s)", configEntrenador.Nombre, configEntrenador.Simbolo);
+	// HANDSHAKE
 
-	// ENVIAR MENSAJE
-	enviarMensaje(serv_socket_s, mensaje);
+	// Enviar mensaje CONEXION_ENTRENADOR
+	paquete_t paquete;
+	mensaje1_t mensaje1;
+
+	mensaje1.tipoMensaje = CONEXION_ENTRENADOR;
+	mensaje1.tamanioNombreEntrenador = strlen(configEntrenador.Nombre) + 1;
+	mensaje1.nombreEntrenador = configEntrenador.Nombre;
+	mensaje1.simboloEntrenador = *configEntrenador.Simbolo;
+
+	crearPaquete((void*) &mensaje1, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
+		eliminarSocket(serv_socket_s);
+		log_destroy(logger);
+		return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado
+	}
+
+	enviarMensaje(serv_socket_s, paquete);
 	if(serv_socket_s->error != NULL)
 	{
 		log_info(logger, serv_socket_s->error);
@@ -69,26 +88,20 @@ int main(void) {
 		return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
 	}
 
-	//RECIBIR MENSAJE
-	mensaje = recibirMensaje(serv_socket_s);
-	if (serv_socket_s->error != NULL)
+	// Recibir mensaje ACEPTA_CONEXION
+	mensaje_t mensaje;
+
+	mensaje.tipoMensaje = ACEPTA_CONEXION;
+	recibirMensaje(serv_socket_s, &mensaje);
+	if(serv_socket_s->error != NULL)
+	{
 		log_info(logger, serv_socket_s->error); // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
-
-	log_info(logger, "Socket %d: %s", serv_socket_s->descriptor, mensaje);
-	free(mensaje);
-
-	mensaje = strdup("C,O,D,E,O,D"); // TODO Solicitar metadata al FS
-
-	// ENVIAR MENSAJE
-	enviarMensaje(serv_socket_s, mensaje);
-	if(serv_socket_s->error != NULL)
-	{
-		log_info(logger, serv_socket_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
-		eliminarSocket(serv_socket_s);
-		log_destroy(logger);
-		return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
 	}
+
+	if(mensaje.tipoMensaje == RECHAZA_CONEXION)
+		log_info(logger, "Socket %d: su conexión ha sido rechazada", serv_socket_s->descriptor);
+	else if(mensaje.tipoMensaje == ACEPTA_CONEXION)
+		log_info(logger, "Socket %d: su conexión ha sido aceptada", serv_socket_s->descriptor);
 
 	while(1); // Para pruebas
 
@@ -121,19 +134,19 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 		void _auxIterate(char* ciudad)
 		{
 			char* stringObjetivo = string_from_format("obj[%s]", ciudad);
-			t_ciudad_objetivos* ciudadesObjetivos;
-			ciudadesObjetivos = malloc(sizeof(t_ciudad_objetivos));
+			t_ciudad_objetivos* ciudadObjetivos;
+			ciudadObjetivos = malloc(sizeof(t_ciudad_objetivos));
 
-			char* arrayObjetivos;
-			arrayObjetivos = (char*)config_get_array_value(config, stringObjetivo);
+			char** arrayObjetivos;
+			arrayObjetivos = config_get_array_value(config, stringObjetivo);
 
-			ciudadesObjetivos->Nombre = strdup(ciudad);
-			ciudadesObjetivos->Objetivos = arrayObjetivos;
+			ciudadObjetivos->Nombre = strdup(ciudad);
+			ciudadObjetivos->Objetivos = arrayObjetivos;
 
-			list_add(structConfig->CiudadesYObjetivos, ciudadesObjetivos);
+			list_add(structConfig->CiudadesYObjetivos, ciudadObjetivos);
 			free(stringObjetivo);
 		}
-		string_iterate_lines(hojaDeViaje, (void*)_auxIterate);
+		string_iterate_lines(hojaDeViaje, (void*) _auxIterate);
 		log_info(logger, "El archivo de configuración se cargó correctamente");
 		config_destroy(config);
 		return 0;

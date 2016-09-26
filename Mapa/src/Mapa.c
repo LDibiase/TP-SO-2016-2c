@@ -19,6 +19,7 @@
 #include <pthread.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
+#include <commons/collections/queue.h>
 #include <commons/string.h>
 #include <commons/log.h>
 #include "socket.h" // BORRAR
@@ -26,14 +27,17 @@
 #include "Mapa.h"
 #include "nivel.h"
 
-#define MYIP "127.0.0.1" // IP
-#define MYPORT "3490"  	 // Puerto al que conectarán los entrenadores - "telnet localhost 3490" para empezar a jugar
 #define BACKLOG 10 	     // Cuántas conexiones pendientes se mantienen en cola
 
 /* Variables */
 t_log* logger;
 t_mapa_config configMapa;
 struct socket** entrenadores;
+t_list* items;
+
+//COLAS PLANIFICADOR
+t_queue* colaReady;
+t_queue* colaBloqueados;
 
 int main(void) {
 	// Variables para la creación del hilo en escucha
@@ -43,7 +47,6 @@ int main(void) {
 
 	// Variables para la diagramación del mapa
 	int rows, cols;
-	t_list* items;
 
 	// Inicialización del array dinámico de entrenadores
 	entrenadores = malloc (sizeof(struct socket));
@@ -183,7 +186,7 @@ int main(void) {
 					t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
 
 					//Movimientos hasta la Pokénest
-					while ((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) {
+					while (((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) && pokenest.cantidad > 0) {
 
 						personaje.pos = calcularMovimiento(personaje.pos, pokenest);
 						realizar_movimiento(items, personaje, "CodeTogether");
@@ -214,11 +217,92 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
+//FUNCIONES PLANIFICADOR
+void encolarNuevoEntrenador(t_mapa_pj* entrenador)
+{
+	//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
+	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
+	{
+		insertarAlFinal(entrenador, colaReady);
+	}
+	//SI ES SRDF, INSERTO ORDENADO DE MENOR A MAYOR, DE ACUERDO A CUANTO LE FALTE EJECUTAR AL ENTRENADOR
+	else
+	{
+		calcularFaltante(entrenador);
+		insertarOrdenado(entrenador, colaReady);
+	}
+}
+
+void calcularFaltante(t_mapa_pj entrenador)
+{
+	if(!list_is_empty(entrenador.objetivos))
+	{
+		char* objetivoActual = list_get(entrenador.objetivos, 0);
+		char objetivoID = *objetivoActual;
+		t_mapa_pos pokenest = buscarPokenest(items, objetivoID);
+
+		int cantidad = 0;
+
+		int distX = abs(pokenest.x - entrenador.pos.x);
+		int distY = abs(pokenest.y - entrenador.pos.y);
+		cantidad = distX + distY;
+
+		entrenador.faltaEjecutar = cantidad;
+	}
+	else
+	{
+		entrenador.faltaEjecutar = 0;
+	}
+}
+
+//FUNCIONES PARA COLAS PLANIFICADOR
+void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista)
+{
+	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
+	if(queue_size(&lista) == 0)
+	{
+		pthread_mutex_lock(&mutex);
+		queue_push(&lista, entrenador);
+		pthread_mutex_unlock(&mutex);
+	}
+	else
+	{
+		pthread_mutex_lock(&mutex);
+		queue_push(&lista, entrenador);
+		pthread_mutex_unlock(&mutex);
+
+		bool _auxComparador(t_mapa_pj *entrenador1, t_mapa_pj *entrenador2)
+		{
+			return entrenador->faltaEjecutar < entrenador2->faltaEjecutar;
+		}
+
+		pthread_mutex_lock(&mutex);
+		list_sort(lista.elements, (void*)_auxComparador);
+		pthread_mutex_unlock(&mutex);
+	}
+
+	pthread_mutex_destroy(&mutex);
+}
+
+void insertarAlFinal(t_mapa_pj* entrenador, t_queue lista)
+{
+	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+	pthread_mutex_lock(&mutex);
+	queue_push(&lista, entrenador);
+	pthread_mutex_unlock(&mutex);
+
+	pthread_mutex_destroy(&mutex);
+}
+
 void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {
 	MoverPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y);
 	nivel_gui_dibujar(items, mapa);
-	usleep(200000);
-	//usleep(100000); //Para pasarlo a nafta
+	usleep(configMapa.Retardo);
 }
 
 //FUNCIÓN DE ENTRENADOR
@@ -266,6 +350,7 @@ t_mapa_pos buscarPokenest(t_list* lista, char pokemon) {
 	t_mapa_pos ubicacion;
 	ubicacion.x= pokenest.posx;
 	ubicacion.y = pokenest.posy;
+	ubicacion.cantidad = pokenest.quantity;
 	return ubicacion;
 }
 
@@ -334,7 +419,7 @@ void aceptarConexiones() {
 
 	int error = -1;
 
-	mi_socket_s = crearServidor(MYIP, MYPORT);
+	mi_socket_s = crearServidor(configMapa.IP, configMapa.Puerto);
 	if(mi_socket_s->descriptor == 0)
 	{
 		log_info(logger, "Conexión fallida");

@@ -24,10 +24,15 @@ typedef struct mapa
 typedef struct ubicacion {
 	int x;
 	int y;
+	int cantidad;
 } t_mapa_pos;
 
 typedef struct personaje {
 	char id;
+	char* nombre;
+	int faltaEjecutar;
+	t_list* objetivos;
+	socket_t* socket;
 	t_mapa_pos pos;
 } t_mapa_pj;
 

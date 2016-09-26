@@ -26,8 +26,6 @@
 #include "Mapa.h"
 #include "nivel.h"
 
-#define MYIP "127.0.0.1" // IP
-#define MYPORT "3490"  	 // Puerto al que conectarán los entrenadores - "telnet localhost 3490" para empezar a jugar
 #define BACKLOG 10 	     // Cuántas conexiones pendientes se mantienen en cola
 
 /* Variables */
@@ -252,8 +250,7 @@ void insertarAlFinal(t_mapa_pj* entrenador, t_queue lista)
 void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {
 	MoverPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y);
 	nivel_gui_dibujar(items, mapa);
-	usleep(200000);
-	//usleep(100000); //Para pasarlo a nafta
+	usleep(configMapa.Retardo);
 }
 
 //FUNCIÓN DE ENTRENADOR
@@ -370,7 +367,7 @@ void aceptarConexiones() {
 
 	int error = -1;
 
-	mi_socket_s = crearServidor(MYIP, MYPORT);
+	mi_socket_s = crearServidor(configMapa.IP, configMapa.Puerto);
 	if(mi_socket_s->descriptor == 0)
 	{
 		log_info(logger, "Conexión fallida");

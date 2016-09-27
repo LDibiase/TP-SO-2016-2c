@@ -171,7 +171,7 @@ void calcularFaltante(t_mapa_pj entrenador)
 }
 
 //FUNCIONES PARA COLAS PLANIFICADOR
-void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista)
+void insertarOrdenado(t_mapa_pj* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -195,14 +195,14 @@ void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista)
 		}
 
 		pthread_mutex_lock(&mutex);
-		list_sort(lista.elements, (void*)_auxComparador);
+		list_sort(lista->elements, (void*)_auxComparador);
 		pthread_mutex_unlock(&mutex);
 	}
 
 	pthread_mutex_destroy(&mutex);
 }
 
-void insertarAlFinal(t_mapa_pj* entrenador, t_queue lista)
+void insertarAlFinal(t_mapa_pj* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;

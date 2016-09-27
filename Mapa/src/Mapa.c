@@ -27,12 +27,12 @@
 #include "Mapa.h"
 #include "nivel.h"
 
-#define BACKLOG 10 	     // Cuántas conexiones pendientes se mantienen en cola
+#define BACKLOG 10	// Cuántas conexiones pendientes se mantienen en cola
 
 /* Variables */
 t_log* logger;
 t_mapa_config configMapa;
-struct socket** entrenadores;
+t_list* entrenadores;
 t_list* items;
 
 //COLAS PLANIFICADOR
@@ -48,9 +48,8 @@ int main(void) {
 	// Variables para la diagramación del mapa
 	int rows, cols;
 
-	// Inicialización del array dinámico de entrenadores
-	entrenadores = malloc (sizeof(struct socket));
-	entrenadores[0] = NULL;
+	// Inicialización de la lista de entrenadores conectados
+	entrenadores = list_create();
 
 
 	//CREACIÓN DEL ARCHIVO DE LOG
@@ -86,129 +85,45 @@ int main(void) {
 	activo = 1;
 
 	while(activo) {
-		int cantidadEntrenadores;
-		cantidadEntrenadores = cantidadElementosArray((void**) entrenadores);
+		void _jugar(t_mapa_pj* entrenador) {
+			//INGRESO DEL ENTRENADOR
+				entrenador->pos.x = 1;
+				entrenador->pos.y = 1;
+			CrearPersonaje(items, entrenador->id, entrenador->pos.x, entrenador->pos.y); //Carga de entrenador
+			t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
+			realizar_movimiento(items, *entrenador, "CodeTogether");
 
-		if(cantidadEntrenadores > 0) {
-			int i;
-			i = 0;
+			//COMIENZA LA BÚSQUEDA POKÉMON!
+			int cant = list_size(objetivos);
+			while (cant > 0) {
+				//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
+				char* pokemon = list_get(objetivos, 0);
+				char pokemonID = *pokemon;
+				t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
 
-			while(i < cantidadEntrenadores) { // TODO Condición para pruebas
-				// HANDSHAKE
+				//Movimientos hasta la Pokénest
+				while (((entrenador->pos.x != pokenest.x) || (entrenador->pos.y != pokenest.y)) && pokenest.cantidad > 0) {
 
-				// Recibir mensaje CONEXION_ENTRENADOR
-				mensaje1_t mensaje1;
+					entrenador->pos = calcularMovimiento(entrenador->pos, pokenest);
+					realizar_movimiento(items, *entrenador, "CodeTogether");
 
-				mensaje1.tipoMensaje = CONEXION_ENTRENADOR;
-				recibirMensaje(entrenadores[i], &mensaje1);
-				if(entrenadores[i]->error != NULL)
-				{
-					log_info(logger, entrenadores[i]->error);
-					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
-				}
-
-				if(mensaje1.tipoMensaje != CONEXION_ENTRENADOR)
-				{
-					// Enviar mensaje RECHAZA_CONEXION
-					paquete_t paquete;
-					mensaje_t mensaje3;
-
-					mensaje3.tipoMensaje = RECHAZA_CONEXION;
-					crearPaquete((void*) &mensaje3, &paquete);
-					if(paquete.tamanioPaquete == 0)
-					{
-						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-						//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
-						//eliminarSocket(entrenadores[i]);
-						log_destroy(logger);
-						return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado
+					//Si llego a la Pokénest, capturo un Pokémon
+					if ((entrenador->pos.x == pokenest.x) && (entrenador->pos.y == pokenest.y)) {
+						restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
+						BorrarItem(objetivos, pokemonID); //Quito mi objetivo
+						realizar_movimiento(items, *entrenador, "CodeTogether");
 					}
-
-					enviarMensaje(entrenadores[i], paquete);
-					if(entrenadores[i]->error != NULL)
-					{
-						log_info(logger, entrenadores[i]->error);
-						//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
-						//eliminarSocket(entrenadores[i]);
-						log_destroy(logger);
-						return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
-					}
-
-					//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
-					//eliminarSocket(entrenadores[i]); TODO Crear una función que elimine al entrenador de la lista antes de eliminar su socket
-					break; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
 				}
 
-				log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", entrenadores[i]->descriptor, mensaje1.nombreEntrenador, mensaje1.simboloEntrenador);
-
-				// Enviar mensaje ACEPTA_CONEXION
-				paquete_t paquete;
-				mensaje_t mensaje2;
-
-				mensaje2.tipoMensaje = ACEPTA_CONEXION;
-				crearPaquete((void*) &mensaje2, &paquete);
-				if(paquete.tamanioPaquete == 0)
-				{
-					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-					//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
-					//eliminarSocket(entrenadores[i]);
-					log_destroy(logger);
-					return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado
-				}
-
-				enviarMensaje(entrenadores[i], paquete);
-				if(entrenadores[i]->error != NULL)
-				{
-					log_info(logger, entrenadores[i]->error);
-					//log_info(logger, "Conexión mediante socket %d finalizada", entrenadores[i]->descriptor);
-					//eliminarSocket(entrenadores[i]);
-					log_destroy(logger);
-					return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
-				}
-
-				while(1); // Para pruebas
-
-				//INGRESO DEL ENTRENADOR
-				t_mapa_pj personaje;
-					personaje.id = '$';
-					personaje.pos.x = 1;
-					personaje.pos.y = 1;
-				CrearPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y); //Carga de entrenador
-				t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
-				realizar_movimiento(items, personaje, "CodeTogether");
-
-				//COMIENZA LA BÚSQUEDA POKÉMON!
-				int cant = list_size(objetivos);
-				while (cant > 0) {
-					//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
-					char* pokemon = list_get(objetivos, 0);
-					char pokemonID = *pokemon;
-					t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
-
-					//Movimientos hasta la Pokénest
-					while (((personaje.pos.x != pokenest.x) || (personaje.pos.y != pokenest.y)) && pokenest.cantidad > 0) {
-
-						personaje.pos = calcularMovimiento(personaje.pos, pokenest);
-						realizar_movimiento(items, personaje, "CodeTogether");
-
-						//Si llego a la Pokénest, capturo un Pokémon
-						if ((personaje.pos.x == pokenest.x) && (personaje.pos.y == pokenest.y)) {
-							restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
-							BorrarItem(objetivos, pokemonID); //Quito mi objetivo
-							realizar_movimiento(items, personaje, "CodeTogether");
-						}
-					}
-
-					cant = list_size(objetivos);
-				}
-
-				i ++;
-				cantidadEntrenadores = cantidadElementosArray((void**) entrenadores);
+				cant = list_size(objetivos);
 			}
-
-			// TODO Borrar las posiciones del array que hayan tenido inconvenientes con la conexión al servidor o con el envío y/o la recepción de mensajes
-			activo = 0;
 		}
+
+		if(list_size(entrenadores) > 0) {
+			list_iterate(entrenadores, (void*) _jugar);
+		}
+
+		activo = 0;
 	}
 
 	nivel_gui_terminar();
@@ -415,7 +330,6 @@ void aceptarConexiones() {
 
 	int returnValue;
 	int conectado;
-	int cantidadEntrenadores;
 
 	int error = -1;
 
@@ -440,6 +354,9 @@ void aceptarConexiones() {
 
 	while(conectado) {
 		struct socket* cli_socket_s;
+		t_mapa_pj* entrenador;
+
+		entrenador = malloc(sizeof(t_mapa_pj));
 
 		log_info(logger, "Escuchando conexiones");
 
@@ -453,12 +370,86 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		cantidadEntrenadores = cantidadElementosArray((void**) entrenadores);
-		entrenadores = realloc(entrenadores, (cantidadEntrenadores + 1) * sizeof(struct socket));
-		entrenadores[cantidadEntrenadores] = malloc(sizeof(struct socket));
-		entrenadores[cantidadEntrenadores] = cli_socket_s;
-		entrenadores[cantidadEntrenadores + 1] = NULL;
+		// HANDSHAKE
 
-		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
+		// Recibir mensaje CONEXION_ENTRENADOR
+		mensaje1_t mensaje1;
+
+		mensaje1.tipoMensaje = CONEXION_ENTRENADOR;
+		recibirMensaje(cli_socket_s, &mensaje1);
+		if(cli_socket_s->error != NULL)
+		{
+			log_info(logger, cli_socket_s->error);
+			eliminarSocket(cli_socket_s);
+		}
+
+		if(mensaje1.tipoMensaje != CONEXION_ENTRENADOR)
+		{
+			// Enviar mensaje RECHAZA_CONEXION
+			paquete_t paquete;
+			mensaje_t mensaje3;
+
+			mensaje3.tipoMensaje = RECHAZA_CONEXION;
+			crearPaquete((void*) &mensaje3, &paquete);
+			if(paquete.tamanioPaquete == 0)
+			{
+				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
+				eliminarSocket(cli_socket_s);
+				conectado = 0;
+				eliminarSocket(mi_socket_s);
+				exit(error);
+			}
+
+			enviarMensaje(cli_socket_s, paquete);
+			if(cli_socket_s->error != NULL)
+			{
+				log_info(logger, cli_socket_s->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
+				eliminarSocket(cli_socket_s);
+				conectado = 0;
+				eliminarSocket(mi_socket_s);
+				exit(error);
+			}
+
+			log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
+			eliminarSocket(cli_socket_s);
+		}
+
+		log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", cli_socket_s->descriptor, mensaje1.nombreEntrenador, mensaje1.simboloEntrenador);
+
+		entrenador->id = mensaje1.simboloEntrenador;
+		entrenador->nombre = mensaje1.nombreEntrenador;
+		entrenador->socket = cli_socket_s;
+
+		// Enviar mensaje ACEPTA_CONEXION
+		paquete_t paquete;
+		mensaje_t mensaje2;
+
+		mensaje2.tipoMensaje = ACEPTA_CONEXION;
+		crearPaquete((void*) &mensaje2, &paquete);
+		if(paquete.tamanioPaquete == 0)
+		{
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "Conexión mediante socket %d finalizada", entrenador->socket->descriptor);
+			eliminarSocket(entrenador->socket);
+			conectado = 0;
+			eliminarSocket(mi_socket_s);
+			exit(error);
+		}
+
+		enviarMensaje(entrenador->socket, paquete);
+		if(entrenador->socket->error != NULL)
+		{
+			log_info(logger, entrenador->socket->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", entrenador->socket->descriptor);
+			eliminarSocket(entrenador->socket);
+			conectado = 0;
+			eliminarSocket(mi_socket_s);
+			exit(error);
+		}
+
+		list_add(entrenadores, entrenador);
+		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", entrenador->socket->descriptor);
 	}
 }

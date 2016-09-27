@@ -84,52 +84,54 @@ int main(void) {
 	nivel_gui_get_area_nivel(&rows, &cols);
 	nivel_gui_dibujar(items, "CodeTogether");
 
+	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 	activo = 1;
 
 	while(activo) {
-		void _jugar(t_mapa_pj* entrenador) {
-			//INGRESO DEL ENTRENADOR
-				entrenador->pos.x = 1;
-				entrenador->pos.y = 1;
-			CrearPersonaje(items, entrenador->id, entrenador->pos.x, entrenador->pos.y); //Carga de entrenador
-			t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
-			realizar_movimiento(items, *entrenador, "CodeTogether");
 
-			//COMIENZA LA BÚSQUEDA POKÉMON!
-			int cant = list_size(objetivos);
-			while (cant > 0) {
-				//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
-				char* pokemon = list_get(objetivos, 0);
-				char pokemonID = *pokemon;
-				t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
+		pthread_mutex_lock(&mutex);
+		t_mapa_pj* entrenadorAEjecutar = queue_pop(colaReady);
+		pthread_mutex_unlock(&mutex);
 
-				//Movimientos hasta la Pokénest
-				while (((entrenador->pos.x != pokenest.x) || (entrenador->pos.y != pokenest.y)) && pokenest.cantidad > 0) {
+		//INGRESO DEL ENTRENADOR
+		entrenadorAEjecutar->pos.x = 1;
+		entrenadorAEjecutar->pos.y = 1;
+		CrearPersonaje(items, entrenadorAEjecutar->id, entrenadorAEjecutar->pos.x, entrenadorAEjecutar->pos.y); //Carga de entrenador
+		t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
+		realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
 
-					entrenador->pos = calcularMovimiento(entrenador->pos, pokenest);
-					realizar_movimiento(items, *entrenador, "CodeTogether");
+		//COMIENZA LA BÚSQUEDA POKÉMON!
+		int cant = list_size(objetivos);
+		while (cant > 0) {
+			//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
+			char* pokemon = list_get(objetivos, 0);
+			char pokemonID = *pokemon;
+			t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
 
-					//Si llego a la Pokénest, capturo un Pokémon
-					if ((entrenador->pos.x == pokenest.x) && (entrenador->pos.y == pokenest.y)) {
-						restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
-						BorrarItem(objetivos, pokemonID); //Quito mi objetivo
-						realizar_movimiento(items, *entrenador, "CodeTogether");
-					}
+			//Movimientos hasta la Pokénest
+			while (((entrenadorAEjecutar->pos.x != pokenest.x) || (entrenadorAEjecutar->pos.y != pokenest.y)) && pokenest.cantidad > 0) {
+
+				entrenadorAEjecutar->pos = calcularMovimiento(entrenadorAEjecutar->pos, pokenest);
+				realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+
+				//Si llego a la Pokénest, capturo un Pokémon
+				if ((entrenadorAEjecutar->pos.x == pokenest.x) && (entrenadorAEjecutar->pos.y == pokenest.y)) {
+					restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
+					BorrarItem(objetivos, pokemonID); //Quito mi objetivo
+					realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
 				}
-
-				cant = list_size(objetivos);
 			}
-		}
 
-		if(list_size(entrenadores) > 0) {
-			list_iterate(entrenadores, (void*) _jugar);
+			cant = list_size(objetivos);
 		}
-
-		//activo = 0;
+	//activo = 0;
 	}
 
 	nivel_gui_terminar();
 	// TODO Cerrar la conexión del servidor
+	pthread_mutex_destroy(&mutex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -506,6 +508,11 @@ void aceptarConexiones() {
 		}
 
 		list_add(entrenadores, entrenador);
+
+		//SE PLANIFICA AL NUEVO ENTRENADOR
+		encolarNuevoEntrenador(entrenador);
+
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", entrenador->socket->descriptor);
+		log_info(logger, "Se planificó al entrenador %s", entrenador->nombre);
 	}
 }

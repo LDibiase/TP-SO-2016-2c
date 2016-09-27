@@ -49,8 +49,8 @@ typedef struct personaje {
 
 void encolarNuevoEntrenador(t_mapa_pj* entrenador);
 void calcularFaltante(t_mapa_pj entrenador);
-void insertarOrdenado(t_mapa_pj* entrenador, t_queue lista);
-void insertarAlFinal(t_mapa_pj* entrenador, t_queue lista);
+void insertarOrdenado(t_mapa_pj* entrenador, t_queue* lista);
+void insertarAlFinal(t_mapa_pj* entrenador, t_queue* lista);
 void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa);
 t_mapa_pos calcularMovimiento(t_mapa_pos posActual, t_mapa_pos posFinal);
 ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado);

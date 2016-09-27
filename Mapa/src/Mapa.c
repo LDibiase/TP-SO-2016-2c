@@ -143,7 +143,7 @@ void encolarNuevoEntrenador(t_mapa_pj* entrenador)
 	//SI ES SRDF, INSERTO ORDENADO DE MENOR A MAYOR, DE ACUERDO A CUANTO LE FALTE EJECUTAR AL ENTRENADOR
 	else
 	{
-		calcularFaltante(entrenador);
+		calcularFaltante(*entrenador);
 		insertarOrdenado(entrenador, colaReady);
 	}
 }
@@ -350,7 +350,6 @@ void aceptarConexiones() {
 	}
 
 	conectado = 1;
-	cantidadEntrenadores = 0;
 
 	while(conectado) {
 		struct socket* cli_socket_s;

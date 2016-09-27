@@ -36,6 +36,15 @@ typedef struct personaje {
 	t_mapa_pos pos;
 } t_mapa_pj;
 
+typedef struct pokenest
+{
+	char* Tipo;
+	t_mapa_pos pos;
+	char* id;
+}t_mapa_pokenest;
+
+
+
 
 /* Constantes */
 
@@ -57,6 +66,7 @@ ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado);
 t_mapa_pos buscarPokenest(t_list* lista, char pokemon);
 t_list* cargarObjetivos();
 t_list* cargarPokenest();
+t_mapa_pokenest leerPokenest(char* metadata);
 int cargarConfiguracion(t_mapa_config* structConfig);
 void aceptarConexiones();
 

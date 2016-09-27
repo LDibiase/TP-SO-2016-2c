@@ -15,6 +15,8 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
 #include <commons/config.h>
@@ -123,7 +125,7 @@ int main(void) {
 			list_iterate(entrenadores, (void*) _jugar);
 		}
 
-//		activo = 0;
+		//activo = 0;
 	}
 
 	nivel_gui_terminar();
@@ -284,12 +286,67 @@ t_list* cargarObjetivos(char* objetivosString) {
 }
 
 t_list* cargarPokenest() {
+	t_mapa_pokenest pokenestLeida;
 	t_list* newlist = list_create();
-	CrearCaja(newlist, 'C', 20, 2, 10); //Charmander
-	CrearCaja(newlist, 'O', 50, 10, 10); //Oddish
-	CrearCaja(newlist, 'D', 10, 4, 10); //Doduo
-	CrearCaja(newlist, 'E', 70, 15, 10); //Eevee
-	return newlist;
+
+	 int dir_count = 0;
+	    struct dirent* dent;
+	    DIR* srcdir = opendir("PokeNests");
+	    if (srcdir == NULL)
+	    {
+	        perror("opendir");
+	    }
+	    while((dent = readdir(srcdir)) != NULL)
+	    {
+	        struct stat st;
+	        if(strcmp(dent->d_name, ".") == 0 || strcmp(dent->d_name, "..") == 0)
+	            continue;
+	        if (fstatat(dirfd(srcdir), dent->d_name, &st, 0) < 0)
+	        {
+	            perror(dent->d_name);
+	            continue;
+	        }
+	        if (S_ISDIR(st.st_mode)){
+	        	dir_count++;
+	        	char *str = string_new();
+	        	string_append(&str, "PokeNests/");
+	        	string_append(&str, dent->d_name);
+	        	string_append(&str, "/metadata");
+	        	pokenestLeida = leerPokenest(str);
+	        	CrearCaja(newlist, pokenestLeida.id[0], pokenestLeida.pos.x, pokenestLeida.pos.y, 10); //Todos con 10
+	        	log_info(logger, "Se cargo la pokenest: %c", pokenestLeida.id[0]);
+	        }
+	    }
+	    closedir(srcdir);
+	    return newlist;
+}
+
+
+t_mapa_pokenest leerPokenest(char* metadata)
+{
+	t_config* config;
+	t_mapa_pokenest structPokenest;
+
+	config = config_create(metadata);
+
+	if(config_has_property(config, "Tipo")
+			&& config_has_property(config, "Posicion")
+			&& config_has_property(config, "Identificador"))
+	{
+		structPokenest.id = strdup(config_get_string_value(config, "Identificador"));
+		structPokenest.Tipo = strdup(config_get_string_value(config, "Tipo"));
+		char* posXY = strdup(config_get_string_value(config, "Posicion"));
+		char** array = string_split(posXY, ";");
+		structPokenest.pos.x = atoi(array[0]);
+		structPokenest.pos.y = atoi(array[1]);
+		config_destroy(config);
+	}
+	else
+	{
+		log_error(logger, "La pokenest tiene un formato inválido");
+		config_destroy(config);
+	}
+	return structPokenest;
 }
 
 int cargarConfiguracion(t_mapa_config* structConfig)

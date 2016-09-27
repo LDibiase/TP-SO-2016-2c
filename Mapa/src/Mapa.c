@@ -177,16 +177,16 @@ void insertarOrdenado(t_mapa_pj* entrenador, t_queue* lista)
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
-	if(queue_size(&lista) == 0)
+	if(queue_size(lista) == 0)
 	{
 		pthread_mutex_lock(&mutex);
-		queue_push(&lista, entrenador);
+		queue_push(lista, entrenador);
 		pthread_mutex_unlock(&mutex);
 	}
 	else
 	{
 		pthread_mutex_lock(&mutex);
-		queue_push(&lista, entrenador);
+		queue_push(lista, entrenador);
 		pthread_mutex_unlock(&mutex);
 
 		bool _auxComparador(t_mapa_pj *entrenador1, t_mapa_pj *entrenador2)
@@ -208,7 +208,7 @@ void insertarAlFinal(t_mapa_pj* entrenador, t_queue* lista)
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 	pthread_mutex_lock(&mutex);
-	queue_push(&lista, entrenador);
+	queue_push(lista, entrenador);
 	pthread_mutex_unlock(&mutex);
 
 	pthread_mutex_destroy(&mutex);

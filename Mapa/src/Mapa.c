@@ -123,7 +123,7 @@ int main(void) {
 			list_iterate(entrenadores, (void*) _jugar);
 		}
 
-		activo = 0;
+//		activo = 0;
 	}
 
 	nivel_gui_terminar();

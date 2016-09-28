@@ -95,6 +95,89 @@ int main(void) {
 		t_mapa_pj* entrenadorAEjecutar = queue_pop(colaReady);
 		pthread_mutex_unlock(&mutex);
 
+		//LE AVISO AL ENTRENADOR QUE SE LE CONCEDIO UN TURNO
+		mensaje_t mensajeTurno;
+		paquete_t paquete;
+
+		mensajeTurno.tipoMensaje = TURNO;
+		crearPaquete((void*) &mensajeTurno, &paquete);
+
+		if(paquete.tamanioPaquete == 0)
+		{
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+			//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+			eliminarSocket(entrenadorAEjecutar->socket);
+			exit(-1);
+		}
+
+		enviarMensaje(entrenadorAEjecutar->socket, paquete);
+
+		if(entrenadorAEjecutar->socket->error != NULL)
+		{
+			log_info(logger, entrenadorAEjecutar->socket->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+			//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+			eliminarSocket(entrenadorAEjecutar->socket);
+			exit(-1);
+		}
+
+		//FALSO POLIMORFISMO
+		void* mensajeRespuesta = malloc(sizeof(mensaje_t));
+		((mensaje_t*)mensajeRespuesta)->tipoMensaje = 0;
+
+		recibirMensaje(entrenadorAEjecutar->socket, &mensajeRespuesta);
+
+		//HAGO UN SWITCH, PARA VER QUE ACCIÓN QUIERE REALIZAR EL ENTRENADOR
+		t_mapa_pos pokeNestSolicitada;
+		switch(((mensaje_t*)mensajeRespuesta)->tipoMensaje) {
+		   case SOLICITA_UBICACION:
+			   pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*)mensajeRespuesta)->nombrePokeNest);
+
+			   mensaje6_t mensajePokenest;
+			   mensajePokenest.tipoMensaje = BRINDA_UBICACION;
+			   mensajePokenest.ubicacionX = pokeNestSolicitada.x;
+			   mensajePokenest.ubicacionY = pokeNestSolicitada.y;
+
+			   paquete_t paquetePokenest;
+			   crearPaquete((void*) &mensajePokenest, &paquetePokenest);
+
+			   if(paquete.tamanioPaquete == 0)
+			   {
+				   log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+				   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+				   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+				   eliminarSocket(entrenadorAEjecutar->socket);
+				   exit(-1);
+			   }
+
+			   enviarMensaje(entrenadorAEjecutar->socket, paquetePokenest);
+
+			   if(entrenadorAEjecutar->socket->error != NULL)
+			   {
+				   log_info(logger, entrenadorAEjecutar->socket->error);
+				   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+				   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+				   eliminarSocket(entrenadorAEjecutar->socket);
+				   exit(-1);
+			   }
+
+			   break;
+		   case SOLICITA_DESPLAZAMIENTO:
+			   (mensaje7_t*)mensajeRespuesta;
+			   break;
+		   case SOLICITA_CAPTURA:
+			   (mensaje_t*)mensajeRespuesta;
+			   break;
+		   case OBJETIVOS_COMPLETADOS:
+			   (mensaje_t*)mensajeRespuesta;
+			   break;
+		}
+
+
+
+
+
 		//INGRESO DEL ENTRENADOR
 		entrenadorAEjecutar->pos.x = 1;
 		entrenadorAEjecutar->pos.y = 1;
@@ -322,7 +405,6 @@ t_list* cargarPokenest() {
 	    closedir(srcdir);
 	    return newlist;
 }
-
 
 t_mapa_pokenest leerPokenest(char* metadata)
 {

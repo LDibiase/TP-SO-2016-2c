@@ -42,5 +42,6 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 direccion_t calcularMovimiento(t_ubicacion ubicacionEntrenador, t_ubicacion ubicacionPokeNest, char* ejeAnterior);
 void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicacion ubicacionPokeNest, char* ejeAnterior);
 void solicitarCaptura(socket_t* mapa_s, int* conectado);
+void signal_handler(int signal);
 
 #endif /* ENTRENADOR_H_ */

@@ -33,6 +33,7 @@ typedef struct pokenest {
 	char* tipo;
 	t_ubicacion ubicacion;
 	char* id;
+	int cantidad;
 } t_mapa_pokenest;
 
 

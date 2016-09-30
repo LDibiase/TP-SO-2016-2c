@@ -91,7 +91,6 @@ int main(void) {
 	mensaje6_t mensajePokenest;
 	mensaje7_t mensajeDesplazamiento;
 	mensaje_t mensajeCaptura;
-	mensaje_t mensajeObjetivos;
 
 	activo = 1;
 
@@ -223,31 +222,7 @@ int main(void) {
 			   }
 			   break;
 		   case OBJETIVOS_COMPLETADOS:
-			   mensajeObjetivos.tipoMensaje = OBJETIVOS_COMPLETADOS;
 
-			   paquete_t paqueteObjetivos;
-
-			   crearPaquete((void*) &mensajeObjetivos, &paqueteObjetivos);
-
-			   if(paqueteObjetivos.tamanioPaquete == 0)
-			   {
-				   log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-				   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-				   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-				   eliminarSocket(entrenadorAEjecutar->socket);
-				   exit(-1);
-			   }
-
-			   enviarMensaje(entrenadorAEjecutar->socket, paqueteObjetivos);
-
-			   if(entrenadorAEjecutar->socket->error != NULL)
-			   {
-				   log_info(logger, entrenadorAEjecutar->socket->error);
-				   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-				   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-				   eliminarSocket(entrenadorAEjecutar->socket);
-				   exit(-1);
-			   }
 			   break;
 		}
 

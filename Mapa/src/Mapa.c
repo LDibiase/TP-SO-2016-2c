@@ -77,13 +77,13 @@ int main(void) {
 
 
 	//INICIALIZACIÓN DEL MAPA
-	items = cargarPokenest(); //Carga de las Pokénest del mapa
-	nivel_gui_inicializar();
-	nivel_gui_get_area_nivel(&rows, &cols);
-	nivel_gui_dibujar(items, "CodeTogether");
+//	items = cargarPokenest(); //Carga de las Pokénest del mapa
+//	nivel_gui_inicializar();
+//	nivel_gui_get_area_nivel(&rows, &cols);
+//	nivel_gui_dibujar(items, "CodeTogether");
 
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+//	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 	//MENSAJES A UTILIZAR
 	mensaje6_t mensajePokenest;
@@ -93,9 +93,9 @@ int main(void) {
 	activo = 1;
 
 	while(activo) {
-		pthread_mutex_lock(&mutex);
+//		pthread_mutex_lock(&mutex);
 		t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
-		pthread_mutex_unlock(&mutex);
+//		pthread_mutex_unlock(&mutex);
 
 		//LE AVISO AL ENTRENADOR QUE SE LE CONCEDIO UN TURNO
 		mensaje_t mensajeTurno;
@@ -261,7 +261,7 @@ int main(void) {
 
 	nivel_gui_terminar();
 	// TODO Cerrar la conexión del servidor
-	pthread_mutex_destroy(&mutex);
+//	pthread_mutex_destroy(&mutex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }

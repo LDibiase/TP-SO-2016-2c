@@ -160,7 +160,7 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		cantidadClientes = cantidadElementosArray((void**) clientes);
+//		cantidadClientes = cantidadElementosArray((void**) clientes);
 		clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
 		clientes[cantidadClientes] = malloc(sizeof(struct socket));
 		clientes[cantidadClientes] = cli_socket_s;

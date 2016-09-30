@@ -81,8 +81,7 @@ typedef struct mensaje1 {
 // Mensaje 5
 typedef struct mensaje5 {
 	uint32_t tipoMensaje;
-	uint32_t tamanioNombrePokeNest;
-	char* nombrePokeNest;
+	char idPokeNest;
 } mensaje5_t;
 
 // Mensaje 6
@@ -107,5 +106,11 @@ typedef struct mensaje8 {
 
 // Direcciones de movimiento
 typedef enum direccion {IZQUIERDA, DERECHA, ARRIBA, ABAJO} direccion_t;
+
+// Ubicación
+typedef struct ubicacion {
+	int x;
+	int y;
+} t_ubicacion;
 
 #endif /* UTILITY_LIBRARY_PROTOCOLOMAPAENTRENADOR_H_ */

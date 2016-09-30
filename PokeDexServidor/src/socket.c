@@ -238,7 +238,7 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 	case SOLICITA_UBICACION:
 		punteroAuxiliar = paquete->paqueteSerializado;
 
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje5_t*) mensaje)->tamanioNombrePokeNest) + ((mensaje5_t*) mensaje)->tamanioNombrePokeNest;
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje5_t*) mensaje)->idPokeNest);
 		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 		if(paquete->paqueteSerializado == NULL)
 		{
@@ -247,12 +247,8 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			return;
 		}
 
-		tamanioOperando = sizeof(((mensaje5_t*) mensaje)->tamanioNombrePokeNest);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->tamanioNombrePokeNest), tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		tamanioOperando = ((mensaje5_t*) mensaje)->tamanioNombrePokeNest;
-		memcpy(paquete->paqueteSerializado + offset, ((mensaje5_t*) mensaje)->nombrePokeNest, tamanioOperando);
+		tamanioOperando = sizeof(((mensaje5_t*) mensaje)->idPokeNest);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->idPokeNest), tamanioOperando);
 		offset = offset + tamanioOperando;
 
 		break;
@@ -327,6 +323,7 @@ void enviarMensaje(socket_t* socket, paquete_t paquete) {
 }
 
 void recibirMensaje(socket_t* socket, void* mensaje) {
+	void* punteroAuxiliar;
 	ssize_t bytesRecibidos;
 	size_t tamanioBuffer;
 	char* buffer;
@@ -342,10 +339,21 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 	memcpy(&tipoMensaje, buffer, tamanioBuffer);
 
-	if(((mensaje_t*) mensaje)->tipoMensaje == tipoMensaje)
+	if(((mensaje_t*) mensaje)->tipoMensaje == tipoMensaje || ((mensaje_t*) mensaje)->tipoMensaje == 0)
 	{
 		switch(tipoMensaje) {
 		case CONEXION_ENTRENADOR:
+			if(((mensaje1_t*) mensaje)->tipoMensaje == 0)
+			{
+				punteroAuxiliar = mensaje;
+				mensaje = realloc(mensaje, sizeof(mensaje1_t));
+				if(mensaje == NULL)
+				{
+					mensaje = punteroAuxiliar;
+					((mensaje1_t*) mensaje)->tipoMensaje = 0;
+				}
+			}
+
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioNombreEntrenador);
 			buffer = malloc(tamanioBuffer);
@@ -379,29 +387,40 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case SOLICITA_UBICACION:
+			if(((mensaje5_t*) mensaje)->tipoMensaje == 0)
+			{
+				punteroAuxiliar = mensaje;
+				mensaje = realloc(mensaje, sizeof(mensaje5_t));
+				if(mensaje == NULL)
+				{
+					mensaje = punteroAuxiliar;
+					((mensaje5_t*) mensaje)->tipoMensaje = 0;
+				}
+			}
+
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->tamanioNombrePokeNest);
+			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->idPokeNest);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
 				socket->error = strerror(errno);
 
-			memcpy(&(((mensaje5_t*) mensaje)->tamanioNombrePokeNest), buffer, tamanioBuffer);
-
-			free(buffer);
-			tamanioBuffer = ((mensaje5_t*) mensaje)->tamanioNombrePokeNest;
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-				socket->error = strerror(errno);
-
-			((mensaje5_t*) mensaje)->nombrePokeNest = malloc(tamanioBuffer);
-			memcpy(((mensaje5_t*) mensaje)->nombrePokeNest, buffer, tamanioBuffer);
+			memcpy(&(((mensaje5_t*) mensaje)->idPokeNest), buffer, tamanioBuffer);
 
 			break;
 		case BRINDA_UBICACION:
+			if(((mensaje6_t*) mensaje)->tipoMensaje == 0)
+			{
+				punteroAuxiliar = mensaje;
+				mensaje = realloc(mensaje, sizeof(mensaje6_t));
+				if(mensaje == NULL)
+				{
+					mensaje = punteroAuxiliar;
+					((mensaje6_t*) mensaje)->tipoMensaje = 0;
+				}
+			}
+
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->ubicacionX);
 			buffer = malloc(tamanioBuffer);
@@ -424,6 +443,17 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case SOLICITA_DESPLAZAMIENTO:
+			if(((mensaje7_t*) mensaje)->tipoMensaje == 0)
+			{
+				punteroAuxiliar = mensaje;
+				mensaje = realloc(mensaje, sizeof(mensaje7_t));
+				if(mensaje == NULL)
+				{
+					mensaje = punteroAuxiliar;
+					((mensaje7_t*) mensaje)->tipoMensaje = 0;
+				}
+			}
+
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->direccion);
 			buffer = malloc(tamanioBuffer);
@@ -436,6 +466,17 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case CONFIRMA_DESPLAZAMIENTO:
+			if(((mensaje8_t*) mensaje)->tipoMensaje == 0)
+			{
+				punteroAuxiliar = mensaje;
+				mensaje = realloc(mensaje, sizeof(mensaje8_t));
+				if(mensaje == NULL)
+				{
+					mensaje = punteroAuxiliar;
+					((mensaje8_t*) mensaje)->tipoMensaje = 0;
+				}
+			}
+
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->ubicacionX);
 			buffer = malloc(tamanioBuffer);
@@ -460,14 +501,3 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 		}
 	}
 }
-
-int cantidadElementosArray(void** arrayDinamico) {
-	int i = 0;
-
-	while(arrayDinamico[i] != NULL)
-		i ++;
-
-	return i;
-}
-
-// TODO Crear función que desaloque la memoria reservada para un array dinámico

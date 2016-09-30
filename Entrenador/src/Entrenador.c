@@ -19,95 +19,115 @@
 #include <sys/socket.h>
 #include <commons/log.h>
 #include <commons/collections/list.h>
-#include "socket.h" // BORRAR
 #include "protocoloMapaEntrenador.h" // BORRAR
 #include "Entrenador.h"
 #include "nivel.h"
 
-/* Variables */
+/* Variables globales */
 t_log* logger;
 t_entrenador_config configEntrenador;
 
 int main(void) {
-	struct socket* serv_socket_s;
+	socket_t* mapa_s;
+	int conectado;
+	t_ubicacion ubicacion;
+	t_ubicacion ubicacionPokeNest;
+
+	int error;
+	error = -1;
+
+	void _obtenerObjetivo(char* objetivo) {
+		// Recibir mensaje TURNO
+		mensaje_t mensaje4;
+
+		mensaje4.tipoMensaje = TURNO;
+		recibirMensaje(mapa_s, &mensaje4);
+		if(mapa_s->error != NULL)
+		{
+			log_info(logger, mapa_s->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+			eliminarSocket(mapa_s);
+			log_destroy(logger);
+			exit(error);
+		}
+
+		if(mensaje4.tipoMensaje == TURNO)
+		{
+			if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
+			{
+				// Determinar ubicación de la PokéNest a la que se desea llegar
+				solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
+				if(mapa_s->error != NULL) {
+					eliminarSocket(mapa_s);
+					log_destroy(logger);
+					exit(error);
+				}
+			}
+
+			// Determinar eje anterior arbitrariamente
+			char ejeAnterior;
+			ejeAnterior = 'x';
+
+			// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
+			if (ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) {
+				solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
+				if(mapa_s->error != NULL) {
+					eliminarSocket(mapa_s);
+					log_destroy(logger);
+					exit(error);
+				}
+			}
+
+			// Una vez alcanzada la ubicación de la PokéNest
+			if (ubicacion.x == ubicacionPokeNest.x && ubicacion.y == ubicacionPokeNest.y) {
+				solicitarCaptura(mapa_s, &conectado);
+			}
+
+			// TODO Analizar otros posibles casos
+		}
+	}
+
+	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
+		// Determinar la ubicación inicial del entrenador en el mapa
+		ubicacion.x = 1;
+		ubicacion.y = 1;
+
+		// Inicializar ubicación de la PokéNest a la que se desea llegar
+		ubicacionPokeNest.x = 0;
+		ubicacionPokeNest.y = 0;
+
+		conectado = 1;
+
+		while(conectado) {
+			string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
+		}
+	}
 
 	/* Creación del log */
 	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
-	/*Cargar Configuración*/
+	/* Cargar configuración */
 	log_info(logger, "Cargando archivo de configuración");
 	cargarConfiguracion(&configEntrenador);
 
-	//VAMOS A VER SI FUNCIONA
 	log_info(logger, "El nombre es: %s \n", configEntrenador.Nombre);
 	log_info(logger, "El simbolo es: %s \n", configEntrenador.Simbolo);
 	log_info(logger, "Las vidas son: %d \n", configEntrenador.Vidas);
 	log_info(logger, "Los reintentos son: %d \n", configEntrenador.Reintentos);
 
-	t_ciudad_objetivos* test = list_get(configEntrenador.CiudadesYObjetivos, 0);
-	log_info(logger, "La ciudad es: %s \n", test->Nombre);
-
-	serv_socket_s = conectarAServidor("127.0.0.1", "3490");
-	if(serv_socket_s->descriptor == 0)
+	// Conexión al mapa
+	mapa_s = conectarAMapa("127.0.0.1", "3490");
+	if(mapa_s->error != NULL)
 	{
-		log_info(logger, "Conexión fallida");
-		log_info(logger, serv_socket_s->error);
+		eliminarSocket(mapa_s);
 		log_destroy(logger);
 		return EXIT_FAILURE;
 	}
 
-	log_info(logger, "Conexión exitosa");
+	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _obtenerObjetivosCiudad);
 
-	// HANDSHAKE
-
-	// Enviar mensaje CONEXION_ENTRENADOR
-	paquete_t paquete;
-	mensaje1_t mensaje1;
-
-	mensaje1.tipoMensaje = CONEXION_ENTRENADOR;
-	mensaje1.tamanioNombreEntrenador = strlen(configEntrenador.Nombre) + 1;
-	mensaje1.nombreEntrenador = configEntrenador.Nombre;
-	mensaje1.simboloEntrenador = *configEntrenador.Simbolo;
-
-	crearPaquete((void*) &mensaje1, &paquete);
-	if(paquete.tamanioPaquete == 0)
-	{
-		log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-		log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
-		eliminarSocket(serv_socket_s);
-		log_destroy(logger);
-		return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado
-	}
-
-	enviarMensaje(serv_socket_s, paquete);
-	if(serv_socket_s->error != NULL)
-	{
-		log_info(logger, serv_socket_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
-		eliminarSocket(serv_socket_s);
-		log_destroy(logger);
-		return EXIT_FAILURE; // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado al envío
-	}
-
-	// Recibir mensaje ACEPTA_CONEXION
-	mensaje_t mensaje;
-
-	mensaje.tipoMensaje = ACEPTA_CONEXION;
-	recibirMensaje(serv_socket_s, &mensaje);
-	if(serv_socket_s->error != NULL)
-	{
-		log_info(logger, serv_socket_s->error); // TODO Decidir si sale o si se realiza alguna otra acción y simplemente se limpia el error asociado a la recepción
-	}
-
-	if(mensaje.tipoMensaje == RECHAZA_CONEXION)
-		log_info(logger, "Socket %d: su conexión ha sido rechazada", serv_socket_s->descriptor);
-	else if(mensaje.tipoMensaje == ACEPTA_CONEXION)
-		log_info(logger, "Socket %d: su conexión ha sido aceptada", serv_socket_s->descriptor);
-
-	while(1); // Para pruebas
-
-	log_info(logger, "Conexión mediante socket %d finalizada", serv_socket_s->descriptor);
-	eliminarSocket(serv_socket_s);
+	log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+	eliminarSocket(mapa_s);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -160,9 +180,263 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 	}
 }
 
+socket_t* conectarAMapa(char* ip, char* puerto) {
+	socket_t* mapa_s;
+
+	mapa_s = conectarAServidor(ip, puerto);
+	if(mapa_s->descriptor == 0)
+	{
+		log_info(logger, "Conexión fallida");
+		log_info(logger, mapa_s->error);
+		return mapa_s;
+	}
+
+	log_info(logger, "Conexión exitosa");
+
+	///////////////////////
+	////// HANDSHAKE //////
+	///////////////////////
+
+	// Enviar mensaje CONEXION_ENTRENADOR
+	paquete_t paquete;
+	mensaje1_t mensaje1;
+
+	mensaje1.tipoMensaje = CONEXION_ENTRENADOR;
+	mensaje1.tamanioNombreEntrenador = strlen(configEntrenador.Nombre) + 1;
+	mensaje1.nombreEntrenador = configEntrenador.Nombre;
+	mensaje1.simboloEntrenador = *configEntrenador.Simbolo;
+
+	crearPaquete((void*) &mensaje1, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return mapa_s;
+	}
+
+	enviarMensaje(mapa_s, paquete);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return mapa_s;
+	}
+
+	// Recibir mensaje ACEPTA_CONEXION
+	mensaje_t mensaje;
+
+	mensaje.tipoMensaje = ACEPTA_CONEXION;
+	recibirMensaje(mapa_s, &mensaje);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return mapa_s;
+	}
+
+	switch(mensaje.tipoMensaje) {
+	case RECHAZA_CONEXION:
+		mapa_s->error = string_from_format("Socket %d: su conexión ha sido rechazada", mapa_s->descriptor);
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+
+		break;
+	case ACEPTA_CONEXION:
+		log_info(logger, "Socket %d: su conexión ha sido aceptada", mapa_s->descriptor);
+
+		break;
+	}
+
+	return mapa_s;
+}
+
+void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* ubicacionPokeNest) {
+	// Enviar mensaje SOLICITA_UBICACION
+	paquete_t paquete;
+	mensaje5_t mensaje5;
+
+	mensaje5.tipoMensaje = SOLICITA_UBICACION;
+	mensaje5.idPokeNest = idPokeNest;
+
+	crearPaquete((void*) &mensaje5, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return;
+	}
+
+	enviarMensaje(mapa_s, paquete);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return;
+	}
+
+	// Recibir mensaje BRINDA_UBICACION
+	mensaje6_t mensaje6;
+
+	mensaje6.tipoMensaje = BRINDA_UBICACION;
+	recibirMensaje(mapa_s, &mensaje6);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return;
+	}
+
+	if(mensaje6.tipoMensaje == BRINDA_UBICACION)
+	{
+		ubicacionPokeNest->x = mensaje6.ubicacionX;
+		ubicacionPokeNest->y = mensaje6.ubicacionY;
+	}
+
+	// TODO Analizar otros posibles casos
+}
+
+direccion_t calcularMovimiento(t_ubicacion ubicacionEntrenador, t_ubicacion ubicacionPokeNest, char* ejeAnterior) {
+	direccion_t direccion;
+
+	if(string_equals_ignore_case(ejeAnterior, "x"))
+	{
+		if(ubicacionEntrenador.y > ubicacionPokeNest.y)
+			direccion = ARRIBA;
+		else
+			direccion = ABAJO;
+		ejeAnterior = "y";
+
+	}
+	else if(string_equals_ignore_case(ejeAnterior, "y"))
+	{
+		if(ubicacionEntrenador.x > ubicacionPokeNest.x)
+			direccion = DERECHA;
+		else
+			direccion = IZQUIERDA;
+		ejeAnterior = "x";
+	}
+
+	return direccion;
+}
+
+void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicacion ubicacionPokeNest, char* ejeAnterior) {
+	direccion_t movimiento;
+	movimiento = calcularMovimiento(*ubicacion, ubicacionPokeNest, ejeAnterior);
+
+	// Enviar mensaje SOLICITA_DESPLAZAMIENTO
+	paquete_t paquete;
+	mensaje7_t mensaje7;
+
+	mensaje7.tipoMensaje = SOLICITA_DESPLAZAMIENTO;
+	mensaje7.direccion = movimiento;
+
+	crearPaquete((void*) &mensaje7, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return;
+	}
+
+	enviarMensaje(mapa_s, paquete);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+	    return;
+	}
+
+	// Recibir mensaje CONFIRMA_DESPLAZAMIENTO
+	mensaje8_t mensaje8;
+
+	mensaje8.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
+	recibirMensaje(mapa_s, &mensaje8);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return;
+	}
+
+	if(mensaje8.tipoMensaje == CONFIRMA_DESPLAZAMIENTO)
+	{
+		ubicacion->x = mensaje8.ubicacionX;
+		ubicacion->y = mensaje8.ubicacionY;
+	}
+
+	// TODO Analizar otros posibles casos
+}
+
+ void solicitarCaptura(socket_t* mapa_s, int* conectado) {
+	// Enviar mensaje SOLICITA_CAPTURA
+	paquete_t paquete;
+	mensaje_t mensaje9;
+
+	mensaje9.tipoMensaje = SOLICITA_CAPTURA;
+	crearPaquete((void*) &mensaje9, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return;
+	}
+
+	enviarMensaje(mapa_s, paquete);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+	    return;
+	}
+
+	// Recibir mensaje CONFIRMA_CAPTURA
+	mensaje_t mensaje10;
+	mensaje10.tipoMensaje = CONFIRMA_CAPTURA;
+	recibirMensaje(mapa_s, &mensaje10);
+	if(mapa_s->error != NULL)
+	{
+		log_info(logger, mapa_s->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		return;
+	}
+
+	if(mensaje10.tipoMensaje == CONFIRMA_DESPLAZAMIENTO)
+	{
+		// TODO Agregar lógica para obtener metadata del pokémon que hemos atrapado (determinar si el mapa nos la provee o si la debemos recuperar del FS)
+
+		// Enviar mensaje OBJETIVOS_COMPLETADOS
+		paquete_t paquete;
+		mensaje_t mensaje11;
+
+		mensaje11.tipoMensaje = OBJETIVOS_COMPLETADOS;
+		crearPaquete((void*) &mensaje11, &paquete);
+		if(paquete.tamanioPaquete == 0)
+		{
+			mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, mapa_s->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+			return;
+		}
+
+		enviarMensaje(mapa_s, paquete);
+		if(mapa_s->error != NULL)
+		{
+			log_info(logger, mapa_s->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		    return;
+		}
+
+		conectado = 0;
+	}
+ }
+
 void signal_handler(int signal) {
-    const char *signal_name;
-    sigset_t pending;
+//    const char *signal_name;
+//    sigset_t pending;
 
     switch (signal) {
         case SIGTERM:

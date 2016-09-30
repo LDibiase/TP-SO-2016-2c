@@ -8,7 +8,6 @@
  */
 
 #include <stdlib.h>
-#include <commons/collections/list.h>
 #include <unistd.h>
 #include <tad_items.h>
 #include <curses.h>
@@ -20,18 +19,18 @@
 #include <errno.h>
 #include <pthread.h>
 #include <commons/config.h>
+#include <commons/collections/list.h>
 #include <commons/collections/dictionary.h>
 #include <commons/collections/queue.h>
 #include <commons/string.h>
 #include <commons/log.h>
 #include "socket.h" // BORRAR
-#include "protocoloMapaEntrenador.h" // BORRAR
 #include "Mapa.h"
 #include "nivel.h"
 
-#define BACKLOG 10	// Cuántas conexiones pendientes se mantienen en cola
+#define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 
-/* Variables */
+/* Variables globales */
 t_log* logger;
 t_mapa_config configMapa;
 t_list* entrenadores;
@@ -62,7 +61,6 @@ int main(void) {
 	log_info(logger, "Cargando archivo de configuración");
 	cargarConfiguracion(&configMapa);
 
-	//VAMOS A VER SI FUNCIONA
 	log_info(logger, "El algoritmo es: %s \n", configMapa.Algoritmo);
 	log_info(logger, "Batalla: %d \n", configMapa.Batalla);
 	log_info(logger, "El IP es: %s \n", configMapa.IP);
@@ -87,38 +85,7 @@ int main(void) {
 	activo = 1;
 
 	while(activo) {
-		void _jugar(t_mapa_pj* entrenador) {
-			//INGRESO DEL ENTRENADOR
-				entrenador->pos.x = 1;
-				entrenador->pos.y = 1;
-			CrearPersonaje(items, entrenador->id, entrenador->pos.x, entrenador->pos.y); //Carga de entrenador
-			t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
-			realizar_movimiento(items, *entrenador, "CodeTogether");
-
-			//COMIENZA LA BÚSQUEDA POKÉMON!
-			int cant = list_size(objetivos);
-			while (cant > 0) {
-				//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
-				char* pokemon = list_get(objetivos, 0);
-				char pokemonID = *pokemon;
-				t_mapa_pos pokenest = buscarPokenest(items, pokemonID);
-
-				//Movimientos hasta la Pokénest
-				while (((entrenador->pos.x != pokenest.x) || (entrenador->pos.y != pokenest.y)) && pokenest.cantidad > 0) {
-
-					entrenador->pos = calcularMovimiento(entrenador->pos, pokenest);
-					realizar_movimiento(items, *entrenador, "CodeTogether");
-
-					//Si llego a la Pokénest, capturo un Pokémon
-					if ((entrenador->pos.x == pokenest.x) && (entrenador->pos.y == pokenest.y)) {
-						restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
-						BorrarItem(objetivos, pokemonID); //Quito mi objetivo
-						realizar_movimiento(items, *entrenador, "CodeTogether");
-					}
-				}
-
-				cant = list_size(objetivos);
-			}
+		void _jugar(t_entrenador* entrenador) {
 		}
 
 		if(list_size(entrenadores) > 0) {
@@ -135,7 +102,7 @@ int main(void) {
 }
 
 //FUNCIONES PLANIFICADOR
-void encolarNuevoEntrenador(t_mapa_pj* entrenador)
+void encolarNuevoEntrenador(t_entrenador* entrenador)
 {
 	//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
 	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
@@ -150,9 +117,9 @@ void encolarNuevoEntrenador(t_mapa_pj* entrenador)
 	}
 }
 
-void calcularFaltante(t_mapa_pj entrenador)
+void calcularFaltante(t_entrenador entrenador)
 {
-	if(!list_is_empty(entrenador.objetivos))
+/*	if(!list_is_empty(entrenador.objetivos))
 	{
 		char* objetivoActual = list_get(entrenador.objetivos, 0);
 		char objetivoID = *objetivoActual;
@@ -169,11 +136,11 @@ void calcularFaltante(t_mapa_pj entrenador)
 	else
 	{
 		entrenador.faltaEjecutar = 0;
-	}
+	}*/
 }
 
 //FUNCIONES PARA COLAS PLANIFICADOR
-void insertarOrdenado(t_mapa_pj* entrenador, t_queue* lista)
+void insertarOrdenado(t_entrenador* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -191,7 +158,7 @@ void insertarOrdenado(t_mapa_pj* entrenador, t_queue* lista)
 		queue_push(lista, entrenador);
 		pthread_mutex_unlock(&mutex);
 
-		bool _auxComparador(t_mapa_pj *entrenador1, t_mapa_pj *entrenador2)
+		bool _auxComparador(t_entrenador *entrenador1, t_entrenador *entrenador2)
 		{
 			return entrenador->faltaEjecutar < entrenador2->faltaEjecutar;
 		}
@@ -204,7 +171,7 @@ void insertarOrdenado(t_mapa_pj* entrenador, t_queue* lista)
 	pthread_mutex_destroy(&mutex);
 }
 
-void insertarAlFinal(t_mapa_pj* entrenador, t_queue* lista)
+void insertarAlFinal(t_entrenador* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
 	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -216,15 +183,15 @@ void insertarAlFinal(t_mapa_pj* entrenador, t_queue* lista)
 	pthread_mutex_destroy(&mutex);
 }
 
-void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa) {
-	MoverPersonaje(items, personaje.id, personaje.pos.x, personaje.pos.y);
+void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa) {
+	MoverPersonaje(items, personaje.id, personaje.ubicacion.x, personaje.ubicacion.y);
 	nivel_gui_dibujar(items, mapa);
 	usleep(configMapa.Retardo);
 }
 
 //FUNCIÓN DE ENTRENADOR
 char ejeAnterior = 'x'; //VAR de entrenador
-t_mapa_pos calcularMovimiento(t_mapa_pos posActual, t_mapa_pos posFinal) {
+t_ubicacion calcularMovimiento(t_ubicacion posActual, t_ubicacion posFinal) {
 			int cantMovimientos = 0;
 			if ((ejeAnterior == 'x') || (posActual.x == posFinal.x)) {
 				if (posActual.y > posFinal.y) {
@@ -262,12 +229,12 @@ ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado) {
 	return list_find(lista, (void*) _is_the_one);
 }
 
-t_mapa_pos buscarPokenest(t_list* lista, char pokemon) {
+t_ubicacion buscarPokenest(t_list* lista, char pokemon) {
 	ITEM_NIVEL pokenest = *find_by_id(lista, pokemon);
-	t_mapa_pos ubicacion;
+	t_ubicacion ubicacion;
 	ubicacion.x= pokenest.posx;
 	ubicacion.y = pokenest.posy;
-	ubicacion.cantidad = pokenest.quantity;
+//	ubicacion.cantidad = pokenest.quantity;
 	return ubicacion;
 }
 
@@ -313,7 +280,7 @@ t_list* cargarPokenest() {
 	        	string_append(&str, dent->d_name);
 	        	string_append(&str, "/metadata");
 	        	pokenestLeida = leerPokenest(str);
-	        	CrearCaja(newlist, pokenestLeida.id[0], pokenestLeida.pos.x, pokenestLeida.pos.y, 10); //Todos con 10
+	        	CrearCaja(newlist, pokenestLeida.id[0], pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, 10); //Todos con 10
 	        	log_info(logger, "Se cargo la pokenest: %c", pokenestLeida.id[0]);
 	        }
 	    }
@@ -334,11 +301,11 @@ t_mapa_pokenest leerPokenest(char* metadata)
 			&& config_has_property(config, "Identificador"))
 	{
 		structPokenest.id = strdup(config_get_string_value(config, "Identificador"));
-		structPokenest.Tipo = strdup(config_get_string_value(config, "Tipo"));
+		structPokenest.tipo = strdup(config_get_string_value(config, "Tipo"));
 		char* posXY = strdup(config_get_string_value(config, "Posicion"));
 		char** array = string_split(posXY, ";");
-		structPokenest.pos.x = atoi(array[0]);
-		structPokenest.pos.y = atoi(array[1]);
+		structPokenest.ubicacion.x = atoi(array[0]);
+		structPokenest.ubicacion.y = atoi(array[1]);
 		config_destroy(config);
 	}
 	else
@@ -410,9 +377,9 @@ void aceptarConexiones() {
 
 	while(conectado) {
 		struct socket* cli_socket_s;
-		t_mapa_pj* entrenador;
+		t_entrenador* entrenador;
 
-		entrenador = malloc(sizeof(t_mapa_pj));
+		entrenador = malloc(sizeof(t_entrenador));
 
 		log_info(logger, "Escuchando conexiones");
 

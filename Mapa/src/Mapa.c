@@ -219,9 +219,11 @@ int main(void) {
 			   }
 			   break;
 		   case OBJETIVOS_COMPLETADOS:
-
+			   	   //TODO BORRAR ENTRENADOR
 			   break;
 		}
+
+		while(1);
 
 		//INGRESO DEL ENTRENADOR
 		entrenadorAEjecutar->ubicacion.x = 1;

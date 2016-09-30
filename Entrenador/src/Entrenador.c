@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <signal.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
 #include <commons/string.h>
@@ -157,4 +158,21 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 		config_destroy(config);
 		return 1;
 	}
+}
+
+void signal_handler(int signal) {
+    const char *signal_name;
+    sigset_t pending;
+
+    switch (signal) {
+        case SIGTERM:
+            //Sacar una vida
+            break;
+        case SIGUSR1:
+            //Dar una vida
+            break;
+        default:
+            fprintf(stderr, "Codigo Invalido: %d\n", signal);
+            return;
+    }
 }

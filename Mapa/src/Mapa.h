@@ -7,11 +7,11 @@
 
 #ifndef MAPA_H_
 #define MAPA_H_
+#include "protocoloMapaEntrenador.h" // BORRAR
 
 /* Definición de estructuras */
 
-typedef struct mapa
-{
+typedef struct mapa {
 	int TiempoChequeoDeadlock;
 	int Batalla;
 	char* Algoritmo;
@@ -19,31 +19,22 @@ typedef struct mapa
 	int Retardo;
 	char* IP;
 	char* Puerto;
-}t_mapa_config;
+} t_mapa_config;
 
-typedef struct ubicacion {
-	int x;
-	int y;
-	int cantidad;
-} t_mapa_pos;
-
-typedef struct personaje {
+typedef struct entrenador {
 	char id;
 	char* nombre;
 	int faltaEjecutar;
-	t_list* objetivos;
 	socket_t* socket;
-	t_mapa_pos pos;
-} t_mapa_pj;
+	t_ubicacion ubicacion;
+} t_entrenador;
 
-typedef struct pokenest
-{
-	char* Tipo;
-	t_mapa_pos pos;
+typedef struct pokenest {
+	char* tipo;
+	t_ubicacion ubicacion;
 	char* id;
-}t_mapa_pokenest;
-
-
+	int cantidad;
+} t_mapa_pokenest;
 
 
 /* Constantes */
@@ -56,14 +47,14 @@ typedef struct pokenest
 
 /* Declaración de funciones */
 
-void encolarNuevoEntrenador(t_mapa_pj* entrenador);
-void calcularFaltante(t_mapa_pj entrenador);
-void insertarOrdenado(t_mapa_pj* entrenador, t_queue* lista);
-void insertarAlFinal(t_mapa_pj* entrenador, t_queue* lista);
-void realizar_movimiento(t_list* items, t_mapa_pj personaje, char * mapa);
-t_mapa_pos calcularMovimiento(t_mapa_pos posActual, t_mapa_pos posFinal);
-ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado);
-t_mapa_pos buscarPokenest(t_list* lista, char pokemon);
+void encolarNuevoEntrenador(t_entrenador* entrenador);
+void calcularFaltante(t_entrenador entrenador);
+void insertarOrdenado(t_entrenador* entrenador, t_queue* lista);
+void insertarAlFinal(t_entrenador* entrenador, t_queue* lista);
+void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa);
+t_ubicacion calcularMovimiento(t_ubicacion ubicacionActual, t_ubicacion ubicacionFinal);
+ITEM_NIVEL* find_by_id(t_list* lista, char idBuscado);
+t_ubicacion buscarPokenest(t_list* lista, char pokemon);
 t_list* cargarObjetivos();
 t_list* cargarPokenest();
 t_mapa_pokenest leerPokenest(char* metadata);

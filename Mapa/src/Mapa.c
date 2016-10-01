@@ -58,7 +58,6 @@ int main(void) {
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
 
-
 	//CONFIGURACIÓN DEL MAPA
 	log_info(logger, "Cargando archivo de configuración");
 	cargarConfiguracion(&configMapa);
@@ -98,177 +97,178 @@ int main(void) {
 
 		if(queue_size(colaReady) != 0)
 		{
-			//		pthread_mutex_lock(&mutex);
-					t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
-			//		pthread_mutex_unlock(&mutex);
+			//pthread_mutex_lock(&mutex);
+			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
+			//pthread_mutex_unlock(&mutex);
 
-					//LE AVISO AL ENTRENADOR QUE SE LE CONCEDIO UN TURNO
-					mensaje_t mensajeTurno;
-					paquete_t paquete;
+			//LE AVISO AL ENTRENADOR QUE SE LE CONCEDIO UN TURNO
+			mensaje_t mensajeTurno;
+			paquete_t paquete;
 
-					mensajeTurno.tipoMensaje = TURNO;
-					crearPaquete((void*) &mensajeTurno, &paquete);
+			mensajeTurno.tipoMensaje = TURNO;
+			crearPaquete((void*) &mensajeTurno, &paquete);
 
-					if(paquete.tamanioPaquete == 0)
-					{
-						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-						//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-						eliminarSocket(entrenadorAEjecutar->socket);
-						exit(-1);
-					}
+			if(paquete.tamanioPaquete == 0)
+			{
+				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+				//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+				eliminarSocket(entrenadorAEjecutar->socket);
+				exit(-1);
+			}
 
-					enviarMensaje(entrenadorAEjecutar->socket, paquete);
+			enviarMensaje(entrenadorAEjecutar->socket, paquete);
 
-					if(entrenadorAEjecutar->socket->error != NULL)
-					{
-						log_info(logger, entrenadorAEjecutar->socket->error);
-						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-						//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-						eliminarSocket(entrenadorAEjecutar->socket);
-						exit(-1);
-					}
+			if(entrenadorAEjecutar->socket->error != NULL)
+			{
+				log_info(logger, entrenadorAEjecutar->socket->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+				//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+				eliminarSocket(entrenadorAEjecutar->socket);
+				exit(-1);
+			}
 
-					//FALSO POLIMORFISMO
-					void* mensajeRespuesta = malloc(sizeof(mensaje_t));
-					((mensaje_t*)mensajeRespuesta)->tipoMensaje = 0;
+			//FALSO POLIMORFISMO
+			void* mensajeRespuesta = malloc(sizeof(mensaje_t));
+			((mensaje_t*)mensajeRespuesta)->tipoMensaje = INDEFINIDO;
 
-					recibirMensaje(entrenadorAEjecutar->socket, &mensajeRespuesta);
+			recibirMensaje(entrenadorAEjecutar->socket, &mensajeRespuesta);
 
-					//HAGO UN SWITCH, PARA VER QUE ACCIÓN QUIERE REALIZAR EL ENTRENADOR
-					t_ubicacion pokeNestSolicitada;
-					switch(((mensaje_t*)mensajeRespuesta)->tipoMensaje) {
-					   case SOLICITA_UBICACION:
-						   pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*)mensajeRespuesta)->idPokeNest);
+			//HAGO UN SWITCH, PARA VER QUE ACCIÓN QUIERE REALIZAR EL ENTRENADOR
+			t_ubicacion pokeNestSolicitada;
+			switch(((mensaje_t*)mensajeRespuesta)->tipoMensaje) {
+			case SOLICITA_UBICACION:
+				pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*)mensajeRespuesta)->idPokeNest);
 
-						   mensajePokenest.tipoMensaje = BRINDA_UBICACION;
-						   mensajePokenest.ubicacionX = pokeNestSolicitada.x;
-						   mensajePokenest.ubicacionY = pokeNestSolicitada.y;
+				mensajePokenest.tipoMensaje = BRINDA_UBICACION;
+				mensajePokenest.ubicacionX = pokeNestSolicitada.x;
+				mensajePokenest.ubicacionY = pokeNestSolicitada.y;
 
-						   paquete_t paquetePokenest;
-						   crearPaquete((void*) &mensajePokenest, &paquetePokenest);
+				paquete_t paquetePokenest;
+				crearPaquete((void*) &mensajePokenest, &paquetePokenest);
 
-						   if(paquetePokenest.tamanioPaquete == 0)
-						   {
-							   log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-							   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-							   eliminarSocket(entrenadorAEjecutar->socket);
-							   exit(-1);
-						   }
-
-						   enviarMensaje(entrenadorAEjecutar->socket, paquetePokenest);
-
-						   if(entrenadorAEjecutar->socket->error != NULL)
-						   {
-							   log_info(logger, entrenadorAEjecutar->socket->error);
-							   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-							   eliminarSocket(entrenadorAEjecutar->socket);
-							   exit(-1);
-						   }
-
-						   break;
-					   case SOLICITA_DESPLAZAMIENTO:
-						   mensajeDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
-
-						   paquete_t paqueteDesplazamiento;
-
-						   crearPaquete((void*) &mensajeDesplazamiento, &paqueteDesplazamiento);
-
-						   if(paqueteDesplazamiento.tamanioPaquete == 0)
-						   {
-							   log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-							   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-							   eliminarSocket(entrenadorAEjecutar->socket);
-							   exit(-1);
-						   }
-
-						   enviarMensaje(entrenadorAEjecutar->socket, paqueteDesplazamiento);
-
-						   if(entrenadorAEjecutar->socket->error != NULL)
-						   {
-							   log_info(logger, entrenadorAEjecutar->socket->error);
-							   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-							   eliminarSocket(entrenadorAEjecutar->socket);
-							   exit(-1);
-						   }
-						   break;
-					   case SOLICITA_CAPTURA:
-						   mensajeCaptura.tipoMensaje = CONFIRMA_CAPTURA;
-
-						   paquete_t paqueteCaptura;
-
-						   crearPaquete((void*) &mensajeCaptura, &paqueteCaptura);
-
-						   if(paqueteCaptura.tamanioPaquete == 0)
-						   {
-							   log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-							   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-							   eliminarSocket(entrenadorAEjecutar->socket);
-							   exit(-1);
-						   }
-
-						   enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
-
-						   if(entrenadorAEjecutar->socket->error != NULL)
-						   {
-							   log_info(logger, entrenadorAEjecutar->socket->error);
-							   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-							   eliminarSocket(entrenadorAEjecutar->socket);
-							   exit(-1);
-						   }
-						   break;
-					   case OBJETIVOS_COMPLETADOS:
-						   	   //TODO BORRAR ENTRENADOR
-						   break;
-					}
-
-					while(1);
-
-					//INGRESO DEL ENTRENADOR
-					entrenadorAEjecutar->ubicacion.x = 1;
-					entrenadorAEjecutar->ubicacion.y = 1;
-					CrearPersonaje(items, entrenadorAEjecutar->id, entrenadorAEjecutar->ubicacion.x, entrenadorAEjecutar->ubicacion.y); //Carga de entrenador
-					t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
-					realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
-
-					//COMIENZA LA BÚSQUEDA POKÉMON!
-					int cant = list_size(objetivos);
-					while (cant > 0) {
-						//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
-						char* pokemon = list_get(objetivos, 0);
-						char pokemonID = *pokemon;
-						t_ubicacion pokenest = buscarPokenest(items, pokemonID);
-
-						//Movimientos hasta la Pokénest
-						while (((entrenadorAEjecutar->ubicacion.x != pokenest.x) || (entrenadorAEjecutar->ubicacion.y != pokenest.y))) { //&& pokenest.cantidad > 0) {
-
-							entrenadorAEjecutar->ubicacion = calcularMovimiento(entrenadorAEjecutar->ubicacion, pokenest);
-							realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
-
-							//Si llego a la Pokénest, capturo un Pokémon
-							if ((entrenadorAEjecutar->ubicacion.x == pokenest.x) && (entrenadorAEjecutar->ubicacion.y == pokenest.y)) {
-								restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
-								BorrarItem(objetivos, pokemonID); //Quito mi objetivo
-								realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
-							}
-						}
-
-						cant = list_size(objetivos);
-					}
-				//activo = 0;
+				if(paquetePokenest.tamanioPaquete == 0)
+				{
+					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+					//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+					eliminarSocket(entrenadorAEjecutar->socket);
+					exit(-1);
 				}
 
+				enviarMensaje(entrenadorAEjecutar->socket, paquetePokenest);
+
+				if(entrenadorAEjecutar->socket->error != NULL)
+				{
+				   log_info(logger, entrenadorAEjecutar->socket->error);
+				   log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+				   //TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+				   eliminarSocket(entrenadorAEjecutar->socket);
+				   exit(-1);
+				}
+
+				break;
+			case SOLICITA_DESPLAZAMIENTO:
+				mensajeDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
+
+				paquete_t paqueteDesplazamiento;
+
+				crearPaquete((void*) &mensajeDesplazamiento, &paqueteDesplazamiento);
+
+				if(paqueteDesplazamiento.tamanioPaquete == 0)
+				{
+					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+					//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+					eliminarSocket(entrenadorAEjecutar->socket);
+					exit(-1);
+				}
+
+				enviarMensaje(entrenadorAEjecutar->socket, paqueteDesplazamiento);
+
+				if(entrenadorAEjecutar->socket->error != NULL)
+				{
+					log_info(logger, entrenadorAEjecutar->socket->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+					//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+					eliminarSocket(entrenadorAEjecutar->socket);
+					exit(-1);
+				}
+
+				break;
+			case SOLICITA_CAPTURA:
+				mensajeCaptura.tipoMensaje = CONFIRMA_CAPTURA;
+
+				paquete_t paqueteCaptura;
+
+				crearPaquete((void*) &mensajeCaptura, &paqueteCaptura);
+
+				if(paqueteCaptura.tamanioPaquete == 0)
+				{
+					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+					//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+					eliminarSocket(entrenadorAEjecutar->socket);
+					exit(-1);
+				}
+
+				enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
+
+				if(entrenadorAEjecutar->socket->error != NULL)
+				{
+					log_info(logger, entrenadorAEjecutar->socket->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+					//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+					eliminarSocket(entrenadorAEjecutar->socket);
+					exit(-1);
+				}
+
+				break;
+			case OBJETIVOS_COMPLETADOS:
+				//TODO BORRAR ENTRENADOR
+
+				break;
+			}
+
+			//INGRESO DEL ENTRENADOR
+			entrenadorAEjecutar->ubicacion.x = 1;
+			entrenadorAEjecutar->ubicacion.y = 1;
+			CrearPersonaje(items, entrenadorAEjecutar->id, entrenadorAEjecutar->ubicacion.x, entrenadorAEjecutar->ubicacion.y); //Carga de entrenador
+			t_list* objetivos = cargarObjetivos("C,O,D,E"); //Carga de Pokémons a buscar
+			realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+
+			//COMIENZA LA BÚSQUEDA POKÉMON!
+			int cant = list_size(objetivos);
+			while (cant > 0) {
+				//Obtengo la ubicación de la Pokénest correspondiente a mi Pokémon
+				char* pokemon = list_get(objetivos, 0);
+				char pokemonID = *pokemon;
+				t_ubicacion pokenest = buscarPokenest(items, pokemonID);
+
+				//Movimientos hasta la Pokénest
+				while (((entrenadorAEjecutar->ubicacion.x != pokenest.x) || (entrenadorAEjecutar->ubicacion.y != pokenest.y))) { //&& pokenest.cantidad > 0) {
+					entrenadorAEjecutar->ubicacion = calcularMovimiento(entrenadorAEjecutar->ubicacion, pokenest);
+					realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+
+					//Si llego a la Pokénest, capturo un Pokémon
+					if ((entrenadorAEjecutar->ubicacion.x == pokenest.x) && (entrenadorAEjecutar->ubicacion.y == pokenest.y))
+					{
+						restarRecurso(items, pokemonID);  //Resto un Pokémon de la Pokénest
+						BorrarItem(objetivos, pokemonID); //Quito mi objetivo
+						realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+					}
+				}
+
+				cant = list_size(objetivos);
+			}
+
+			//activo = 0;
 		}
+	}
 
 	nivel_gui_terminar();
 	// TODO Cerrar la conexión del servidor
-//	pthread_mutex_destroy(&mutex);
+	//pthread_mutex_destroy(&mutex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -564,7 +564,9 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		// HANDSHAKE
+		///////////////////////
+		////// HANDSHAKE //////
+		///////////////////////
 
 		// Recibir mensaje CONEXION_ENTRENADOR
 		mensaje1_t mensaje1;

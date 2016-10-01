@@ -52,6 +52,7 @@
 
 // Mensajes
 typedef enum tipoMensaje {
+	INDEFINIDO,
 	CONEXION_ENTRENADOR,
 	ACEPTA_CONEXION,
 	RECHAZA_CONEXION,

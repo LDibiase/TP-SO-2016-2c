@@ -339,18 +339,18 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 	memcpy(&tipoMensaje, buffer, tamanioBuffer);
 
-	if(((mensaje_t*) mensaje)->tipoMensaje == tipoMensaje || ((mensaje_t*) mensaje)->tipoMensaje == 0)
+	if(((mensaje_t*) mensaje)->tipoMensaje == tipoMensaje || ((mensaje_t*) mensaje)->tipoMensaje == INDEFINIDO)
 	{
 		switch(tipoMensaje) {
 		case CONEXION_ENTRENADOR:
-			if(((mensaje1_t*) mensaje)->tipoMensaje == 0)
+			if(((mensaje1_t*) mensaje)->tipoMensaje == INDEFINIDO)
 			{
 				punteroAuxiliar = mensaje;
 				mensaje = realloc(mensaje, sizeof(mensaje1_t));
 				if(mensaje == NULL)
 				{
 					mensaje = punteroAuxiliar;
-					((mensaje1_t*) mensaje)->tipoMensaje = 0;
+					((mensaje1_t*) mensaje)->tipoMensaje = INDEFINIDO;
 				}
 			}
 
@@ -387,14 +387,14 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case SOLICITA_UBICACION:
-			if(((mensaje5_t*) mensaje)->tipoMensaje == 0)
+			if(((mensaje5_t*) mensaje)->tipoMensaje == INDEFINIDO)
 			{
 				punteroAuxiliar = mensaje;
 				mensaje = realloc(mensaje, sizeof(mensaje5_t));
 				if(mensaje == NULL)
 				{
 					mensaje = punteroAuxiliar;
-					((mensaje5_t*) mensaje)->tipoMensaje = 0;
+					((mensaje5_t*) mensaje)->tipoMensaje = INDEFINIDO;
 				}
 			}
 
@@ -410,14 +410,14 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case BRINDA_UBICACION:
-			if(((mensaje6_t*) mensaje)->tipoMensaje == 0)
+			if(((mensaje6_t*) mensaje)->tipoMensaje == INDEFINIDO)
 			{
 				punteroAuxiliar = mensaje;
 				mensaje = realloc(mensaje, sizeof(mensaje6_t));
 				if(mensaje == NULL)
 				{
 					mensaje = punteroAuxiliar;
-					((mensaje6_t*) mensaje)->tipoMensaje = 0;
+					((mensaje6_t*) mensaje)->tipoMensaje = INDEFINIDO;
 				}
 			}
 
@@ -443,14 +443,14 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case SOLICITA_DESPLAZAMIENTO:
-			if(((mensaje7_t*) mensaje)->tipoMensaje == 0)
+			if(((mensaje7_t*) mensaje)->tipoMensaje == INDEFINIDO)
 			{
 				punteroAuxiliar = mensaje;
 				mensaje = realloc(mensaje, sizeof(mensaje7_t));
 				if(mensaje == NULL)
 				{
 					mensaje = punteroAuxiliar;
-					((mensaje7_t*) mensaje)->tipoMensaje = 0;
+					((mensaje7_t*) mensaje)->tipoMensaje = INDEFINIDO;
 				}
 			}
 
@@ -466,14 +466,14 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case CONFIRMA_DESPLAZAMIENTO:
-			if(((mensaje8_t*) mensaje)->tipoMensaje == 0)
+			if(((mensaje8_t*) mensaje)->tipoMensaje == INDEFINIDO)
 			{
 				punteroAuxiliar = mensaje;
 				mensaje = realloc(mensaje, sizeof(mensaje8_t));
 				if(mensaje == NULL)
 				{
 					mensaje = punteroAuxiliar;
-					((mensaje8_t*) mensaje)->tipoMensaje = 0;
+					((mensaje8_t*) mensaje)->tipoMensaje = INDEFINIDO;
 				}
 			}
 

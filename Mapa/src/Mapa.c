@@ -227,8 +227,7 @@ int main(void) {
 
 				break;
 			case OBJETIVOS_COMPLETADOS:
-				//TODO BORRAR ENTRENADOR
-
+				BorrarItem(items, entrenadorAEjecutar->id);
 				break;
 			}
 
@@ -278,6 +277,9 @@ int main(void) {
 //FUNCIONES PLANIFICADOR
 void encolarNuevoEntrenador(t_entrenador* entrenador)
 {
+	//SE CREA EL PERSONAJE PARA LA INTERFAZ GRÁFICA
+	CrearPersonaje(items, entrenador->id, entrenador->ubicacion.x, entrenador->ubicacion.y);
+
 	//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
 	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
 	{

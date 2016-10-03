@@ -12,54 +12,63 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-#include <commons/log.h>
 //#include <Utility_Library/socket.h>
 #include "socket.h" // BORRAR
 #include "PokeDexServidor.h"
 #include "osada.h"
 #include <commons/bitarray.h>
 
-#define IP "127.0.0.1"			 // IP
-#define PUERTO "8080"			 // Puerto al que conectarán los Clientes de PokéDex
-#define CONEXIONES_PENDIENTES 10 // Cantidad de conexiones pendientes que se pueden mantener en simultáneo
-#define LOG_FILE_PATH "PokeDexServidor.log"
+#define IP "127.0.0.1"
+#define PUERTO "8080"
+#define CANTIDAD_MAXIMA_CONEXIONES 1000
+#define TABLA_ARCHIVOS 2048
 
-/* Variables */
-t_log* logger;
 struct socket** clientes;
 
 int main(void) {
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
+	int idHilo;
+	void* valorRetorno;
 
 	// Variables para el manejo del FileSystem OSADA
-	FILE *fileFS;
-	osada_header cabeceraFS;
-	unsigned char * bitmapS;
-	t_bitarray * bitarray;
+	FILE *fileFS; 					// ARCHIVO
+	osada_header cabeceraFS;		// HEADER
+	t_bitarray * bitarray;			// ARRAY BITMAP
+	unsigned char * bitmapS;		// BITMAP
+	osada_file tablaArchivos[2048];	// TABLA DE ARCHIVOS
+	unsigned int * tablaAsignaciones;		// TABLA DE ASIGNACIONES
+	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
+
+	unsigned int * aux;
 	int i;
 	int j;
 
-	//CREACIÓN DEL ARCHIVO DE LOG
-	logger = log_create(LOG_FILE_PATH, "MAPA", true, LOG_LEVEL_INFO);
-
+	/*
 	// Creación del hilo en escucha
 	pthread_attr_init(&atributosHilo);
-	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
+	idHilo = pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
 
+	if(idHilo == 0)
+		pthread_join(hiloEnEscucha, &valorRetorno);
+	*/
+
 	// Abre el archivo de File System
-	if ((fileFS=fopen("/home/utnso/workspace/Osada1.bin","r"))==NULL)
+	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r"))==NULL)
 	{
 		puts("Error al abrir el archivo de FS.\n");
 		return EXIT_FAILURE;
 	}
 
+	// Lee la cabecera del archivo
+	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
+
+	printf("Leido Header %d\n", ftell(fileFS)); // POSICION
+
 	// Valida que sea un FS OSADA
-	if (strncmp(cabeceraFS.magic_number, "OsadaFS", 7) == 0)
-		puts("Es un FS Osada\n");
-	else
+	if (memcmp(cabeceraFS.magic_number, "OsadaFS", 7) != 0)
 	{
 		puts("NO es un FS Osada\n");
 		return EXIT_FAILURE;
@@ -76,44 +85,87 @@ int main(void) {
 		return EXIT_FAILURE;
 	}
 
-	printf("aloco %d\n", sizeof(bitmapS));
-	printf("%d\n", cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
-
 	// Lee el BITMAP
-	fread(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE, 1 , fileFS);
+	fread(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE, 1, fileFS);
 
-	puts("leyo\n");
+	printf("Leido Bitmap %d\n", ftell(fileFS)); // POSICION
 
 	// Crea el array de bits
 	bitarray = bitarray_create(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
 
+/*
 	// Imprime todos los bits
-	j = cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE * 8;
+	j = bitarray_get_max_bit(bitarray);
 	for (i = 0; i < j; i++)
 		printf("%d = %d\n", i, bitarray_test_bit(bitarray, i));
+*/
 
-	// Lee la cabecera del archivo
-	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
+	// Lee la tabla de archivos
+	fread(tablaArchivos, sizeof(osada_file), TABLA_ARCHIVOS, fileFS);
 
-	puts(cabeceraFS.magic_number);
-	printf("%d\n", cabeceraFS.version);
-	printf("%d\n", cabeceraFS.fs_blocks);
-	printf("%d\n", cabeceraFS.bitmap_blocks);
-	printf("%d\n", cabeceraFS.allocations_table_offset);
-	printf("%d\n", cabeceraFS.data_blocks);
-	puts(cabeceraFS.padding);
+	printf("Leido Tabla de Archivos %d\n", ftell(fileFS)); // POSICION
 
-	printf("%d\n", CHAR_BIT);
-	printf("%d\n", cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE * 8);
-	printf("%d\n", bitarray_get_max_bit(bitarray));
+	// Arma la estructura para la tabla de asignaciones
+	bloquesTablaAsignaciones = cabeceraFS.fs_blocks - 1 - cabeceraFS.bitmap_blocks - 1024 - cabeceraFS.data_blocks;
+	printf("Leido Tabla de Archivos %d\n", bloquesTablaAsignaciones); // POSICION
+	tablaAsignaciones=(int *)malloc((bloquesTablaAsignaciones * OSADA_BLOCK_SIZE) / sizeof(int));
+
+	// Verifica que se haya reservado el espacio
+	if (tablaAsignaciones== NULL)
+	{
+		fclose(fileFS);
+		puts("No se dispone de memoria para alocar la Tabla de Asignaciones\n");
+		return EXIT_FAILURE;
+	}
+
+	// Lee la tabla de ASIGNACIONES
+	fread(tablaAsignaciones, sizeof(int), (bloquesTablaAsignaciones * OSADA_BLOCK_SIZE) / sizeof(int), fileFS);
+
+	printf("Leido Tabla Asignaciones %d\n", ftell(fileFS)); // POSICION
+/*
+	for (i = 0; i < bloquesTablaAsignaciones; i++)
+		printf("%d = %d\n", i, tablaAsignaciones[i]);
+*/
+	// IMPRIME LOS VALORES
+	printf("HEADER\n");
+	printf("Identificador: %s\n", cabeceraFS.magic_number);
+	printf("Version:       %d\n", cabeceraFS.version);
+	printf("Tamano FS:     %d (bloques)\n", cabeceraFS.fs_blocks);
+	printf("Tamano Bitmap: %d (bloques)\n", cabeceraFS.bitmap_blocks);
+	printf("Inicio T.Asig: %d (bloque)\n", cabeceraFS.allocations_table_offset);
+	printf("Tamano Datos:  %d (bloques)\n", cabeceraFS.data_blocks);
+	printf("Identificador: %s\n", cabeceraFS.padding);
+	printf("\nBITMAP\n");
+	printf("Primer Bloque disponible: %d\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
+
+	printf("%d = %d\n", 0, bitarray_test_bit(bitarray, i));
+	printf("%d = %d\n", 2015, bitarray_test_bit(bitarray, 2015));
+	printf("%d = %d\n", 2016, bitarray_test_bit(bitarray, 2016));
+	printf("%d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
+
+	printf("\nTABLA DE ASIGNACIONES\n");
+	printf("Tamano T.Asig: %d (bloques)\n", bloquesTablaAsignaciones);
+	printf("\nBLOQUE DE DATOS\n");
+	printf("Inicio Datos: %d (bloque)\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
+
+	for (i = 0; i < TABLA_ARCHIVOS; i++)
+	{
+		if (tablaArchivos[i].state != 0)
+		{
+			printf("%d\n", tablaArchivos[i].state);
+			printf("%s\n", tablaArchivos[i].fname);
+			printf("%d\n", tablaArchivos[i].parent_directory);
+			printf("%d\n", tablaArchivos[i].file_size);
+			printf("%d\n", tablaArchivos[i].lastmod);
+			printf("%d\n", tablaArchivos[i].first_block);
+		}
+	}
 
 	free(bitmapS);
 	bitmapS=NULL;
 
 	fclose(fileFS);
 
-	log_destroy(logger);
-	// TODO Cerrar la conexión del servidor
 	return EXIT_SUCCESS;
 }
 
@@ -125,47 +177,55 @@ void aceptarConexiones() {
 	int cantidadClientes;
 
 	int error = -1;
+	int exito = 0;
 
 	mi_socket_s = crearServidor(IP, PUERTO);
 	if(mi_socket_s->descriptor == 0)
 	{
-		log_info(logger, "Conexión fallida");
-		log_info(logger, mi_socket_s->error);
-		exit(error);
+		puts("Conexión fallida");
+		puts(mi_socket_s->error);
+		pthread_exit(&error);
 	}
 
-	returnValue = escucharConexiones(*mi_socket_s, CONEXIONES_PENDIENTES);
+	returnValue = escucharConexiones(*mi_socket_s, CANTIDAD_MAXIMA_CONEXIONES);
 	if(returnValue != 0)
 	{
-		log_info(logger, strerror(returnValue));
-		eliminarSocket(mi_socket_s);
-		exit(error);
+		puts(strerror(returnValue));
+		pthread_exit(&error);
 	}
+
+	puts("Escuchando conexiones");
 
 	conectado = 1;
 	cantidadClientes = 0;
 
 	while(conectado) {
-		struct socket* cli_socket_s;
-
-		log_info(logger, "Escuchando conexiones");
-
-		cli_socket_s = aceptarConexion(*mi_socket_s);
-		if(cli_socket_s->descriptor == 0)
+		cantidadClientes = sizeof(clientes) / sizeof(struct socket);
+		if(cantidadClientes < CANTIDAD_MAXIMA_CONEXIONES)
 		{
-			log_info(logger, "Se rechaza conexión");
-			log_info(logger, cli_socket_s->error);
+			struct socket* cli_socket_s;
+
+			cli_socket_s = aceptarConexion(*mi_socket_s);
+			if(cli_socket_s->descriptor == 0)
+			{
+				puts("Se rechaza conexión");
+				puts(cli_socket_s->error);
+			}
+
+			clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
+			clientes[cantidadClientes + 1] = cli_socket_s;
+
+
+			printf("Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
+		}
+		else
+		{
 			conectado = 0;
-			eliminarSocket(mi_socket_s);
-			exit(error);
 		}
 
-//		cantidadClientes = cantidadElementosArray((void**) clientes);
-		clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
-		clientes[cantidadClientes] = malloc(sizeof(struct socket));
-		clientes[cantidadClientes] = cli_socket_s;
-		clientes[cantidadClientes + 1] = NULL;
-
-		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
+		puts("Escuchando conexiones");
 	}
+
+	eliminarSocket(mi_socket_s);
+	pthread_exit(&exito);
 }

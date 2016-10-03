@@ -23,6 +23,8 @@ typedef struct mapa {
 
 typedef struct entrenador {
 	char id;
+	char pokenestActual;
+	char pokemonActual;
 	char* nombre;
 	int faltaEjecutar;
 	socket_t* socket;

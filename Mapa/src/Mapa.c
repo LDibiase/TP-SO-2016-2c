@@ -141,6 +141,7 @@ int main(void) {
 			switch(((mensaje_t*)mensajeRespuesta)->tipoMensaje) {
 			case SOLICITA_UBICACION:
 				pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*)mensajeRespuesta)->idPokeNest);
+				entrenadorAEjecutar->pokenestActual = ((mensaje5_t*)mensajeRespuesta)->idPokeNest;
 
 				mensajePokenest.tipoMensaje = BRINDA_UBICACION;
 				mensajePokenest.ubicacionX = pokeNestSolicitada.x;
@@ -173,8 +174,15 @@ int main(void) {
 			case SOLICITA_DESPLAZAMIENTO:
 				mensajeDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
 
-				paquete_t paqueteDesplazamiento;
+				entrenadorAEjecutar->ubicacion.x = ((mensaje8_t*)mensajeRespuesta)->ubicacionX;
+				entrenadorAEjecutar->ubicacion.y = ((mensaje8_t*)mensajeRespuesta)->ubicacionY;
 
+				t_ubicacion pokenest = buscarPokenest(items, entrenadorAEjecutar->pokemonActual);
+
+				entrenadorAEjecutar->ubicacion = calcularMovimiento(entrenadorAEjecutar->ubicacion, pokenest);
+				realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+
+				paquete_t paqueteDesplazamiento;
 				crearPaquete((void*) &mensajeDesplazamiento, &paqueteDesplazamiento);
 
 				if(paqueteDesplazamiento.tamanioPaquete == 0)
@@ -213,6 +221,9 @@ int main(void) {
 					eliminarSocket(entrenadorAEjecutar->socket);
 					exit(-1);
 				}
+
+				restarRecurso(items, entrenadorAEjecutar->pokemonActual);
+				//TODO LÓGICA DE ASIGNACIÓN DE POKEMON AL ENTRENADOR
 
 				enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
 

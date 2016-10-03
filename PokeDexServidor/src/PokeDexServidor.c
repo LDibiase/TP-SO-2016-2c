@@ -56,7 +56,10 @@ int main(void) {
 	*/
 
 	// Abre el archivo de File System
-	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada.bin","r"))==NULL)
+	printf("\n---------------------------");
+	printf("\n	INICIO	\n");
+	printf("---------------------------\n");
+	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/basic.bin","r"))==NULL)
 	{
 		puts("Error al abrir el archivo de FS.\n");
 		return EXIT_FAILURE;
@@ -119,47 +122,68 @@ int main(void) {
 	}
 
 	// Lee la tabla de ASIGNACIONES
-	fread(tablaAsignaciones, sizeof(int), (bloquesTablaAsignaciones * OSADA_BLOCK_SIZE) / sizeof(int), fileFS);
+	//fread(tablaAsignaciones, sizeof(int), (bloquesTablaAsignaciones * OSADA_BLOCK_SIZE) / sizeof(int), fileFS);
+	//printf("Leido Tabla Asignaciones %d\n", ftell(fileFS)); // POSICION
+	printf("Leido Tabla Asignaciones PENDIENTE\n");
 
-	printf("Leido Tabla Asignaciones %d\n", ftell(fileFS)); // POSICION
 /*
 	for (i = 0; i < bloquesTablaAsignaciones; i++)
 		printf("%d = %d\n", i, tablaAsignaciones[i]);
 */
-	// IMPRIME LOS VALORES
-	printf("HEADER\n");
+	// INFORMACION HEADER
+	printf("\n---------------------------");
+	printf("\n	HEADER	\n");
+	printf("---------------------------\n");
 	printf("Identificador: %s\n", cabeceraFS.magic_number);
 	printf("Version:       %d\n", cabeceraFS.version);
 	printf("Tamano FS:     %d (bloques)\n", cabeceraFS.fs_blocks);
 	printf("Tamano Bitmap: %d (bloques)\n", cabeceraFS.bitmap_blocks);
 	printf("Inicio T.Asig: %d (bloque)\n", cabeceraFS.allocations_table_offset);
 	printf("Tamano Datos:  %d (bloques)\n", cabeceraFS.data_blocks);
-	printf("Identificador: %s\n", cabeceraFS.padding);
-	printf("\nBITMAP\n");
+	printf("Relleno: %s\n", cabeceraFS.padding);
+
+	// INFORMACION BITMAP
+	printf("\n---------------------------");
+	printf("\n	BITMAP	\n");
+	printf("---------------------------\n");
 	printf("Primer Bloque disponible: %d\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
+	printf("Pos %d = %d\n", 0, bitarray_test_bit(bitarray, i));
+	printf("Pos %d = %d\n", 2015, bitarray_test_bit(bitarray, 2015));
+	printf("Pos %d = %d\n", 2016, bitarray_test_bit(bitarray, 2016));
+	printf("Pos %d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
 
-	printf("%d = %d\n", 0, bitarray_test_bit(bitarray, i));
-	printf("%d = %d\n", 2015, bitarray_test_bit(bitarray, 2015));
-	printf("%d = %d\n", 2016, bitarray_test_bit(bitarray, 2016));
-	printf("%d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
-
-	printf("\nTABLA DE ASIGNACIONES\n");
-	printf("Tamano T.Asig: %d (bloques)\n", bloquesTablaAsignaciones);
-	printf("\nBLOQUE DE DATOS\n");
-	printf("Inicio Datos: %d (bloque)\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
-
+	// INFORMACION TABLA DE ARCHIVOS
+	printf("\n---------------------------");
+	printf("\n	TABLA DE ARCHIVOS	\n");
+	printf("---------------------------\n");
+	printf("%s\n", "|    State    	|    File Name    	|    Parent Dir |    Size    	|    lastModif    	|    First Block");
+	printf("%s\n", "--------------------------------------------------------------------------------------------------------");
 	for (i = 0; i < TABLA_ARCHIVOS; i++)
 	{
 		if (tablaArchivos[i].state != 0)
 		{
-			printf("%d\n", tablaArchivos[i].state);
-			printf("%s\n", tablaArchivos[i].fname);
-			printf("%d\n", tablaArchivos[i].parent_directory);
-			printf("%d\n", tablaArchivos[i].file_size);
-			printf("%d\n", tablaArchivos[i].lastmod);
-			printf("%d\n", tablaArchivos[i].first_block);
+			printf("|    %d    	", tablaArchivos[i].state);
+			printf("|    %s    	", tablaArchivos[i].fname);
+			printf("|    %d    	", tablaArchivos[i].parent_directory);
+			printf("|    %d    	", tablaArchivos[i].file_size);
+			printf("|    %d    	", tablaArchivos[i].lastmod);
+			printf("|    %d    	", tablaArchivos[i].first_block);
+			printf("\n");
 		}
 	}
+
+	// BLOQUE DE DATOS
+		printf("\n---------------------------");
+		printf("\n	BLOQUE DE DATOS	\n");
+		printf("---------------------------\n");
+		printf("Inicio Datos: %d (bloque)\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
+
+	// INFORMACION TABLA DE ASIGNACIONES
+	printf("\n---------------------------");
+	printf("\n	TABLA DE ASIGNACIONES	\n");
+	printf("---------------------------\n");
+	//printf("Tamano T.Asig: %d (bloques)\n", bloquesTablaAsignaciones);
+	printf("Tamano T.Asig: PENDIENTE\n\n");
 
 	free(bitmapS);
 	bitmapS=NULL;

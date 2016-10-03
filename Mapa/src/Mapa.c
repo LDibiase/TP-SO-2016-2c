@@ -46,6 +46,10 @@ int main(void) {
 	pthread_attr_t atributosHilo;
 	int activo;
 
+	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
+
 	// Variables para la diagramación del mapa
 	int rows, cols;
 
@@ -70,7 +74,6 @@ int main(void) {
 	log_info(logger, "El retardo es: %d \n", configMapa.Retardo);
 	log_info(logger, "El tiempo de chequeo es: %d \n", configMapa.TiempoChequeoDeadlock);
 
-
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
@@ -83,8 +86,7 @@ int main(void) {
 //	nivel_gui_get_area_nivel(&rows, &cols);
 //	nivel_gui_dibujar(items, "CodeTogether");
 
-	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-//	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
 
 	//MENSAJES A UTILIZAR
 	mensaje6_t mensajePokenest;
@@ -97,9 +99,9 @@ int main(void) {
 
 		if(queue_size(colaReady) != 0)
 		{
-			//pthread_mutex_lock(&mutex);
+			pthread_mutex_lock(&mutex);
 			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
-			//pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutex);
 
 			//LE AVISO AL ENTRENADOR QUE SE LE CONCEDIO UN TURNO
 			mensaje_t mensajeTurno;
@@ -268,7 +270,7 @@ int main(void) {
 
 	nivel_gui_terminar();
 	// TODO Cerrar la conexión del servidor
-	//pthread_mutex_destroy(&mutex);
+	pthread_mutex_destroy(&mutex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -315,7 +317,8 @@ void calcularFaltante(t_entrenador entrenador)
 void insertarOrdenado(t_entrenador* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
 
 	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
 	if(queue_size(lista) == 0)
@@ -346,13 +349,14 @@ void insertarOrdenado(t_entrenador* entrenador, t_queue* lista)
 void insertarAlFinal(t_entrenador* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-	//pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
 
-	//pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&mutex);
 	queue_push(lista, entrenador);
-	//pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&mutex);
 
-	//pthread_mutex_destroy(&mutex);
+	pthread_mutex_destroy(&mutex);
 }
 
 void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa) {

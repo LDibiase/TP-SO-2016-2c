@@ -63,6 +63,7 @@ int main(void) {
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
 
+
 	//CONFIGURACIÓN DEL MAPA
 	log_info(logger, "Cargando archivo de configuración");
 	cargarConfiguracion(&configMapa);
@@ -75,16 +76,18 @@ int main(void) {
 	log_info(logger, "El retardo es: %d \n", configMapa.Retardo);
 	log_info(logger, "El tiempo de chequeo es: %d \n", configMapa.TiempoChequeoDeadlock);
 
+
+	//INICIALIZACIÓN DEL MAPA
+	items = cargarPokenest(); //Carga de las Pokénest del mapa
+	nivel_gui_inicializar();
+	nivel_gui_get_area_nivel(&rows, &cols);
+	nivel_gui_dibujar(items, "CodeTogether");
+
+
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
-
-	//INICIALIZACIÓN DEL MAPA
-//	items = cargarPokenest(); //Carga de las Pokénest del mapa
-//	nivel_gui_inicializar();
-//	nivel_gui_get_area_nivel(&rows, &cols);
-//	nivel_gui_dibujar(items, "CodeTogether");
 
 
 	//MENSAJES A UTILIZAR
@@ -131,8 +134,6 @@ int main(void) {
 
 			free(paquete.paqueteSerializado);
 
-			while(1);
-
 			//FALSO POLIMORFISMO
 			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
 			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
@@ -153,7 +154,7 @@ int main(void) {
 			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
 			case SOLICITA_UBICACION:
 				pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-				entrenadorAEjecutar->pokenestActual = ((mensaje5_t*)mensajeRespuesta)->idPokeNest;
+				entrenadorAEjecutar->pokenestActual = ((mensaje5_t*) mensajeRespuesta)->idPokeNest;
 
 				mensajePokenest.tipoMensaje = BRINDA_UBICACION;
 				mensajePokenest.ubicacionX = pokeNestSolicitada.x;
@@ -182,7 +183,7 @@ int main(void) {
 				   exit(-1);
 				}
 
-				free(paquete.paqueteSerializado);
+				free(paquetePokenest.paqueteSerializado);
 
 				break;
 			case SOLICITA_DESPLAZAMIENTO:
@@ -219,7 +220,7 @@ int main(void) {
 					exit(-1);
 				}
 
-				free(paquete.paqueteSerializado);
+				free(paqueteDesplazamiento.paqueteSerializado);
 
 				break;
 			case SOLICITA_CAPTURA:
@@ -252,7 +253,7 @@ int main(void) {
 					exit(-1);
 				}
 
-				free(paquete.paqueteSerializado);
+				free(paqueteCaptura.paqueteSerializado);
 
 				break;
 			case OBJETIVOS_COMPLETADOS:
@@ -298,6 +299,9 @@ int main(void) {
 
 	nivel_gui_terminar();
 	// TODO Cerrar la conexión del servidor
+	queue_destroy(colaReady);
+	queue_destroy(colaBloqueados);
+	list_destroy(entrenadores);
 	pthread_mutex_destroy(&mutex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
@@ -427,21 +431,33 @@ t_ubicacion calcularMovimiento(t_ubicacion posActual, t_ubicacion posFinal) {
 	return posActual;
 }
 
-ITEM_NIVEL *find_by_id(t_list* lista, char idBuscado) {
+ITEM_NIVEL* find_by_id(t_list* lista, char idBuscado) {
 	int _is_the_one(void* p) {
 		ITEM_NIVEL* castP = p;
 		ITEM_NIVEL cajaComparator = *castP;
 		return cajaComparator.id == idBuscado;
 	}
+
 	return list_find(lista, (void*) _is_the_one);
 }
 
 t_ubicacion buscarPokenest(t_list* lista, char pokemon) {
-	ITEM_NIVEL pokenest = *find_by_id(lista, pokemon);
 	t_ubicacion ubicacion;
-	ubicacion.x= pokenest.posx;
-	ubicacion.y = pokenest.posy;
-//	ubicacion.cantidad = pokenest.quantity;
+
+	ITEM_NIVEL* pokenest = find_by_id(lista, pokemon);
+
+	if(pokenest != NULL)
+	{
+		ubicacion.x = pokenest->posx;
+		ubicacion.y = pokenest->posy;
+//		ubicacion.cantidad = pokenest.quantity;
+	}
+	else
+	{
+		ubicacion.x = 0;
+		ubicacion.y = 0;
+	}
+
 	return ubicacion;
 }
 
@@ -604,24 +620,24 @@ void aceptarConexiones() {
 		///////////////////////
 
 		// Recibir mensaje CONEXION_ENTRENADOR
-		mensaje1_t mensaje1;
+		mensaje1_t mensajeConexionEntrenador;
 
-		mensaje1.tipoMensaje = CONEXION_ENTRENADOR;
-		recibirMensaje(cli_socket_s, &mensaje1);
+		mensajeConexionEntrenador.tipoMensaje = CONEXION_ENTRENADOR;
+		recibirMensaje(cli_socket_s, &mensajeConexionEntrenador);
 		if(cli_socket_s->error != NULL)
 		{
 			log_info(logger, cli_socket_s->error);
 			eliminarSocket(cli_socket_s);
 		}
 
-		if(mensaje1.tipoMensaje != CONEXION_ENTRENADOR)
+		if(mensajeConexionEntrenador.tipoMensaje != CONEXION_ENTRENADOR)
 		{
 			// Enviar mensaje RECHAZA_CONEXION
 			paquete_t paquete;
-			mensaje_t mensaje3;
+			mensaje_t mensajeRechazaConexion;
 
-			mensaje3.tipoMensaje = RECHAZA_CONEXION;
-			crearPaquete((void*) &mensaje3, &paquete);
+			mensajeRechazaConexion.tipoMensaje = RECHAZA_CONEXION;
+			crearPaquete((void*) &mensajeRechazaConexion, &paquete);
 			if(paquete.tamanioPaquete == 0)
 			{
 				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
@@ -649,18 +665,18 @@ void aceptarConexiones() {
 			eliminarSocket(cli_socket_s);
 		}
 
-		log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", cli_socket_s->descriptor, mensaje1.nombreEntrenador, mensaje1.simboloEntrenador);
+		log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", cli_socket_s->descriptor, mensajeConexionEntrenador.nombreEntrenador, mensajeConexionEntrenador.simboloEntrenador);
 
-		entrenador->id = mensaje1.simboloEntrenador;
-		entrenador->nombre = mensaje1.nombreEntrenador;
+		entrenador->id = mensajeConexionEntrenador.simboloEntrenador;
+		entrenador->nombre = mensajeConexionEntrenador.nombreEntrenador;
 		entrenador->socket = cli_socket_s;
 
 		// Enviar mensaje ACEPTA_CONEXION
 		paquete_t paquete;
-		mensaje_t mensaje2;
+		mensaje_t mensajeAceptaConexion;
 
-		mensaje2.tipoMensaje = ACEPTA_CONEXION;
-		crearPaquete((void*) &mensaje2, &paquete);
+		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
+		crearPaquete((void*) &mensajeAceptaConexion, &paquete);
 		if(paquete.tamanioPaquete == 0)
 		{
 			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
@@ -684,12 +700,18 @@ void aceptarConexiones() {
 
 		free(paquete.paqueteSerializado);
 
+		//Se agrega al entrenador a la lista de entrenadores conectados
 		list_add(entrenadores, entrenador);
 
 		//SE PLANIFICA AL NUEVO ENTRENADOR
-		encolarNuevoEntrenador(entrenador);
+		t_entrenador* entrenadorPlanificado;
+
+		entrenadorPlanificado = malloc(sizeof(t_entrenador));
+		*entrenadorPlanificado = *entrenador;
+
+		encolarNuevoEntrenador(entrenadorPlanificado);
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", entrenador->socket->descriptor);
-		log_info(logger, "Se planificó al entrenador %s", entrenador->nombre);
+		log_info(logger, "Se planificó al entrenador %s (%c)", entrenadorPlanificado->nombre, entrenadorPlanificado->id);
 	}
 }

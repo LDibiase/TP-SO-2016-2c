@@ -29,62 +29,64 @@ int* medalla_prueba;
 struct stat medallaPruebaStat;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
-	int res = 0;
-	memset(stbuf, 0, sizeof(struct stat));
 
 	//Si path es igual a "/" nos estan pidiendo los atributos del punto de montaje
 
-	if (strcmp(path, "/") == 0) {
-		stbuf->st_mode = S_IFDIR | 0755;
-		stbuf->st_nlink = 2;
-	} else if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
-		stbuf->st_mode = S_IFREG | 0444;
-		stbuf->st_nlink = 1;
-		stbuf->st_size = strlen(DEFAULT_FILE_CONTENT);
-	} else {
-		res = -ENOENT;
-	}
-	return res;
+	memset(stbuf, 0, sizeof(struct stat));
+
+	  if (strcmp(path, "/") == 0) {
+	    stbuf->st_mode = S_IFDIR | 0777;
+	    stbuf->st_nlink = 2;
+	    return 0;
+	  }
+
+	  if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
+	    stbuf->st_mode = S_IFREG | 0777;
+	    stbuf->st_nlink = 1;
+	    stbuf->st_size = strlen(DEFAULT_FILE_CONTENT);
+	    return 0;
+	  }
+
+	  return -ENOENT;
 }
 
 static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
-	int res = 0;
+	(void) offset;
+	(void) fi;
 
-	if (strcmp(path, "/") == 0) {
-			filler(buf, "medalla", NULL, 0);
-		} else if (strcmp(path, "/medalla") == 0) {
-			filler(buf, "indigo.txt", NULL, 0);
-		} else {
-			res = -ENOENT;
-	}
+	filler(buf, ".", NULL, 0);
+	filler(buf, "..", NULL, 0);
 
-	// "." y ".." son entradas validas, la primera es una referencia al directorio donde estamos parados
-	// y la segunda indica el directorio padre
-	//filler(buf, ".", NULL, 0);
-	//filler(buf, "..", NULL, 0);
-	//filler(buf, DEFAULT_FILE_NAME, NULL, 0);
+	filler(buf, DEFAULT_FILE_NAME, NULL, 0);
 
-	return res;
+	return 0;
 }
 
 static int fuse_open(const char *path, struct fuse_file_info *fi) {
 	if (strcmp(path, DEFAULT_FILE_PATH) != 0)
 		return -ENOENT;
 
-	if ((fi->flags & 3) != O_RDONLY)
-		return -EACCES;
-
 	return 0;
 }
 
 static int fuse_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
-	size_t len;
-	(void) fi;
-	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
-		memcpy(buf,((char*)medalla_prueba + offset),size);
-	}
 
-	return size;
+	  if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
+	    size_t len = strlen(DEFAULT_FILE_CONTENT);
+	    if (offset >= len) {
+	      return 0;
+	    }
+
+	    if (offset + size > len) {
+	      memcpy(buf, DEFAULT_FILE_CONTENT + offset, len - offset);
+	      return len - offset;
+	    }
+
+	    memcpy(buf, DEFAULT_FILE_CONTENT + offset, size);
+	    return size;
+	  }
+
+	  return -ENOENT;
 }
 
 static struct fuse_opt fuse_options[] = {
@@ -101,7 +103,7 @@ static struct fuse_opt fuse_options[] = {
 
 static struct fuse_operations fuse_oper = {
 		.getattr = fuse_getattr,
-		//.readdir = fuse_readdir,
+		.readdir = fuse_readdir,
 		.open = fuse_open,
 		.read = fuse_read,
 };

@@ -80,7 +80,6 @@ int main(void) {
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
 
-
 	//INICIALIZACIÓN DEL MAPA
 //	items = cargarPokenest(); //Carga de las Pokénest del mapa
 //	nivel_gui_inicializar();
@@ -129,6 +128,10 @@ int main(void) {
 				eliminarSocket(entrenadorAEjecutar->socket);
 				exit(-1);
 			}
+
+			free(paquete.paqueteSerializado);
+
+			while(1);
 
 			//FALSO POLIMORFISMO
 			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
@@ -179,6 +182,8 @@ int main(void) {
 				   exit(-1);
 				}
 
+				free(paquete.paqueteSerializado);
+
 				break;
 			case SOLICITA_DESPLAZAMIENTO:
 				mensajeDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
@@ -214,6 +219,8 @@ int main(void) {
 					exit(-1);
 				}
 
+				free(paquete.paqueteSerializado);
+
 				break;
 			case SOLICITA_CAPTURA:
 				mensajeCaptura.tipoMensaje = CONFIRMA_CAPTURA;
@@ -244,6 +251,8 @@ int main(void) {
 					eliminarSocket(entrenadorAEjecutar->socket);
 					exit(-1);
 				}
+
+				free(paquete.paqueteSerializado);
 
 				break;
 			case OBJETIVOS_COMPLETADOS:
@@ -634,6 +643,8 @@ void aceptarConexiones() {
 				exit(error);
 			}
 
+			free(paquete.paqueteSerializado);
+
 			log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
 			eliminarSocket(cli_socket_s);
 		}
@@ -670,6 +681,8 @@ void aceptarConexiones() {
 			eliminarSocket(mi_socket_s);
 			exit(error);
 		}
+
+		free(paquete.paqueteSerializado);
 
 		list_add(entrenadores, entrenador);
 

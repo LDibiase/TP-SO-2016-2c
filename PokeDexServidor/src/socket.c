@@ -385,6 +385,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			memcpy(&(((mensaje1_t*) mensaje)->simboloEntrenador), buffer, tamanioBuffer);
 
+			free(buffer);
+
 			break;
 		case SOLICITA_UBICACION:
 			free(buffer);
@@ -399,6 +401,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			}
 
 			memcpy(&(((mensaje5_t*) mensaje)->idPokeNest), buffer, tamanioBuffer);
+
+			free(buffer);
 
 			break;
 		case BRINDA_UBICACION:
@@ -428,6 +432,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			memcpy(&(((mensaje6_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
 
+			free(buffer);
+
 			break;
 		case SOLICITA_DESPLAZAMIENTO:
 			free(buffer);
@@ -442,6 +448,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			}
 
 			memcpy(&(((mensaje7_t*) mensaje)->direccion), buffer, tamanioBuffer);
+
+			free(buffer);
 
 			break;
 		case CONFIRMA_DESPLAZAMIENTO:
@@ -470,6 +478,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			}
 
 			memcpy(&(((mensaje8_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
+
+			free(buffer);
 
 			break;
 		}

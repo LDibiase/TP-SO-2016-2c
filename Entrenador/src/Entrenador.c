@@ -44,7 +44,7 @@ int main(void) {
 		ubicacionPokeNest.y = 0;
 
 		// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
-		while(ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) {
+		//while(ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) {
 			// Recibir mensaje TURNO
 			mensaje_t mensaje4;
 
@@ -85,12 +85,12 @@ int main(void) {
 
 				// TODO Analizar otros posibles casos
 			}
-		}
+		//}
 
 		// Una vez alcanzada la ubicación de la PokéNest
 
 		// Recibir mensaje TURNO
-		mensaje_t mensaje4;
+		//mensaje_t mensaje4;
 
 		mensaje4.tipoMensaje = TURNO;
 		recibirMensaje(mapa_s, &mensaje4);
@@ -152,6 +152,8 @@ int main(void) {
 				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
 			    return;
 			}
+
+			free(paquete.paqueteSerializado);
 
 			conectado = 0;
 		}
@@ -277,6 +279,8 @@ socket_t* conectarAMapa(char* ip, char* puerto) {
 		return mapa_s;
 	}
 
+	free(paquete.paqueteSerializado);
+
 	// Recibir mensaje ACEPTA_CONEXION
 	mensaje_t mensaje;
 
@@ -329,6 +333,8 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
 		return;
 	}
+
+	free(paquete.paqueteSerializado);
 
 	// Recibir mensaje BRINDA_UBICACION
 	mensaje6_t mensaje6;
@@ -405,6 +411,8 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	    return;
 	}
 
+	free(paquete.paqueteSerializado);
+
 	// Recibir mensaje CONFIRMA_DESPLAZAMIENTO
 	mensaje8_t mensaje8;
 
@@ -450,6 +458,8 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
 	    return;
 	}
+
+	free(paquete.paqueteSerializado);
 
 	// Recibir mensaje CONFIRMA_CAPTURA
 	mensaje_t mensaje10;

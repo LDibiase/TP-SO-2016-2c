@@ -29,6 +29,7 @@
 #include "nivel.h"
 
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
+#define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje
 
 /* Variables globales */
 t_log* logger;
@@ -87,7 +88,6 @@ int main(void) {
 //	nivel_gui_dibujar(items, "CodeTogether");
 
 
-
 	//MENSAJES A UTILIZAR
 	mensaje6_t mensajePokenest;
 	mensaje7_t mensajeDesplazamiento;
@@ -131,16 +131,25 @@ int main(void) {
 			}
 
 			//FALSO POLIMORFISMO
-			void* mensajeRespuesta = malloc(sizeof(mensaje_t));
-			((mensaje_t*)mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
+			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
 
-			recibirMensaje(entrenadorAEjecutar->socket, &mensajeRespuesta);
+			recibirMensaje(entrenadorAEjecutar->socket, mensajeRespuesta);
+
+			if(entrenadorAEjecutar->socket->error != NULL)
+			{
+				log_info(logger, entrenadorAEjecutar->socket->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+				//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+				eliminarSocket(entrenadorAEjecutar->socket);
+				exit(-1);
+			}
 
 			//HAGO UN SWITCH, PARA VER QUE ACCIÓN QUIERE REALIZAR EL ENTRENADOR
 			t_ubicacion pokeNestSolicitada;
-			switch(((mensaje_t*)mensajeRespuesta)->tipoMensaje) {
+			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
 			case SOLICITA_UBICACION:
-				pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*)mensajeRespuesta)->idPokeNest);
+				pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
 				entrenadorAEjecutar->pokenestActual = ((mensaje5_t*)mensajeRespuesta)->idPokeNest;
 
 				mensajePokenest.tipoMensaje = BRINDA_UBICACION;

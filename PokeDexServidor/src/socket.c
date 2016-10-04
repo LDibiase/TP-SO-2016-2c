@@ -323,7 +323,6 @@ void enviarMensaje(socket_t* socket, paquete_t paquete) {
 }
 
 void recibirMensaje(socket_t* socket, void* mensaje) {
-	void* punteroAuxiliar;
 	ssize_t bytesRecibidos;
 	size_t tamanioBuffer;
 	char* buffer;
@@ -335,7 +334,10 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 	bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 	if(bytesRecibidos == -1)
+	{
 		socket->error = strerror(errno);
+		return;
+	}
 
 	memcpy(&tipoMensaje, buffer, tamanioBuffer);
 
@@ -343,24 +345,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 	{
 		switch(tipoMensaje) {
 		case CONEXION_ENTRENADOR:
-			if(((mensaje1_t*) mensaje)->tipoMensaje == INDEFINIDO)
-			{
-				punteroAuxiliar = mensaje;
-				mensaje = realloc(mensaje, sizeof(mensaje1_t));
-				if(mensaje == NULL)
-				{
-					mensaje = punteroAuxiliar;
-					((mensaje1_t*) mensaje)->tipoMensaje = INDEFINIDO;
-				}
-			}
-
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioNombreEntrenador);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje1_t*) mensaje)->tamanioNombreEntrenador), buffer, tamanioBuffer);
 
@@ -370,7 +364,10 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			((mensaje1_t*) mensaje)->nombreEntrenador = malloc(tamanioBuffer);
 			memcpy(((mensaje1_t*) mensaje)->nombreEntrenador, buffer, tamanioBuffer);
@@ -381,53 +378,40 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje1_t*) mensaje)->simboloEntrenador), buffer, tamanioBuffer);
 
 			break;
 		case SOLICITA_UBICACION:
-			if(((mensaje5_t*) mensaje)->tipoMensaje == INDEFINIDO)
-			{
-				punteroAuxiliar = mensaje;
-				mensaje = realloc(mensaje, sizeof(mensaje5_t));
-				if(mensaje == NULL)
-				{
-					mensaje = punteroAuxiliar;
-					((mensaje5_t*) mensaje)->tipoMensaje = INDEFINIDO;
-				}
-			}
-
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->idPokeNest);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje5_t*) mensaje)->idPokeNest), buffer, tamanioBuffer);
 
 			break;
 		case BRINDA_UBICACION:
-			if(((mensaje6_t*) mensaje)->tipoMensaje == INDEFINIDO)
-			{
-				punteroAuxiliar = mensaje;
-				mensaje = realloc(mensaje, sizeof(mensaje6_t));
-				if(mensaje == NULL)
-				{
-					mensaje = punteroAuxiliar;
-					((mensaje6_t*) mensaje)->tipoMensaje = INDEFINIDO;
-				}
-			}
-
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->ubicacionX);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje6_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
 
@@ -437,53 +421,40 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje6_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
 
 			break;
 		case SOLICITA_DESPLAZAMIENTO:
-			if(((mensaje7_t*) mensaje)->tipoMensaje == INDEFINIDO)
-			{
-				punteroAuxiliar = mensaje;
-				mensaje = realloc(mensaje, sizeof(mensaje7_t));
-				if(mensaje == NULL)
-				{
-					mensaje = punteroAuxiliar;
-					((mensaje7_t*) mensaje)->tipoMensaje = INDEFINIDO;
-				}
-			}
-
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->direccion);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje7_t*) mensaje)->direccion), buffer, tamanioBuffer);
 
 			break;
 		case CONFIRMA_DESPLAZAMIENTO:
-			if(((mensaje8_t*) mensaje)->tipoMensaje == INDEFINIDO)
-			{
-				punteroAuxiliar = mensaje;
-				mensaje = realloc(mensaje, sizeof(mensaje8_t));
-				if(mensaje == NULL)
-				{
-					mensaje = punteroAuxiliar;
-					((mensaje8_t*) mensaje)->tipoMensaje = INDEFINIDO;
-				}
-			}
-
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->ubicacionX);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje8_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
 
@@ -493,11 +464,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
 			if(bytesRecibidos == -1)
+			{
 				socket->error = strerror(errno);
+				return;
+			}
 
 			memcpy(&(((mensaje8_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
 
 			break;
 		}
 	}
+
+	((mensaje_t*) mensaje)->tipoMensaje = tipoMensaje;
 }

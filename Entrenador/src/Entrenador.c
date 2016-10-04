@@ -31,12 +31,64 @@ int main(void) {
 	socket_t* mapa_s;
 	int conectado;
 	t_ubicacion ubicacion;
-	t_ubicacion ubicacionPokeNest;
+	char ejeAnterior;
 
 	int error;
 	error = -1;
 
 	void _obtenerObjetivo(char* objetivo) {
+		// Inicializar ubicación de la PokéNest a la que se desea llegar
+		t_ubicacion ubicacionPokeNest;
+
+		ubicacionPokeNest.x = 0;
+		ubicacionPokeNest.y = 0;
+
+		// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
+		while(ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) {
+			// Recibir mensaje TURNO
+			mensaje_t mensaje4;
+
+			mensaje4.tipoMensaje = TURNO;
+			recibirMensaje(mapa_s, &mensaje4);
+			if(mapa_s->error != NULL)
+			{
+				log_info(logger, mapa_s->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				exit(error);
+			}
+
+			if(mensaje4.tipoMensaje == TURNO)
+			{
+				if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
+				{
+					// Determinar ubicación de la PokéNest a la que se desea llegar
+					solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
+					if(mapa_s->error != NULL)
+					{
+						eliminarSocket(mapa_s);
+						log_destroy(logger);
+						exit(error);
+					}
+				}
+				else
+				{
+					solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
+					if(mapa_s->error != NULL)
+					{
+						eliminarSocket(mapa_s);
+						log_destroy(logger);
+						exit(error);
+					}
+				}
+
+				// TODO Analizar otros posibles casos
+			}
+		}
+
+		// Una vez alcanzada la ubicación de la PokéNest
+
 		// Recibir mensaje TURNO
 		mensaje_t mensaje4;
 
@@ -53,53 +105,55 @@ int main(void) {
 
 		if(mensaje4.tipoMensaje == TURNO)
 		{
-			if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
+			solicitarCaptura(mapa_s);
+			if(mapa_s->error != NULL)
 			{
-				// Determinar ubicación de la PokéNest a la que se desea llegar
-				solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
-				if(mapa_s->error != NULL) {
-					eliminarSocket(mapa_s);
-					log_destroy(logger);
-					exit(error);
-				}
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				exit(error);
 			}
-
-			// Determinar eje anterior arbitrariamente
-			char ejeAnterior;
-			ejeAnterior = 'x';
-
-			// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
-			if (ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) {
-				solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
-				if(mapa_s->error != NULL) {
-					eliminarSocket(mapa_s);
-					log_destroy(logger);
-					exit(error);
-				}
-			}
-
-			// Una vez alcanzada la ubicación de la PokéNest
-			if (ubicacion.x == ubicacionPokeNest.x && ubicacion.y == ubicacionPokeNest.y) {
-				solicitarCaptura(mapa_s, &conectado);
-			}
-
-			// TODO Analizar otros posibles casos
 		}
 	}
 
 	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
+		// El entrenador está conectado al mapa
+		conectado = 1;
+
 		// Determinar la ubicación inicial del entrenador en el mapa
 		ubicacion.x = 1;
 		ubicacion.y = 1;
 
-		// Inicializar ubicación de la PokéNest a la que se desea llegar
-		ubicacionPokeNest.x = 0;
-		ubicacionPokeNest.y = 0;
-
-		conectado = 1;
+		// Determinar el eje de movimiento anterior arbitrariamente
+		ejeAnterior = 'x';
 
 		while(conectado) {
 			string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
+
+			// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
+
+			// Enviar mensaje OBJETIVOS_COMPLETADOS
+			paquete_t paquete;
+			mensaje_t mensaje11;
+
+			mensaje11.tipoMensaje = OBJETIVOS_COMPLETADOS;
+			crearPaquete((void*) &mensaje11, &paquete);
+			if(paquete.tamanioPaquete == 0)
+			{
+				mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, mapa_s->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+				return;
+			}
+
+			enviarMensaje(mapa_s, paquete);
+			if(mapa_s->error != NULL)
+			{
+				log_info(logger, mapa_s->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+			    return;
+			}
+
+			conectado = 0;
 		}
 	}
 
@@ -294,6 +348,8 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 		ubicacionPokeNest->y = mensaje6.ubicacionY;
 	}
 
+	log_info(logger, "La ubicación de la PokéNest es (%d,%d)", ubicacionPokeNest->x, ubicacionPokeNest->y);
+
 	// TODO Analizar otros posibles casos
 }
 
@@ -367,10 +423,12 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		ubicacion->y = mensaje8.ubicacionY;
 	}
 
+	log_info(logger, "La ubicación actual del entrenador es (%d,%d)", ubicacion->x, ubicacion->y);
+
 	// TODO Analizar otros posibles casos
 }
 
- void solicitarCaptura(socket_t* mapa_s, int* conectado) {
+ void solicitarCaptura(socket_t* mapa_s) {
 	// Enviar mensaje SOLICITA_CAPTURA
 	paquete_t paquete;
 	mensaje_t mensaje9;
@@ -395,6 +453,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 	// Recibir mensaje CONFIRMA_CAPTURA
 	mensaje_t mensaje10;
+
 	mensaje10.tipoMensaje = CONFIRMA_CAPTURA;
 	recibirMensaje(mapa_s, &mensaje10);
 	if(mapa_s->error != NULL)
@@ -404,33 +463,9 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		return;
 	}
 
-	if(mensaje10.tipoMensaje == CONFIRMA_DESPLAZAMIENTO)
+	if(mensaje10.tipoMensaje == CONFIRMA_CAPTURA)
 	{
 		// TODO Agregar lógica para obtener metadata del pokémon que hemos atrapado (determinar si el mapa nos la provee o si la debemos recuperar del FS)
-
-		// Enviar mensaje OBJETIVOS_COMPLETADOS
-		paquete_t paquete;
-		mensaje_t mensaje11;
-
-		mensaje11.tipoMensaje = OBJETIVOS_COMPLETADOS;
-		crearPaquete((void*) &mensaje11, &paquete);
-		if(paquete.tamanioPaquete == 0)
-		{
-			mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-			log_info(logger, mapa_s->error);
-			log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-			return;
-		}
-
-		enviarMensaje(mapa_s, paquete);
-		if(mapa_s->error != NULL)
-		{
-			log_info(logger, mapa_s->error);
-			log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-		    return;
-		}
-
-		conectado = 0;
 	}
  }
 

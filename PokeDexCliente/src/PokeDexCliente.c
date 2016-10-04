@@ -25,8 +25,6 @@
 
 /* Variables */
 t_log* logger;
-int* medalla_prueba;
-struct stat medallaPruebaStat;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
 
@@ -34,20 +32,20 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 
 	memset(stbuf, 0, sizeof(struct stat));
 
-	  if (strcmp(path, "/") == 0) {
-	    stbuf->st_mode = S_IFDIR | 0777;
+	if (strcmp(path, "/") == 0) {
+		stbuf->st_mode = S_IFDIR | 0777;
 	    stbuf->st_nlink = 2;
 	    return 0;
-	  }
+	}
 
-	  if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
+	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
 	    stbuf->st_mode = S_IFREG | 0777;
 	    stbuf->st_nlink = 1;
 	    stbuf->st_size = strlen(DEFAULT_FILE_CONTENT);
 	    return 0;
-	  }
+	}
 
-	  return -ENOENT;
+	return -ENOENT;
 }
 
 static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off_t offset, struct fuse_file_info *fi) {
@@ -71,22 +69,22 @@ static int fuse_open(const char *path, struct fuse_file_info *fi) {
 
 static int fuse_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
 
-	  if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
+	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
 	    size_t len = strlen(DEFAULT_FILE_CONTENT);
 	    if (offset >= len) {
 	      return 0;
 	    }
 
 	    if (offset + size > len) {
-	      memcpy(buf, DEFAULT_FILE_CONTENT + offset, len - offset);
-	      return len - offset;
+	    	memcpy(buf, DEFAULT_FILE_CONTENT + offset, len - offset);
+	    	return len - offset;
 	    }
 
-	    memcpy(buf, DEFAULT_FILE_CONTENT + offset, size);
-	    return size;
-	  }
+	  		memcpy(buf, DEFAULT_FILE_CONTENT + offset, size);
+	  		return size;
+	 }
 
-	  return -ENOENT;
+	 return -ENOENT;
 }
 
 static struct fuse_opt fuse_options[] = {

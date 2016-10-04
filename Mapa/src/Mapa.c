@@ -47,6 +47,10 @@ int main(void) {
 	pthread_attr_t atributosHilo;
 	int activo;
 
+	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
+
 	// Variables para la diagramación del mapa
 	int rows, cols;
 
@@ -71,7 +75,6 @@ int main(void) {
 	log_info(logger, "El retardo es: %d \n", configMapa.Retardo);
 	log_info(logger, "El tiempo de chequeo es: %d \n", configMapa.TiempoChequeoDeadlock);
 
-
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
@@ -84,8 +87,6 @@ int main(void) {
 //	nivel_gui_get_area_nivel(&rows, &cols);
 //	nivel_gui_dibujar(items, "CodeTogether");
 
-	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-//	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 	//MENSAJES A UTILIZAR
 	mensaje6_t mensajePokenest;
@@ -98,9 +99,9 @@ int main(void) {
 
 		if(queue_size(colaReady) != 0)
 		{
-			//pthread_mutex_lock(&mutex);
+			pthread_mutex_lock(&mutex);
 			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
-			//pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutex);
 
 			//LE AVISO AL ENTRENADOR QUE SE LE CONCEDIO UN TURNO
 			mensaje_t mensajeTurno;
@@ -149,6 +150,7 @@ int main(void) {
 			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
 			case SOLICITA_UBICACION:
 				pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+				entrenadorAEjecutar->pokenestActual = ((mensaje5_t*)mensajeRespuesta)->idPokeNest;
 
 				mensajePokenest.tipoMensaje = BRINDA_UBICACION;
 				mensajePokenest.ubicacionX = pokeNestSolicitada.x;
@@ -181,8 +183,15 @@ int main(void) {
 			case SOLICITA_DESPLAZAMIENTO:
 				mensajeDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
 
-				paquete_t paqueteDesplazamiento;
+				entrenadorAEjecutar->ubicacion.x = ((mensaje8_t*)mensajeRespuesta)->ubicacionX;
+				entrenadorAEjecutar->ubicacion.y = ((mensaje8_t*)mensajeRespuesta)->ubicacionY;
 
+				t_ubicacion pokenest = buscarPokenest(items, entrenadorAEjecutar->pokemonActual);
+
+				entrenadorAEjecutar->ubicacion = calcularMovimiento(entrenadorAEjecutar->ubicacion, pokenest);
+				realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+
+				paquete_t paqueteDesplazamiento;
 				crearPaquete((void*) &mensajeDesplazamiento, &paqueteDesplazamiento);
 
 				if(paqueteDesplazamiento.tamanioPaquete == 0)
@@ -222,6 +231,9 @@ int main(void) {
 					exit(-1);
 				}
 
+				restarRecurso(items, entrenadorAEjecutar->pokemonActual);
+				//TODO LÓGICA DE ASIGNACIÓN DE POKEMON AL ENTRENADOR
+
 				enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
 
 				if(entrenadorAEjecutar->socket->error != NULL)
@@ -235,8 +247,7 @@ int main(void) {
 
 				break;
 			case OBJETIVOS_COMPLETADOS:
-				//TODO BORRAR ENTRENADOR
-
+				BorrarItem(items, entrenadorAEjecutar->id);
 				break;
 			}
 
@@ -278,7 +289,7 @@ int main(void) {
 
 	nivel_gui_terminar();
 	// TODO Cerrar la conexión del servidor
-	//pthread_mutex_destroy(&mutex);
+	pthread_mutex_destroy(&mutex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -286,6 +297,9 @@ int main(void) {
 //FUNCIONES PLANIFICADOR
 void encolarNuevoEntrenador(t_entrenador* entrenador)
 {
+	//SE CREA EL PERSONAJE PARA LA INTERFAZ GRÁFICA
+	CrearPersonaje(items, entrenador->id, entrenador->ubicacion.x, entrenador->ubicacion.y);
+
 	//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
 	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
 	{
@@ -325,7 +339,8 @@ void calcularFaltante(t_entrenador entrenador)
 void insertarOrdenado(t_entrenador* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-	pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
 
 	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
 	if(queue_size(lista) == 0)
@@ -356,13 +371,14 @@ void insertarOrdenado(t_entrenador* entrenador, t_queue* lista)
 void insertarAlFinal(t_entrenador* entrenador, t_queue* lista)
 {
 	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-	//pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
 
-	//pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&mutex);
 	queue_push(lista, entrenador);
-	//pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&mutex);
 
-	//pthread_mutex_destroy(&mutex);
+	pthread_mutex_destroy(&mutex);
 }
 
 void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa) {

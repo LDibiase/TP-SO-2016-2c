@@ -10,7 +10,14 @@
 #define DEFAULT_FILE_PATH "/" DEFAULT_FILE_NAME
 #define DEFAULT_FILE_NAME "Osada"
 #define DEFAULT_FILE_CONTENT "Is Empty!\n"
+#define CUSTOM_FUSE_OPT_KEY(t, p, v) { t, offsetof(struct t_runtime_options, p), v }
 /* Definición de estructuras */
+
+
+struct t_runtime_options {
+	char* welcome_msg;
+} runtime_options;
+
 
 
 /* Declaración de funciones */

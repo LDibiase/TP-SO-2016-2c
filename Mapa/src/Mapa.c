@@ -99,7 +99,7 @@ int main(void) {
 
 	while(activo) {
 
-		if(queue_size(colaReady) != 0)
+		if(queue_size(colaReady) > 0)
 		{
 			pthread_mutex_lock(&mutex);
 			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
@@ -121,6 +121,8 @@ int main(void) {
 				exit(-1);
 			}
 
+			log_info(logger, "Paquete creado: %s tamaño: %d", paquete.paqueteSerializado, paquete.tamanioPaquete);
+
 			enviarMensaje(entrenadorAEjecutar->socket, paquete);
 
 			if(entrenadorAEjecutar->socket->error != NULL)
@@ -131,6 +133,8 @@ int main(void) {
 				eliminarSocket(entrenadorAEjecutar->socket);
 				exit(-1);
 			}
+
+			log_info(logger, "Se da un turno. Error: %s", paquete.paqueteSerializado);
 
 			free(paquete.paqueteSerializado);
 
@@ -153,6 +157,8 @@ int main(void) {
 			t_ubicacion pokeNestSolicitada;
 			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
 			case SOLICITA_UBICACION:
+				log_info(logger, "Entrenador solicita ubicación");
+
 				pokeNestSolicitada = buscarPokenest(items, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
 				entrenadorAEjecutar->pokenestActual = ((mensaje5_t*) mensajeRespuesta)->idPokeNest;
 
@@ -184,6 +190,8 @@ int main(void) {
 				}
 
 				free(paquetePokenest.paqueteSerializado);
+
+				log_info(logger, "Se envía ubicación al entrenador");
 
 				encolarEntrenador(entrenadorAEjecutar);
 
@@ -315,6 +323,8 @@ void encolarEntrenador(t_entrenador* entrenador)
 	ITEM_NIVEL* itemAux = find_by_id(items, entrenador->id);
 	if(itemAux == NULL)
 	{
+		log_info(logger, "Crea personaje");
+
 		//SE CREA EL PERSONAJE PARA LA INTERFAZ GRÁFICA
 		CrearPersonaje(items, entrenador->id, entrenador->ubicacion.x, entrenador->ubicacion.y);
 	}
@@ -330,6 +340,8 @@ void encolarEntrenador(t_entrenador* entrenador)
 		calcularFaltante(*entrenador);
 		insertarOrdenado(entrenador, colaReady);
 	}
+
+	log_info(logger, "Encola personaje");
 }
 
 void calcularFaltante(t_entrenador entrenador)

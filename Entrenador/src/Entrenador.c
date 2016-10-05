@@ -44,7 +44,7 @@ int main(void) {
 		ubicacionPokeNest.y = 0;
 
 		// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
-		while(ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) {
+		while((ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) && mapa_s->descriptor > 0) {
 			// Recibir mensaje TURNO
 			mensaje_t mensajeTurno;
 
@@ -59,10 +59,14 @@ int main(void) {
 				exit(error);
 			}
 
+			log_info(logger, "Recibí turno");
+
 			if(mensajeTurno.tipoMensaje == TURNO)
 			{
 				if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
 				{
+					log_info(logger, "Solicito ubicación");
+
 					// Determinar ubicación de la PokéNest a la que se desea llegar
 					solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
 					if(mapa_s->error != NULL)
@@ -71,10 +75,12 @@ int main(void) {
 						log_destroy(logger);
 						exit(error);
 					}
+
+					log_info(logger, "Recibí ubicación");
 				}
 				else
 				{
-					log_info(logger, "Recibí turno");
+					log_info(logger, "Solicito desplazamiento");
 
 					solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
 					if(mapa_s->error != NULL)
@@ -104,6 +110,8 @@ int main(void) {
 			log_destroy(logger);
 			exit(error);
 		}
+
+		log_info(logger, "Volví a recibir turno");
 
 		if(mensajeTurno.tipoMensaje == TURNO)
 		{
@@ -371,14 +379,13 @@ direccion_t calcularMovimiento(t_ubicacion ubicacionEntrenador, t_ubicacion ubic
 		else
 			direccion = ABAJO;
 		ejeAnterior = "y";
-
 	}
 	else if(string_equals_ignore_case(ejeAnterior, "y"))
 	{
 		if(ubicacionEntrenador.x > ubicacionPokeNest.x)
-			direccion = DERECHA;
-		else
 			direccion = IZQUIERDA;
+		else
+			direccion = DERECHA;
 		ejeAnterior = "x";
 	}
 

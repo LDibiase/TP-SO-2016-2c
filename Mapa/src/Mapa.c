@@ -92,7 +92,8 @@ int main(void) {
 
 	//MENSAJES A UTILIZAR
 	mensaje6_t mensajePokenest;
-	mensaje7_t mensajeDesplazamiento;
+	mensaje7_t mensajeUbicacionSolicitada;
+	mensaje8_t mensajeConfirmaDesplazamiento;
 	mensaje_t mensajeCaptura;
 
 	activo = 1;
@@ -185,22 +186,39 @@ int main(void) {
 
 				free(paquetePokenest.paqueteSerializado);
 
+				//VUELVO A ENCOLAR AL ENTRENADOR
 				encolarEntrenador(entrenadorAEjecutar);
 
 				break;
 			case SOLICITA_DESPLAZAMIENTO:
-				mensajeDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
+				mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
+				mensajeUbicacionSolicitada = *((mensaje7_t*) mensajeRespuesta);
 
-				entrenadorAEjecutar->ubicacion.x = ((mensaje8_t*)mensajeRespuesta)->ubicacionX;
-				entrenadorAEjecutar->ubicacion.y = ((mensaje8_t*)mensajeRespuesta)->ubicacionY;
+				//MODIFICO LA UBICACIÓN DEL ENTRENADOR DE ACUERDO A LA DIRECCIÓN SOLICITADA
+				switch(mensajeUbicacionSolicitada.direccion)
+				{
+					case ARRIBA:
+						(entrenadorAEjecutar->ubicacion.y)--;
+						break;
+					case ABAJO:
+						(entrenadorAEjecutar->ubicacion.y)++;
+						break;
+					case IZQUIERDA:
+						(entrenadorAEjecutar->ubicacion.x)--;
+						break;
+					case DERECHA:
+						(entrenadorAEjecutar->ubicacion.x)++;
+						break;
+				}
 
-				t_ubicacion pokenest = buscarPokenest(items, entrenadorAEjecutar->pokemonActual);
+				//LE ENVÍO AL ENTRENADOR SU NUEVA UBICACIÓN
+				mensajeConfirmaDesplazamiento.ubicacionX = entrenadorAEjecutar->ubicacion.x;
+				mensajeConfirmaDesplazamiento.ubicacionY = entrenadorAEjecutar->ubicacion.y;
 
-				entrenadorAEjecutar->ubicacion = calcularMovimiento(entrenadorAEjecutar->ubicacion, pokenest);
 				realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
 
 				paquete_t paqueteDesplazamiento;
-				crearPaquete((void*) &mensajeDesplazamiento, &paqueteDesplazamiento);
+				crearPaquete((void*) &mensajeConfirmaDesplazamiento, &paqueteDesplazamiento);
 
 				if(paqueteDesplazamiento.tamanioPaquete == 0)
 				{
@@ -223,6 +241,9 @@ int main(void) {
 				}
 
 				free(paqueteDesplazamiento.paqueteSerializado);
+
+				//VUELVO A ENCOLAR AL ENTRENADOR
+				encolarEntrenador(entrenadorAEjecutar);
 
 				break;
 			case SOLICITA_CAPTURA:

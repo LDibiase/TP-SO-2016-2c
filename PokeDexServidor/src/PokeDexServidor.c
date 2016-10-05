@@ -12,11 +12,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
+
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 //#include <Utility_Library/socket.h>
 #include "socket.h" // BORRAR
 #include "PokeDexServidor.h"
 #include "osada.h"
 #include <commons/bitarray.h>
+#include <sys/mman.h>
 
 #define IP "127.0.0.1"
 #define PUERTO "8080"
@@ -24,13 +30,9 @@
 #define TABLA_ARCHIVOS 2048
 
 struct socket** clientes;
+char* rutaFS = "/home/utnso/workspace/tp-2016-2c-CodeTogether/basic.bin";
 
 int main(void) {
-	// Variables para la creación del hilo en escucha
-	pthread_t hiloEnEscucha;
-	pthread_attr_t atributosHilo;
-	int idHilo;
-	void* valorRetorno;
 
 	// Variables para el manejo del FileSystem OSADA
 	FILE *fileFS; 					// ARCHIVO
@@ -40,26 +42,14 @@ int main(void) {
 	osada_file tablaArchivos[2048];	// TABLA DE ARCHIVOS
 	unsigned int * tablaAsignaciones;		// TABLA DE ASIGNACIONES
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
-
-	unsigned int * aux;
+	int* pmap_file; //puntero mmap
 	int i;
-	int j;
-
-	/*
-	// Creación del hilo en escucha
-	pthread_attr_init(&atributosHilo);
-	idHilo = pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
-	pthread_attr_destroy(&atributosHilo);
-
-	if(idHilo == 0)
-		pthread_join(hiloEnEscucha, &valorRetorno);
-	*/
+	int inicioBloqueDatos;	//INICIO BLOQUE DE DATOS
+	struct stat sbuf;
+	int fd;
 
 	// Abre el archivo de File System
-	printf("\n---------------------------");
-	printf("\n	INICIO	\n");
-	printf("---------------------------\n");
-	if ((fileFS=fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/basic.bin","r"))==NULL)
+	if ((fileFS=fopen(rutaFS,"r"))==NULL)
 	{
 		puts("Error al abrir el archivo de FS.\n");
 		return EXIT_FAILURE;
@@ -67,8 +57,7 @@ int main(void) {
 
 	// Lee la cabecera del archivo
 	fread(&cabeceraFS, sizeof(cabeceraFS), 1, fileFS);
-
-	printf("Leido Header %d\n", ftell(fileFS)); // POSICION
+	//printf("Leido Header %d\n", ftell(fileFS)); // POSICION
 
 	// Valida que sea un FS OSADA
 	if (memcmp(cabeceraFS.magic_number, "OsadaFS", 7) != 0)
@@ -76,6 +65,19 @@ int main(void) {
 		puts("NO es un FS Osada\n");
 		return EXIT_FAILURE;
 	}
+
+	// INFORMACION HEADER
+	printf("\n---------------------------");
+	printf("\n	HEADER	\n");
+	printf("---------------------------\n");
+	printf("Identificador: %s\n", cabeceraFS.magic_number);
+	printf("Version:       %d\n", cabeceraFS.version);
+	printf("Tamano FS:     %d (bloques)\n", cabeceraFS.fs_blocks);
+	printf("Tamano Bitmap: %d (bloques)\n", cabeceraFS.bitmap_blocks);
+	printf("Inicio T.Asig: %d (bloque)\n", cabeceraFS.allocations_table_offset);
+	printf("Tamano Datos:  %d (bloques)\n", cabeceraFS.data_blocks);
+	printf("Relleno: %s\n", cabeceraFS.padding);
+
 
 	// Aloca el espacio en memoria para el Bitmap
 	bitmapS=(char *)malloc(cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
@@ -91,10 +93,21 @@ int main(void) {
 	// Lee el BITMAP
 	fread(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE, 1, fileFS);
 
-	printf("Leido Bitmap %d\n", ftell(fileFS)); // POSICION
+	//printf("Leido Bitmap %d\n", ftell(fileFS)); // POSICION
 
 	// Crea el array de bits
 	bitarray = bitarray_create(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// INFORMACION BITMAP
+	printf("\n---------------------------");
+	printf("\n	BITMAP	\n");
+	printf("---------------------------\n");
+	//printf("Primer Bloque disponible: %d\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
+	printf("Pos %d = %d\n", 0, bitarray_test_bit(bitarray, i));
+	printf("Pos %d = %d\n", 11501, bitarray_test_bit(bitarray, 11501));
+	printf("Pos %d = %d\n", 11502, bitarray_test_bit(bitarray, 11502));
+	printf("Pos %d = %d\n", 11551, bitarray_test_bit(bitarray, 11551));
+	printf("Pos %d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
 
 /*
 	// Imprime todos los bits
@@ -105,58 +118,13 @@ int main(void) {
 
 	// Lee la tabla de archivos
 	fread(tablaArchivos, sizeof(osada_file), TABLA_ARCHIVOS, fileFS);
-
-	printf("Leido Tabla de Archivos %d\n", ftell(fileFS)); // POSICION
-
-	// Arma la estructura para la tabla de asignaciones
-	bloquesTablaAsignaciones = cabeceraFS.fs_blocks - 1 - cabeceraFS.bitmap_blocks - 1024 - cabeceraFS.data_blocks;
-	printf("Leido Tabla de Archivos %d\n", bloquesTablaAsignaciones); // POSICION
-	tablaAsignaciones=(int *)malloc((bloquesTablaAsignaciones * OSADA_BLOCK_SIZE) / sizeof(int));
-
-	// Verifica que se haya reservado el espacio
-	if (tablaAsignaciones== NULL)
-	{
-		fclose(fileFS);
-		puts("No se dispone de memoria para alocar la Tabla de Asignaciones\n");
-		return EXIT_FAILURE;
-	}
-
-	// Lee la tabla de ASIGNACIONES
-	//fread(tablaAsignaciones, sizeof(int), (bloquesTablaAsignaciones * OSADA_BLOCK_SIZE) / sizeof(int), fileFS);
-	//printf("Leido Tabla Asignaciones %d\n", ftell(fileFS)); // POSICION
-	printf("Leido Tabla Asignaciones PENDIENTE\n");
-
-/*
-	for (i = 0; i < bloquesTablaAsignaciones; i++)
-		printf("%d = %d\n", i, tablaAsignaciones[i]);
-*/
-	// INFORMACION HEADER
-	printf("\n---------------------------");
-	printf("\n	HEADER	\n");
-	printf("---------------------------\n");
-	printf("Identificador: %s\n", cabeceraFS.magic_number);
-	printf("Version:       %d\n", cabeceraFS.version);
-	printf("Tamano FS:     %d (bloques)\n", cabeceraFS.fs_blocks);
-	printf("Tamano Bitmap: %d (bloques)\n", cabeceraFS.bitmap_blocks);
-	printf("Inicio T.Asig: %d (bloque)\n", cabeceraFS.allocations_table_offset);
-	printf("Tamano Datos:  %d (bloques)\n", cabeceraFS.data_blocks);
-	printf("Relleno: %s\n", cabeceraFS.padding);
-
-	// INFORMACION BITMAP
-	printf("\n---------------------------");
-	printf("\n	BITMAP	\n");
-	printf("---------------------------\n");
-	printf("Primer Bloque disponible: %d\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
-	printf("Pos %d = %d\n", 0, bitarray_test_bit(bitarray, i));
-	printf("Pos %d = %d\n", 2015, bitarray_test_bit(bitarray, 2015));
-	printf("Pos %d = %d\n", 2016, bitarray_test_bit(bitarray, 2016));
-	printf("Pos %d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
+	//printf("Leido Tabla de Archivos %d\n", ftell(fileFS)); // POSICION
 
 	// INFORMACION TABLA DE ARCHIVOS
 	printf("\n---------------------------");
 	printf("\n	TABLA DE ARCHIVOS	\n");
 	printf("---------------------------\n");
-	printf("%s\n", "|    State    	|    File Name    	|    Parent Dir |    Size    	|    lastModif    	|    First Block");
+	printf("%s\n", "|    State    	|    File Name    	|    Parent Fir |    Size    	|    lastModif    	|    First Block");
 	printf("%s\n", "--------------------------------------------------------------------------------------------------------");
 	for (i = 0; i < TABLA_ARCHIVOS; i++)
 	{
@@ -172,23 +140,87 @@ int main(void) {
 		}
 	}
 
+
 	// BLOQUE DE DATOS
 		printf("\n---------------------------");
 		printf("\n	BLOQUE DE DATOS	\n");
 		printf("---------------------------\n");
-		printf("Inicio Datos: %d (bloque)\n", cabeceraFS.fs_blocks - cabeceraFS.data_blocks);
+		inicioBloqueDatos = cabeceraFS.fs_blocks - cabeceraFS.data_blocks;
+		printf("Inicio Datos: %d (bloque)\n", inicioBloqueDatos);
+
+
+	// Arma la estructura para la tabla de asignaciones
+	bloquesTablaAsignaciones = cabeceraFS.fs_blocks - 1 - cabeceraFS.bitmap_blocks - 1024 - cabeceraFS.data_blocks;
+	printf("Leido Tabla de Archivos %d\n", bloquesTablaAsignaciones); // POSICION
+	tablaAsignaciones=(int *)malloc(bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
+
+	// Verifica que se haya reservado el espacio
+	if (tablaAsignaciones== NULL)
+	{
+		fclose(fileFS);
+		puts("No se dispone de memoria para alocar la Tabla de Asignaciones\n");
+		return EXIT_FAILURE;
+	}
+	// Lee la tabla de ASIGNACIONES
+	fread(tablaAsignaciones, bloquesTablaAsignaciones * OSADA_BLOCK_SIZE, 1, fileFS);
+	printf("Leido Tabla Asignaciones %d\n", ftell(fileFS)); // POSICION
+	//printf("Leido Tabla Asignaciones PENDIENTE\n");
 
 	// INFORMACION TABLA DE ASIGNACIONES
 	printf("\n---------------------------");
 	printf("\n	TABLA DE ASIGNACIONES	\n");
 	printf("---------------------------\n");
-	//printf("Tamano T.Asig: %d (bloques)\n", bloquesTablaAsignaciones);
-	printf("Tamano T.Asig: PENDIENTE\n\n");
+	printf("Tamano T.Asig: %d (bloques)\n\n", bloquesTablaAsignaciones);
+	//printf("Tamano T.Asig: PENDIENTE\n\n");
+
+	for (i = 0; i <  50 ;i++)
+		{
+			if (tablaAsignaciones[i] != 0)
+			{
+				printf("|    %d    	", i);
+				printf("|    %d    	", tablaAsignaciones[i]);
+				printf("\n");
+			}
+		}
 
 	free(bitmapS);
 	bitmapS=NULL;
 
 	fclose(fileFS);
+
+	// PRUEBA MMAP
+	printf("\n---------------------------");
+	printf("\n	USO DE MMAP	\n");
+	printf("---------------------------\n");
+
+	//Carga de FS en memoria
+
+	fd = open(rutaFS,O_RDWR);
+	stat(rutaFS,&sbuf);
+	pmap_file = (int*)mmap(0, sbuf.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0); //puntero al primer byte del FS (array de bytes)
+	printf("El tamaño del FS es %d \n", sbuf.st_size);
+
+	//Variables del archivo a leer
+	char* archivoLeer = "archivo.txt";
+	int primerBloque = 0;
+	int tamanioArchivo = 26;
+	printf("\nLeyendo el archivo %s \n", archivoLeer);
+
+	//Obtengo el bloque de datos correspodiente
+	int *block;
+	block =(int *)malloc(tamanioArchivo * sizeof(int));
+	char *asChar = (char*)pmap_file;
+	memcpy(block, &asChar[(inicioBloqueDatos + primerBloque) * OSADA_BLOCK_SIZE], tamanioArchivo * sizeof(int));
+
+	//Escribo el archivo obtenido
+	FILE* pFile;
+	pFile = fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/archivo.txt","wb");
+	fwrite(block, tamanioArchivo, 1, pFile);
+	puts("\nEscrito en /home/utnso/workspace/tp-2016-2c-CodeTogether/archivo.txt\n");
+	fclose(pFile);
+
+	munmap (pmap_file, sbuf.st_size); //Bajo el FS de la memoria
+	close(fd); //Cierro el archivo
 
 	return EXIT_SUCCESS;
 }

@@ -49,7 +49,7 @@ typedef struct pokenest {
 
 /* Declaración de funciones */
 
-void encolarNuevoEntrenador(t_entrenador* entrenador);
+void encolarEntrenador(t_entrenador* entrenador);
 void calcularFaltante(t_entrenador entrenador);
 void insertarOrdenado(t_entrenador* entrenador, t_queue* lista);
 void insertarAlFinal(t_entrenador* entrenador, t_queue* lista);

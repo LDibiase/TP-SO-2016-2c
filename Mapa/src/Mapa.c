@@ -185,6 +185,8 @@ int main(void) {
 
 				free(paquetePokenest.paqueteSerializado);
 
+				encolarEntrenador(entrenadorAEjecutar);
+
 				break;
 			case SOLICITA_DESPLAZAMIENTO:
 				mensajeDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
@@ -308,10 +310,14 @@ int main(void) {
 }
 
 //FUNCIONES PLANIFICADOR
-void encolarNuevoEntrenador(t_entrenador* entrenador)
+void encolarEntrenador(t_entrenador* entrenador)
 {
-	//SE CREA EL PERSONAJE PARA LA INTERFAZ GRÁFICA
-	CrearPersonaje(items, entrenador->id, entrenador->ubicacion.x, entrenador->ubicacion.y);
+	ITEM_NIVEL* itemAux = find_by_id(items, entrenador->id);
+	if(itemAux == NULL)
+	{
+		//SE CREA EL PERSONAJE PARA LA INTERFAZ GRÁFICA
+		CrearPersonaje(items, entrenador->id, entrenador->ubicacion.x, entrenador->ubicacion.y);
+	}
 
 	//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
 	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
@@ -450,7 +456,6 @@ t_ubicacion buscarPokenest(t_list* lista, char pokemon) {
 	{
 		ubicacion.x = pokenest->posx;
 		ubicacion.y = pokenest->posy;
-//		ubicacion.cantidad = pokenest.quantity;
 	}
 	else
 	{
@@ -709,7 +714,7 @@ void aceptarConexiones() {
 		entrenadorPlanificado = malloc(sizeof(t_entrenador));
 		*entrenadorPlanificado = *entrenador;
 
-		encolarNuevoEntrenador(entrenadorPlanificado);
+		encolarEntrenador(entrenadorPlanificado);
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", entrenador->socket->descriptor);
 		log_info(logger, "Se planificó al entrenador %s (%c)", entrenadorPlanificado->nombre, entrenadorPlanificado->id);

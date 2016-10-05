@@ -74,6 +74,8 @@ int main(void) {
 				}
 				else
 				{
+					log_info(logger, "Recibí turno");
+
 					solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
 					if(mapa_s->error != NULL)
 					{

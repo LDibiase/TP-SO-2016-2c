@@ -30,9 +30,14 @@
 #define TABLA_ARCHIVOS 2048
 
 struct socket** clientes;
-char* rutaFS = "/home/utnso/workspace/tp-2016-2c-CodeTogether/basic.bin";
+char* rutaFS = "/home/utnso/workspace/tp-2016-2c-CodeTogether/challenge.bin";
 
 int main(void) {
+
+	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	pthread_mutex_t mutex;
+	pthread_mutex_init(&mutex, NULL);
+
 
 	// Variables para el manejo del FileSystem OSADA
 	FILE *fileFS; 					// ARCHIVO
@@ -65,6 +70,7 @@ int main(void) {
 		puts("NO es un FS Osada\n");
 		return EXIT_FAILURE;
 	}
+
 
 	// INFORMACION HEADER
 	printf("\n---------------------------");
@@ -124,12 +130,13 @@ int main(void) {
 	printf("\n---------------------------");
 	printf("\n	TABLA DE ARCHIVOS	\n");
 	printf("---------------------------\n");
-	printf("%s\n", "|    State    	|    File Name    	|    Parent Fir |    Size    	|    lastModif    	|    First Block");
+	printf("%s\n", "|    Pos    	|    State    	|    File Name    	|    Parent Fir |    Size    	|    lastModif    	|    First Block");
 	printf("%s\n", "--------------------------------------------------------------------------------------------------------");
 	for (i = 0; i < TABLA_ARCHIVOS; i++)
 	{
 		if (tablaArchivos[i].state != 0)
 		{
+			printf("|    %d    	", i);
 			printf("|    %d    	", tablaArchivos[i].state);
 			printf("|    %s    	", tablaArchivos[i].fname);
 			printf("|    %d    	", tablaArchivos[i].parent_directory);
@@ -173,7 +180,7 @@ int main(void) {
 	printf("Tamano T.Asig: %d (bloques)\n\n", bloquesTablaAsignaciones);
 	//printf("Tamano T.Asig: PENDIENTE\n\n");
 
-	for (i = 0; i <  50 ;i++)
+	/*for (i = 0; i <  50 ;i++)
 		{
 			if (tablaAsignaciones[i] != 0)
 			{
@@ -181,7 +188,7 @@ int main(void) {
 				printf("|    %d    	", tablaAsignaciones[i]);
 				printf("\n");
 			}
-		}
+		}*/
 
 	free(bitmapS);
 	bitmapS=NULL;
@@ -201,16 +208,57 @@ int main(void) {
 	printf("El tamaño del FS es %d \n", sbuf.st_size);
 
 	//Variables del archivo a leer
-	char* archivoLeer = "archivo.txt";
-	int primerBloque = 0;
-	int tamanioArchivo = 26;
+	///////////////////////////////////
+
+	int posTabla = 141; //Readme - Pos en la tabla de archivos del archivo a obtener
+	//int posTabla = 139; //special.mp4
+	//int posTabla = 135; //special.txt
+	///////////////////////////////////
+
+	char* archivoLeer = tablaArchivos[posTabla].fname;
+	int primerBloque = tablaArchivos[posTabla].first_block;
+	int tamanioArchivo = tablaArchivos[posTabla].file_size;
 	printf("\nLeyendo el archivo %s \n", archivoLeer);
 
 	//Obtengo el bloque de datos correspodiente
+
 	int *block;
 	block =(int *)malloc(tamanioArchivo * sizeof(int));
 	char *asChar = (char*)pmap_file;
-	memcpy(block, &asChar[(inicioBloqueDatos + primerBloque) * OSADA_BLOCK_SIZE], tamanioArchivo * sizeof(int));
+	printf("\nTamaño del archivo %d \n", tamanioArchivo);
+	//memcpy(block, &asChar[(inicioBloqueDatos + primerBloque) * OSADA_BLOCK_SIZE], tamanioArchivo * sizeof(int));
+
+	int sum = 0;
+	i= 0;
+	int bloque = primerBloque;
+	printf("\nPrimer bloque %d \n", bloque);
+
+
+	while (bloque != -1) {
+		if (tablaAsignaciones[bloque] != -1) {
+			pthread_mutex_lock(&mutex);
+			memcpy(&block[sum / sizeof(int)], &asChar[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
+			sum = sum + OSADA_BLOCK_SIZE;
+			pthread_mutex_unlock(&mutex);
+			printf("\n Escribio %d", OSADA_BLOCK_SIZE);
+		} else {
+			pthread_mutex_lock(&mutex);
+			memcpy(&block[sum / sizeof(int)], &asChar[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (tamanioArchivo - sum) * sizeof(int));
+			printf("\n ------Copia Parcial ------ %d", bloque);
+			printf("\n Escribio %d", (tamanioArchivo - sum));
+			sum = sum + (tamanioArchivo - sum);
+			pthread_mutex_unlock(&mutex);
+
+			}
+
+		printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
+		printf("\n Cantidad Bytes restantes %d", (tamanioArchivo - sum));
+		printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
+		pthread_mutex_lock(&mutex);
+		bloque = tablaAsignaciones[bloque];
+		pthread_mutex_unlock(&mutex);
+	}
+
 
 	//Escribo el archivo obtenido
 	FILE* pFile;

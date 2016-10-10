@@ -31,26 +31,26 @@
 
 struct socket** clientes;
 char* rutaFS = "/home/utnso/workspace/tp-2016-2c-CodeTogether/challenge.bin";
+char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
+
+osada_file tablaArchivos[2048];		// TABLA DE ARCHIVOS
+unsigned int * tablaAsignaciones;	// TABLA DE ASIGNACIONES
+t_bitarray * bitarray;				// ARRAY BITMAP
+char* pmapFS; 						//Puntero de mmap
+int inicioBloqueDatos;				//INICIO BLOQUE DE DATOS
+
+pthread_mutex_t mutex;				//SEMAFORO PARA SINCRONIZAR OPERACIONES
+
 
 int main(void) {
-
-	//SEMAFORO PARA SINCRONIZAR OPERACIONES
-	pthread_mutex_t mutex;
-	pthread_mutex_init(&mutex, NULL);
-
 	// Variables para el manejo del FileSystem OSADA
 	int fileFS;
 	struct stat statFS;
-	char* pmapFS; //Puntero de mmap
 	osada_header cabeceraFS;		// HEADER
-	t_bitarray * bitarray;			// ARRAY BITMAP
 	unsigned char * bitmapS;		// BITMAP
-	osada_file tablaArchivos[2048];	// TABLA DE ARCHIVOS
-	unsigned int * tablaAsignaciones;		// TABLA DE ASIGNACIONES
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
-	int inicioBloqueDatos;	//INICIO BLOQUE DE DATOS
 	int i;
-
+	pthread_mutex_init(&mutex, NULL);
 
 
 	// CARGA DE FS EN MEMORIA CON MMAP
@@ -67,7 +67,7 @@ int main(void) {
 	memcpy(&cabeceraFS, &pmapFS[0], sizeof(cabeceraFS));
 	// Valida que sea un FS OSADA
 	if (memcmp(cabeceraFS.magic_number, "OsadaFS", 7) != 0)	{
-		puts("NO es un FS Osada\n");
+		printf("NO es un FS Osada\n");
 		return EXIT_FAILURE;
 	}
 
@@ -88,7 +88,7 @@ int main(void) {
 	// Aloca el espacio en memoria para el Bitmap
 	bitmapS=(char *)malloc(cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
 	if (bitmapS== NULL)	{
-		puts("No se dispone de memoria para alocar el Bitmap\n");
+		printf("No se dispone de memoria para alocar el Bitmap\n");
 		return EXIT_FAILURE;
 	}
 
@@ -154,7 +154,7 @@ int main(void) {
 	//Reserva espacio tabla de asignaciones
 	tablaAsignaciones=(int *)malloc(bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
 	if (tablaAsignaciones== NULL) {
-		puts("No se dispone de memoria para alocar la Tabla de Asignaciones\n");
+		printf("No se dispone de memoria para alocar la Tabla de Asignaciones\n");
 		return EXIT_FAILURE;
 	}
 
@@ -180,63 +180,8 @@ int main(void) {
 			}
 		}*/
 
-
-	//Variables del archivo a leer
-	///////////////////////////////////
-
-	int posTabla = 141; //Readme - Pos en la tabla de archivos del archivo a obtener
-	//int posTabla = 139; //special.mp4
-	//int posTabla = 135; //special.txt
-	///////////////////////////////////
-
-	char* archivoLeer = tablaArchivos[posTabla].fname;
-	int primerBloque = tablaArchivos[posTabla].first_block;
-	int tamanioArchivo = tablaArchivos[posTabla].file_size;
-	printf("\nLeyendo el archivo %s \n", archivoLeer);
-
-	//Obtengo el bloque de datos correspodiente
-	int *block;
-	block =(int *)malloc(tamanioArchivo * sizeof(int));
-	printf("\nTamaño del archivo %d \n", tamanioArchivo);
-
-	int sum = 0;
-	i= 0;
-	int bloque = primerBloque;
-	printf("\nPrimer bloque %d \n", bloque);
-
-	while (bloque != -1) {
-		if (tablaAsignaciones[bloque] != -1) {
-			pthread_mutex_lock(&mutex);
-			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
-			sum = sum + OSADA_BLOCK_SIZE;
-			pthread_mutex_unlock(&mutex);
-			printf("\n Escribio %d", OSADA_BLOCK_SIZE);
-		} else {
-			pthread_mutex_lock(&mutex);
-			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (tamanioArchivo - sum) * sizeof(int));
-			printf("\n ------Copia Parcial ------ %d", bloque);
-			printf("\n Escribio %d", (tamanioArchivo - sum));
-			sum = sum + (tamanioArchivo - sum);
-			pthread_mutex_unlock(&mutex);
-		}
-
-		printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
-		printf("\n Cantidad Bytes restantes %d", (tamanioArchivo - sum));
-		printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
-		pthread_mutex_lock(&mutex);
-		bloque = tablaAsignaciones[bloque];
-		pthread_mutex_unlock(&mutex);
-	}
-
-	//Escribo el archivo obtenido
-	FILE* pFile;
-	pFile = fopen("/home/utnso/workspace/tp-2016-2c-CodeTogether/archivo.txt","wb");
-	fwrite(block, tamanioArchivo, 1, pFile);
-	puts("\nEscrito en /home/utnso/workspace/tp-2016-2c-CodeTogether/archivo.txt\n");
-	fclose(pFile);
-	free(block);
-	block=NULL;
-
+	char* ruta = "/";
+	escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
 
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
 	close(fileFS); //Cierro el archivo
@@ -248,6 +193,90 @@ int main(void) {
 	tablaAsignaciones=NULL;
 
 	return EXIT_SUCCESS;
+}
+
+void escribirEstructura(int dirPadre, char* ruta) {
+	int i;
+
+	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+		if (tablaArchivos[i].state != 0) {
+			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
+				char *str = string_new();
+				string_append(&str, rutaOsadaDir);
+				string_append(&str, ruta);
+				string_append(&str, tablaArchivos[i].fname);
+				mkdir(str, 0700);
+				printf("\nCreando DIRECTORIO %s \n", str);
+
+				char *str2 = string_new();
+				string_append(&str2, ruta);
+				string_append(&str2, tablaArchivos[i].fname);
+				string_append(&str2, "/");
+
+				escribirEstructura(i,str2); //Recursividad
+
+			} else {
+				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
+				leerArchivo(i,ruta);
+				}
+			}
+		}
+	}
+}
+
+void leerArchivo(int archivoID, char* ruta){
+	char* archivoNombre = tablaArchivos[archivoID].fname;
+	int primerBloque = tablaArchivos[archivoID].first_block;
+	int tamanioArchivo = tablaArchivos[archivoID].file_size;
+	//printf("\nLeyendo el archivo %s \n", archivoNombre);
+
+	//Obtengo el bloque de datos correspondiente
+	int *block;
+	block =(int *)malloc(tamanioArchivo * sizeof(int));
+	//printf("\nTamaño del archivo %d \n", tamanioArchivo);
+
+	int sum = 0;
+	int i= 0;
+	int bloque = primerBloque;
+	//printf("\nPrimer bloque %d \n", bloque);
+
+	while (bloque != -1) {
+		if (tablaAsignaciones[bloque] != -1) {
+			pthread_mutex_lock(&mutex);
+			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
+			sum = sum + OSADA_BLOCK_SIZE;
+			pthread_mutex_unlock(&mutex);
+			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
+		} else {
+			pthread_mutex_lock(&mutex);
+			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (tamanioArchivo - sum) * sizeof(int));
+			//printf("\n ------Copia Parcial ------ %d", bloque);
+			//printf("\n Escribio %d", (tamanioArchivo - sum));
+			sum = sum + (tamanioArchivo - sum);
+			pthread_mutex_unlock(&mutex);
+		}
+
+		//printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
+		//printf("\n Cantidad Bytes restantes %d", (tamanioArchivo - sum));
+		//printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
+		pthread_mutex_lock(&mutex);
+		bloque = tablaAsignaciones[bloque];
+		pthread_mutex_unlock(&mutex);
+	}
+
+	//Escribo el archivo obtenido
+	FILE* pFile;
+	char *str = string_new();
+	string_append(&str, rutaOsadaDir);
+	string_append(&str, ruta);
+	string_append(&str, archivoNombre);
+
+	pFile = fopen(str,"wb");
+	fwrite(block, tamanioArchivo, 1, pFile);
+	printf("Creando archivo %s \n", str);
+	fclose(pFile);
+	free(block);
+	block=NULL;
 }
 
 void aceptarConexiones() {
@@ -263,19 +292,19 @@ void aceptarConexiones() {
 	mi_socket_s = crearServidor(IP, PUERTO);
 	if(mi_socket_s->descriptor == 0)
 	{
-		puts("Conexión fallida");
-		puts(mi_socket_s->error);
+		printf("Conexión fallida");
+		printf(mi_socket_s->error);
 		pthread_exit(&error);
 	}
 
 	returnValue = escucharConexiones(*mi_socket_s, CANTIDAD_MAXIMA_CONEXIONES);
 	if(returnValue != 0)
 	{
-		puts(strerror(returnValue));
+		printf(strerror(returnValue));
 		pthread_exit(&error);
 	}
 
-	puts("Escuchando conexiones");
+	printf("Escuchando conexiones");
 
 	conectado = 1;
 	cantidadClientes = 0;
@@ -289,8 +318,8 @@ void aceptarConexiones() {
 			cli_socket_s = aceptarConexion(*mi_socket_s);
 			if(cli_socket_s->descriptor == 0)
 			{
-				puts("Se rechaza conexión");
-				puts(cli_socket_s->error);
+				printf("Se rechaza conexión");
+				printf(cli_socket_s->error);
 			}
 
 			clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
@@ -304,7 +333,7 @@ void aceptarConexiones() {
 			conectado = 0;
 		}
 
-		puts("Escuchando conexiones");
+		printf("Escuchando conexiones");
 	}
 
 	eliminarSocket(mi_socket_s);

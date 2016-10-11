@@ -152,3 +152,17 @@ int main(int argc, char *argv[]) {
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
+
+socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
+	socket_t* pokedex_servidor;
+
+	pokedex_servidor = conectarAServidor(ip, puerto);
+	if(pokedex_servidor->descriptor == 0)
+	{
+		log_info(logger, "Conexión fallida");
+		log_info(logger, pokedex_servidor->error);
+		return pokedex_servidor;
+	}
+
+	log_info(logger, "Conexión exitosa");
+}

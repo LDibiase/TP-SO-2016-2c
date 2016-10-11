@@ -11,6 +11,8 @@
 /* Definición de estructuras */
 
 /* Declaración de funciones */
+void leerArchivo(int archivoID, char* ruta);
+void escribirEstructura(int dirPadre, char* ruta);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

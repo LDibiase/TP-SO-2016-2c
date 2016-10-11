@@ -18,7 +18,22 @@ struct t_runtime_options {
 	char* welcome_msg;
 } runtime_options;
 
+//Mensaje Pokedex Cliente-Servidor
+typedef struct mensajePokedex {
+	uint32_t tipoMensaje;
+	uint32_t ruta;
+} mensajePokedex;
 
+// Mensajes
+typedef enum tipoMensajePokedex {
+	ES_OSADA,
+	NO_ES_OSADA
+} tipoMensaje_pokedex;
+
+// Mensaje genérico (sin operandos)
+typedef struct mensaje {
+	uint32_t tipoMensaje;
+} mensaje_t;
 
 /* Declaración de funciones */
 

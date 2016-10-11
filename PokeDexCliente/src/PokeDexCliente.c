@@ -165,4 +165,53 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 	}
 
 	log_info(logger, "Conexión exitosa");
+
+	// Enviar mensaje CONEXION_POKEDEX_SERVIDOR
+		paquete_t paquete;
+		mensajePokedex mensajePokedex;
+
+		mensajePokedex.tipoMensaje = ES_OSADA;
+		mensajePokedex.ruta = DEFAULT_FILE_PATH;
+
+		crearPaquete((void*) &mensajePokedex, &paquete);
+
+		if(paquete.tamanioPaquete == 0) {
+			pokedex_servidor->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		enviarMensaje(pokedex_servidor, paquete);
+
+		if(pokedex_servidor->error != NULL) {
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		free(paquete.paqueteSerializado);
+
+		// Recibir mensaje ACEPTA_CONEXION
+		mensaje_t mensajeEsOsada;
+
+		mensajeEsOsada.tipoMensaje = ES_OSADA;
+		recibirMensaje(pokedex_servidor, &mensajeEsOsada);
+		if(pokedex_servidor->error != NULL)
+		{
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		switch(mensajeEsOsada.tipoMensaje) {
+		case NO_ES_OSADA:
+			log_info(logger, "No es un archivo OSADA");
+			break;
+		case ES_OSADA:
+			log_info(logger, "Es una archivo OSADA");
+			break;
+		}
+
+		return mensajeEsOsada.tipoMensaje;
 }

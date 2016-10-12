@@ -80,8 +80,6 @@ int main(void) {
 						log_destroy(logger);
 						exit(EXIT_FAILURE);
 					}
-
-					while(1);
 				}
 
 				// TODO Analizar otros posibles casos
@@ -108,7 +106,7 @@ int main(void) {
 		{
 			log_info(logger, "Socket %d: se le ha concedido un turno", mapa_s->descriptor);
 
-			// Capturar pokémon
+			// Capturar Pokémon
 			solicitarCaptura(mapa_s);
 			if(mapa_s->error != NULL)
 			{
@@ -147,37 +145,58 @@ int main(void) {
 			// Al finalizar la recolección de objetivos dentro del mapa, el entrenador informa al mapa sobre la
 			// situación y se desconecta
 
-			// Enviar mensaje OBJETIVOS_COMPLETADOS
-			paquete_t paquete;
-			mensaje_t mensajeObjetivosCompletos;
+			// Recibir mensaje TURNO
+			mensaje_t mensajeTurno;
 
-			mensajeObjetivosCompletos.tipoMensaje = OBJETIVOS_COMPLETADOS;
-			crearPaquete((void*) &mensajeObjetivosCompletos, &paquete);
-			if(paquete.tamanioPaquete == 0)
-			{
-				mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-				log_info(logger, mapa_s->error);
-				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-				return;
-			}
-
-			enviarMensaje(mapa_s, paquete);
+			mensajeTurno.tipoMensaje = TURNO;
+			recibirMensaje(mapa_s, &mensajeTurno);
 			if(mapa_s->error != NULL)
 			{
 				log_info(logger, mapa_s->error);
 				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-			    return;
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				exit(EXIT_FAILURE);
 			}
 
-			free(paquete.paqueteSerializado);
+			if(mensajeTurno.tipoMensaje == TURNO)
+			{
+				log_info(logger, "Socket %d: se le ha concedido un turno", mapa_s->descriptor);
 
-			log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
+				// Enviar mensaje OBJETIVOS_COMPLETADOS
+				paquete_t paquete;
+				mensaje_t mensajeObjetivosCompletos;
 
-			log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-			eliminarSocket(mapa_s);
+				mensajeObjetivosCompletos.tipoMensaje = OBJETIVOS_COMPLETADOS;
+				crearPaquete((void*) &mensajeObjetivosCompletos, &paquete);
+				if(paquete.tamanioPaquete == 0)
+				{
+					mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, mapa_s->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+					return;
+				}
 
-			conectado = 0;
+				enviarMensaje(mapa_s, paquete);
+				if(mapa_s->error != NULL)
+				{
+					log_info(logger, mapa_s->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+					return;
+				}
+
+				free(paquete.paqueteSerializado);
+
+				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
+
+				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+				eliminarSocket(mapa_s);
+
+				conectado = 0;
+			}
 		}
+
+		while(1);
 	}
 
 	/* Creación del log */
@@ -194,6 +213,7 @@ int main(void) {
 	log_info(logger, "Los reintentos son: %d \n", configEntrenador.Reintentos);
 
 	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _obtenerObjetivosCiudad);
+
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -374,21 +394,38 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 direccion_t calcularMovimiento(t_ubicacion ubicacionEntrenador, t_ubicacion ubicacionPokeNest, char* ejeAnterior) {
 	direccion_t direccion;
 
-	if(*ejeAnterior == 'x')
+	if(ubicacionEntrenador.x != ubicacionPokeNest.x && ubicacionEntrenador.y != ubicacionPokeNest.y)
+	{
+		if(*ejeAnterior == 'x')
+		{
+			if(ubicacionEntrenador.y > ubicacionPokeNest.y)
+				direccion = ARRIBA;
+			else
+				direccion = ABAJO;
+			*ejeAnterior = 'y';
+		}
+		else if(*ejeAnterior == 'y')
+		{
+			if(ubicacionEntrenador.x > ubicacionPokeNest.x)
+				direccion = IZQUIERDA;
+			else
+				direccion = DERECHA;
+			*ejeAnterior = 'x';
+		}
+	}
+	else if(ubicacionEntrenador.x == ubicacionPokeNest.x)
 	{
 		if(ubicacionEntrenador.y > ubicacionPokeNest.y)
 			direccion = ARRIBA;
 		else
 			direccion = ABAJO;
-		*ejeAnterior = 'y';
 	}
-	else if(*ejeAnterior == 'y')
+	else
 	{
 		if(ubicacionEntrenador.x > ubicacionPokeNest.x)
 			direccion = IZQUIERDA;
 		else
 			direccion = DERECHA;
-		*ejeAnterior = 'x';
 	}
 
 	return direccion;
@@ -445,7 +482,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		ubicacion->x = mensajeConfirmaDesplazamiento.ubicacionX;
 		ubicacion->y = mensajeConfirmaDesplazamiento.ubicacionY;
 
-		log_info(logger, "Socket %d: su ubicación actual es (%d,%d)", mapa_s->error, ubicacion->x, ubicacion->y);
+		log_info(logger, "Socket %d: su ubicación actual es (%d,%d)", mapa_s->descriptor, ubicacion->x, ubicacion->y);
 	}
 
 	// TODO Analizar otros posibles casos

@@ -170,7 +170,7 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 		paquete_t paquete;
 		mensajePokedex mensajePokedex;
 
-		mensajePokedex.tipoMensaje = ES_OSADA;
+		mensajePokedex.tipoMensaje = CONEXION_A_SERVIDOR;
 		mensajePokedex.ruta = DEFAULT_FILE_PATH;
 
 		crearPaquete((void*) &mensajePokedex, &paquete);
@@ -193,10 +193,10 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 		free(paquete.paqueteSerializado);
 
 		// Recibir mensaje ACEPTA_CONEXION
-		mensaje_t mensajeEsOsada;
+		mensaje_t mensajeAceptaConexion;
 
-		mensajeEsOsada.tipoMensaje = ES_OSADA;
-		recibirMensaje(pokedex_servidor, &mensajeEsOsada);
+		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
+		recibirMensaje(pokedex_servidor, &mensajeAceptaConexion);
 		if(pokedex_servidor->error != NULL)
 		{
 			log_info(logger, pokedex_servidor->error);
@@ -204,14 +204,14 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 			return pokedex_servidor;
 		}
 
-		switch(mensajeEsOsada.tipoMensaje) {
-		case NO_ES_OSADA:
+		switch(mensajeAceptaConexion.tipoMensaje) {
+		case RECHAZA_CONEXION:
 			log_info(logger, "No es un archivo OSADA");
 			break;
-		case ES_OSADA:
+		case ACEPTA_CONEXION:
 			log_info(logger, "Es una archivo OSADA");
 			break;
 		}
 
-		return mensajeEsOsada.tipoMensaje;
+		return mensajeAceptaConexion.tipoMensaje;
 }

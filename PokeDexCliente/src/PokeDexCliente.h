@@ -22,12 +22,16 @@ struct t_runtime_options {
 typedef struct mensajePokedex {
 	uint32_t tipoMensaje;
 	uint32_t ruta;
+	uint32_t nombre;
 } mensajePokedex;
 
 // Mensajes
 typedef enum tipoMensajePokedex {
-	ES_OSADA,
-	NO_ES_OSADA
+	CONEXION_A_SERVIDOR,
+	LEER,
+	LISTAR,
+	ESCRIBIR,
+	ABRIR
 } tipoMensaje_pokedex;
 
 // Mensaje genérico (sin operandos)

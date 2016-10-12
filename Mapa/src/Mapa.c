@@ -41,14 +41,16 @@ t_list* items;
 t_queue* colaReady;
 t_queue* colaBloqueados;
 
+//SEMAFORO PARA SINCRONIZAR LAS COLAS
+pthread_mutex_t mutex;
+
 int main(void) {
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 	int activo;
 
-	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-	pthread_mutex_t mutex;
+	//SE INICIALIZA SEMAFORO
 	pthread_mutex_init(&mutex, NULL);
 
 	// Variables para la diagramación del mapa
@@ -318,6 +320,7 @@ int main(void) {
 				break;
 			}
 
+			//while(1);
 /*			//INGRESO DEL ENTRENADOR
 			entrenadorAEjecutar->ubicacion.x = 1;
 			entrenadorAEjecutar->ubicacion.y = 1;
@@ -427,9 +430,9 @@ void calcularFaltante(t_entrenador entrenador)
 //FUNCIONES PARA COLAS PLANIFICADOR
 void insertarOrdenado(t_entrenador* entrenador, t_queue* lista)
 {
-	//SEMAFORO PARA SINCRONIZAR LAS COLAS
+	/*//SEMAFORO PARA SINCRONIZAR LAS COLAS
 	pthread_mutex_t mutex;
-	pthread_mutex_init(&mutex, NULL);
+	pthread_mutex_init(&mutex, NULL);*/
 
 	//SI LA COLA ESTA VACIA, INSERTO EL ENTRENADOR SIN ORDENAR NADA
 	if(queue_size(lista) == 0)
@@ -454,15 +457,11 @@ void insertarOrdenado(t_entrenador* entrenador, t_queue* lista)
 		pthread_mutex_unlock(&mutex);
 	}
 
-	pthread_mutex_destroy(&mutex);
+	//pthread_mutex_destroy(&mutex);
 }
 
 void insertarAlFinal(t_entrenador* entrenador, t_queue* lista)
 {
-	//SEMAFORO PARA SINCRONIZAR LAS COLAS
-	pthread_mutex_t mutex;
-	pthread_mutex_init(&mutex, NULL);
-
 	pthread_mutex_lock(&mutex);
 	queue_push(lista, entrenador);
 	pthread_mutex_unlock(&mutex);

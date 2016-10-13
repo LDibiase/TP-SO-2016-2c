@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include "protocoloMapaEntrenador.h"
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
 
@@ -136,7 +137,7 @@ int main(int argc, char *argv[]) {
 	/* Creación del log */
 	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
-	serv_socket_s = conectarAServidor("127.0.0.1", "8080");
+	serv_socket_s = conectarAPokedexServidor("127.0.0.1", "8080");
 	//if(serv_socket_s->descriptor == 0)
 	//{
 		//log_info(logger, "Conexión fallida");
@@ -168,7 +169,7 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 
 	// Enviar mensaje CONEXION_POKEDEX_SERVIDOR
 		paquete_t paquete;
-		mensajePokedex mensajePokedex;
+		mensajeDePokedex mensajePokedex;
 
 		mensajePokedex.tipoMensaje = CONEXION_A_SERVIDOR;
 		mensajePokedex.ruta = DEFAULT_FILE_PATH;
@@ -195,7 +196,7 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 		// Recibir mensaje ACEPTA_CONEXION
 		mensaje_t mensajeAceptaConexion;
 
-		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
+		mensajeAceptaConexion.tipoMensaje = CONEXION_POKEDEX;
 		recibirMensaje(pokedex_servidor, &mensajeAceptaConexion);
 		if(pokedex_servidor->error != NULL)
 		{
@@ -206,10 +207,10 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 
 		switch(mensajeAceptaConexion.tipoMensaje) {
 		case RECHAZA_CONEXION:
-			log_info(logger, "No es un archivo OSADA");
+			log_info(logger, "Conexion a pokedex servidor rechazada");
 			break;
 		case ACEPTA_CONEXION:
-			log_info(logger, "Es una archivo OSADA");
+			log_info(logger, "Conexion a pokedex servidor aceptada");
 			break;
 		}
 

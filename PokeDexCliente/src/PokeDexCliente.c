@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include "protocoloMapaEntrenador.h"
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
 
@@ -134,9 +135,9 @@ int main(int argc, char *argv[]) {
 		return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
 
 	/* Creación del log */
-	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
+	logger = log_create(LOG_FILE_PATH, "POKEDEX_CLIENTE", true, LOG_LEVEL_INFO);
 
-	serv_socket_s = conectarAServidor("127.0.0.1", "8080");
+	serv_socket_s = conectarAPokedexServidor("127.0.0.1", "8080");
 	//if(serv_socket_s->descriptor == 0)
 	//{
 		//log_info(logger, "Conexión fallida");
@@ -151,4 +152,67 @@ int main(int argc, char *argv[]) {
 	eliminarSocket(serv_socket_s);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
+}
+
+socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
+	socket_t* pokedex_servidor;
+
+	pokedex_servidor = conectarAServidor(ip, puerto);
+	if(pokedex_servidor->descriptor == 0)
+	{
+		log_info(logger, "Conexión fallida");
+		log_info(logger, pokedex_servidor->error);
+		return pokedex_servidor;
+	}
+
+	log_info(logger, "Conexión exitosa");
+
+	// Enviar mensaje CONEXION_POKEDEX_SERVIDOR
+		paquete_t paquete;
+		mensajeDePokedex mensajePokedex;
+
+		mensajePokedex.tipoMensaje = CONEXION_A_SERVIDOR;
+		mensajePokedex.ruta = DEFAULT_FILE_PATH;
+
+		crearPaquete((void*) &mensajePokedex, &paquete);
+
+		if(paquete.tamanioPaquete == 0) {
+			pokedex_servidor->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		enviarMensaje(pokedex_servidor, paquete);
+
+		if(pokedex_servidor->error != NULL) {
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		free(paquete.paqueteSerializado);
+
+		// Recibir mensaje ACEPTA_CONEXION
+		mensaje_t mensajeAceptaConexion;
+
+		mensajeAceptaConexion.tipoMensaje = CONEXION_POKEDEX;
+		recibirMensaje(pokedex_servidor, &mensajeAceptaConexion);
+		if(pokedex_servidor->error != NULL)
+		{
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		switch(mensajeAceptaConexion.tipoMensaje) {
+		case RECHAZA_CONEXION:
+			log_info(logger, "Conexion a pokedex servidor rechazada");
+			break;
+		case ACEPTA_CONEXION:
+			log_info(logger, "Conexion a pokedex servidor aceptada");
+			break;
+		}
+
+		return mensajeAceptaConexion.tipoMensaje;
 }

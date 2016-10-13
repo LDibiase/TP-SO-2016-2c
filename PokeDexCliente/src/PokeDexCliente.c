@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
 		return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
 
 	/* Creación del log */
-	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
+	logger = log_create(LOG_FILE_PATH, "POKEDEX_CLIENTE", true, LOG_LEVEL_INFO);
 
 	serv_socket_s = conectarAPokedexServidor("127.0.0.1", "8080");
 	//if(serv_socket_s->descriptor == 0)

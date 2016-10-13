@@ -16,18 +16,21 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-
-//#include <Utility_Library/socket.h>
+#include <commons/log.h>
 #include "socket.h" // BORRAR
 #include "PokeDexServidor.h"
 #include "osada.h"
 #include <commons/bitarray.h>
 #include <sys/mman.h>
+#include "protocoloMapaEntrenador.h"
 
-#define IP "127.0.0.1"
+#define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
+#define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje
+#define IP_SERVIDOR "127.0.0.1"
 #define PUERTO "8080"
 #define CANTIDAD_MAXIMA_CONEXIONES 1000
 #define TABLA_ARCHIVOS 2048
+#define LOG_FILE_PATH "PokeDexServidor.log"
 
 struct socket** clientes;
 char* rutaFS = "/home/utnso/workspace/tp-2016-2c-CodeTogether/challenge.bin";
@@ -40,7 +43,8 @@ char* pmapFS; 						//Puntero de mmap
 int inicioBloqueDatos;				//INICIO BLOQUE DE DATOS
 
 pthread_mutex_t mutex;				//SEMAFORO PARA SINCRONIZAR OPERACIONES
-
+/* Logger */
+t_log* logger;
 
 int main(void) {
 	// Variables para el manejo del FileSystem OSADA
@@ -52,6 +56,7 @@ int main(void) {
 	int i;
 	pthread_mutex_init(&mutex, NULL);
 
+	logger = log_create(LOG_FILE_PATH, "POKEDEX_SERVIDOR", true, LOG_LEVEL_INFO);
 
 	// CARGA DE FS EN MEMORIA CON MMAP
 	printf("\n---------------------------");
@@ -279,63 +284,136 @@ void leerArchivo(int archivoID, char* ruta){
 	block=NULL;
 }
 
+
 void aceptarConexiones() {
 	struct socket* mi_socket_s;
 
 	int returnValue;
 	int conectado;
-	int cantidadClientes;
 
 	int error = -1;
-	int exito = 0;
 
-	mi_socket_s = crearServidor(IP, PUERTO);
+	mi_socket_s = crearServidor(IP_SERVIDOR, PUERTO);
 	if(mi_socket_s->descriptor == 0)
 	{
-		printf("Conexión fallida");
-		printf(mi_socket_s->error);
-		pthread_exit(&error);
+		log_info(logger, "Conexión fallida");
+		log_info(logger, mi_socket_s->error);
+		exit(error);
 	}
 
-	returnValue = escucharConexiones(*mi_socket_s, CANTIDAD_MAXIMA_CONEXIONES);
+	returnValue = escucharConexiones(*mi_socket_s, BACKLOG);
 	if(returnValue != 0)
 	{
-		printf(strerror(returnValue));
-		pthread_exit(&error);
+		log_info(logger, strerror(returnValue));
+		eliminarSocket(mi_socket_s);
+		exit(error);
 	}
-
-	printf("Escuchando conexiones");
 
 	conectado = 1;
-	cantidadClientes = 0;
 
 	while(conectado) {
-		cantidadClientes = sizeof(clientes) / sizeof(struct socket);
-		if(cantidadClientes < CANTIDAD_MAXIMA_CONEXIONES)
-		{
-			struct socket* cli_socket_s;
+		struct socket* cli_socket_s;
+		t_pokedex_cliente* pokedex_cliente;
 
-			cli_socket_s = aceptarConexion(*mi_socket_s);
-			if(cli_socket_s->descriptor == 0)
+		pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
+
+		log_info(logger, "Escuchando conexiones");
+
+		cli_socket_s = aceptarConexion(*mi_socket_s);
+		if(cli_socket_s->descriptor == 0)
+		{
+			log_info(logger, "Se rechaza conexión");
+			log_info(logger, cli_socket_s->error);
+			conectado = 0;
+			eliminarSocket(mi_socket_s);
+			exit(error);
+		}
+
+		///////////////////////
+		////// HANDSHAKE //////
+		///////////////////////
+
+		// Recibir mensaje CONEXION_POKEDEX_CLIENTE
+		mensaje_pokedex_cliente mensajeConexionPokdexCliente;
+
+		mensajeConexionPokdexCliente.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
+		recibirMensaje(cli_socket_s, &mensajeConexionPokdexCliente);
+		if(cli_socket_s->error != NULL)
+		{
+			log_info(logger, cli_socket_s->error);
+			eliminarSocket(cli_socket_s);
+		}
+
+		if(mensajeConexionPokdexCliente.tipoMensaje != CONEXION_POKEDEX_CLIENTE)
+		{
+			// Enviar mensaje RECHAZA_CONEXION
+			paquete_t paquete;
+			mensaje_t mensajeRechazaConexion;
+
+			mensajeRechazaConexion.tipoMensaje = RECHAZA_CONEXION;
+			crearPaquete((void*) &mensajeRechazaConexion, &paquete);
+			if(paquete.tamanioPaquete == 0)
 			{
-				printf("Se rechaza conexión");
-				printf(cli_socket_s->error);
+				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
+				eliminarSocket(cli_socket_s);
+				conectado = 0;
+				eliminarSocket(mi_socket_s);
+				exit(error);
 			}
 
-			clientes = realloc(clientes, (cantidadClientes + 1) * sizeof(struct socket));
-			clientes[cantidadClientes + 1] = cli_socket_s;
+			enviarMensaje(cli_socket_s, paquete);
+			if(cli_socket_s->error != NULL)
+			{
+				log_info(logger, cli_socket_s->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
+				eliminarSocket(cli_socket_s);
+				conectado = 0;
+				eliminarSocket(mi_socket_s);
+				exit(error);
+			}
 
+			free(paquete.paqueteSerializado);
 
-			printf("Se aceptó una conexión. Socket° %d.\n", cli_socket_s->descriptor);
+			log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
+			eliminarSocket(cli_socket_s);
 		}
-		else
+
+		log_info(logger, "Socket %d: mi nombre es %s", cli_socket_s->descriptor, mensajeConexionPokdexCliente.nombre);
+
+		pokedex_cliente->nombre = mensajeConexionPokdexCliente.nombre;
+		pokedex_cliente->socket = cli_socket_s;
+
+		// Enviar mensaje ACEPTA_CONEXION
+		paquete_t paquete;
+		mensaje_t mensajeAceptaConexion;
+
+		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
+		crearPaquete((void*) &mensajeAceptaConexion, &paquete);
+		if(paquete.tamanioPaquete == 0)
 		{
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
+			eliminarSocket(pokedex_cliente->socket);
 			conectado = 0;
+			eliminarSocket(mi_socket_s);
+			exit(error);
 		}
 
-		printf("Escuchando conexiones");
-	}
+		enviarMensaje(pokedex_cliente->socket, paquete);
+		if(pokedex_cliente->socket->error != NULL)
+		{
+			log_info(logger, pokedex_cliente->socket->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
+			eliminarSocket(pokedex_cliente->socket);
+			conectado = 0;
+			eliminarSocket(mi_socket_s);
+			exit(error);
+		}
 
-	eliminarSocket(mi_socket_s);
-	pthread_exit(&exito);
+		free(paquete.paqueteSerializado);
+
+
+		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", pokedex_cliente->socket->descriptor);
+	}
 }

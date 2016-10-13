@@ -54,6 +54,7 @@
 typedef enum tipoMensaje {
 	INDEFINIDO,
 	CONEXION_ENTRENADOR,
+	CONEXION_POKEDEX_CLIENTE,
 	ACEPTA_CONEXION,
 	RECHAZA_CONEXION,
 	TURNO,
@@ -78,6 +79,12 @@ typedef struct mensaje1 {
 	char* nombreEntrenador;
 	char simboloEntrenador;
 } mensaje1_t;
+
+typedef struct mensajePokedexCliente {
+	uint32_t tipoMensaje;
+	uint32_t tamanioNombre;
+	char* nombre;
+} mensaje_pokedex_cliente;
 
 // Mensaje 5
 typedef struct mensaje5 {

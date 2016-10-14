@@ -109,43 +109,33 @@ static struct fuse_operations fuse_oper = {
 
 int main(int argc, char *argv[]) {
 	struct socket* serv_socket_s;
-
-	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
-
-		// Limpio la estructura que va a contener los parametros
-		memset(&runtime_options, 0, sizeof(struct t_runtime_options));
-
-		// Esta funcion de FUSE lee los parametros recibidos y los intepreta
-		if (fuse_opt_parse(&args, &runtime_options, fuse_options, NULL) == -1){
-			/** error parsing options */
-			perror("Invalid arguments!");
-			return EXIT_FAILURE;
-		}
-
-		// Si se paso el parametro --welcome-msg
-		// el campo welcome_msg deberia tener el
-		// valor pasado
-		if( runtime_options.welcome_msg != NULL ){
-			printf("%s\n", runtime_options.welcome_msg);
-		}
-
-		// Esta es la funcion principal de FUSE, es la que se encarga
-		// de realizar el montaje, comuniscarse con el kernel, delegar todo
-		// en varios threads
-		return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
-
 	/* Creación del log */
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_CLIENTE", true, LOG_LEVEL_INFO);
+	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
+
+	// Limpio la estructura que va a contener los parametros
+	memset(&runtime_options, 0, sizeof(struct t_runtime_options));
+
+	// Esta funcion de FUSE lee los parametros recibidos y los intepreta
+	if (fuse_opt_parse(&args, &runtime_options, fuse_options, NULL) == -1){
+		/** error parsing options */
+		perror("Invalid arguments!");
+		return EXIT_FAILURE;
+	}
+
+	// Si se paso el parametro --welcome-msg
+	// el campo welcome_msg deberia tener el
+	// valor pasado
+	if( runtime_options.welcome_msg != NULL ){
+		printf("%s\n", runtime_options.welcome_msg);
+	}
 
 	serv_socket_s = conectarAPokedexServidor("127.0.0.1", "8080");
-	//if(serv_socket_s->descriptor == 0)
-	//{
-		//log_info(logger, "Conexión fallida");
-		//log_info(logger, serv_socket_s->error);
-		//return EXIT_FAILURE;
-	//}
 
-	log_info(logger, "Conexión exitosa");
+	// Esta es la funcion principal de FUSE, es la que se encarga
+	// de realizar el montaje, comuniscarse con el kernel, delegar todo
+	// en varios threads
+	return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
 
 	while(1);
 

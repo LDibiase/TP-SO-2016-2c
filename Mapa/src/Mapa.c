@@ -776,8 +776,7 @@ void aceptarConexiones() {
 
 		free(paquete.paqueteSerializado);
 
-		//Se agrega al entrenador a la lista de entrenadores conectados
-		list_add(entrenadores, entrenador);
+
 
 		//SE PLANIFICA AL NUEVO ENTRENADOR
 		t_entrenador* entrenadorPlanificado;
@@ -786,6 +785,9 @@ void aceptarConexiones() {
 		*entrenadorPlanificado = *entrenador;
 
 		encolarEntrenador(entrenadorPlanificado);
+
+		//Se agrega al entrenador a la lista de entrenadores conectados
+		list_add(entrenadores, entrenador);
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", entrenador->socket->descriptor);
 		log_info(logger, "Se planificó al entrenador %s (%c)", entrenadorPlanificado->nombre, entrenadorPlanificado->id);

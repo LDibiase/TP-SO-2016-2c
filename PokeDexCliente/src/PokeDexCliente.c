@@ -20,6 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include "protocoloMapaEntrenador.h"
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
 
@@ -108,47 +109,100 @@ static struct fuse_operations fuse_oper = {
 
 int main(int argc, char *argv[]) {
 	struct socket* serv_socket_s;
-
+	/* Creación del log */
+	logger = log_create(LOG_FILE_PATH, "POKEDEX_CLIENTE", true, LOG_LEVEL_INFO);
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
 
-		// Limpio la estructura que va a contener los parametros
-		memset(&runtime_options, 0, sizeof(struct t_runtime_options));
+	// Limpio la estructura que va a contener los parametros
+	memset(&runtime_options, 0, sizeof(struct t_runtime_options));
 
-		// Esta funcion de FUSE lee los parametros recibidos y los intepreta
-		if (fuse_opt_parse(&args, &runtime_options, fuse_options, NULL) == -1){
-			/** error parsing options */
-			perror("Invalid arguments!");
-			return EXIT_FAILURE;
-		}
+	// Esta funcion de FUSE lee los parametros recibidos y los intepreta
+	if (fuse_opt_parse(&args, &runtime_options, fuse_options, NULL) == -1){
+		/** error parsing options */
+		perror("Invalid arguments!");
+		return EXIT_FAILURE;
+	}
 
-		// Si se paso el parametro --welcome-msg
-		// el campo welcome_msg deberia tener el
-		// valor pasado
-		if( runtime_options.welcome_msg != NULL ){
-			printf("%s\n", runtime_options.welcome_msg);
-		}
+	// Si se paso el parametro --welcome-msg
+	// el campo welcome_msg deberia tener el
+	// valor pasado
+	if( runtime_options.welcome_msg != NULL ){
+		printf("%s\n", runtime_options.welcome_msg);
+	}
 
-		// Esta es la funcion principal de FUSE, es la que se encarga
-		// de realizar el montaje, comuniscarse con el kernel, delegar todo
-		// en varios threads
-		return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
+	serv_socket_s = conectarAPokedexServidor("127.0.0.1", "8080");
 
-	/* Creación del log */
-	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
-
-	serv_socket_s = conectarAServidor("127.0.0.1", "8080");
-	//if(serv_socket_s->descriptor == 0)
-	//{
-		//log_info(logger, "Conexión fallida");
-		//log_info(logger, serv_socket_s->error);
-		//return EXIT_FAILURE;
-	//}
-
-	log_info(logger, "Conexión exitosa");
+	// Esta es la funcion principal de FUSE, es la que se encarga
+	// de realizar el montaje, comuniscarse con el kernel, delegar todo
+	// en varios threads
+	return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
 
 	while(1);
 
 	eliminarSocket(serv_socket_s);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
+}
+
+socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
+	socket_t* pokedex_servidor;
+
+	pokedex_servidor = conectarAServidor(ip, puerto);
+	if(pokedex_servidor->descriptor == 0)
+	{
+		log_info(logger, "Conexión fallida");
+		log_info(logger, pokedex_servidor->error);
+		return pokedex_servidor;
+	}
+
+	log_info(logger, "Conexión exitosa");
+
+	// Enviar mensaje CONEXION_POKEDEX_SERVIDOR
+		paquete_t paquete;
+		mensajeDePokedex mensajePokedex;
+
+		mensajePokedex.tipoMensaje = CONEXION_A_SERVIDOR;
+		mensajePokedex.ruta = DEFAULT_FILE_PATH;
+
+		crearPaquete((void*) &mensajePokedex, &paquete);
+
+		if(paquete.tamanioPaquete == 0) {
+			pokedex_servidor->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		enviarMensaje(pokedex_servidor, paquete);
+
+		if(pokedex_servidor->error != NULL) {
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		free(paquete.paqueteSerializado);
+
+		// Recibir mensaje ACEPTA_CONEXION
+		mensaje_t mensajeAceptaConexion;
+
+		mensajeAceptaConexion.tipoMensaje = CONEXION_POKEDEX;
+		recibirMensaje(pokedex_servidor, &mensajeAceptaConexion);
+		if(pokedex_servidor->error != NULL)
+		{
+			log_info(logger, pokedex_servidor->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+			return pokedex_servidor;
+		}
+
+		switch(mensajeAceptaConexion.tipoMensaje) {
+		case RECHAZA_CONEXION:
+			log_info(logger, "Conexion a pokedex servidor rechazada");
+			break;
+		case ACEPTA_CONEXION:
+			log_info(logger, "Conexion a pokedex servidor aceptada");
+			break;
+		}
+
+		return mensajeAceptaConexion.tipoMensaje;
 }

@@ -81,7 +81,7 @@ int main(void) {
 						exit(EXIT_FAILURE);
 					}
 
-					while(1);
+					//while(1);
 				}
 
 				// TODO Analizar otros posibles casos

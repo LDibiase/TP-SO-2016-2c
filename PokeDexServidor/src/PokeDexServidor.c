@@ -54,9 +54,26 @@ int main(void) {
 	unsigned char * bitmapS;		// BITMAP
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
 	int i;
+	int activo;
 	pthread_mutex_init(&mutex, NULL);
 
+	// Variables para la creación del hilo en escucha
+	pthread_t hiloEnEscucha;
+	pthread_attr_t atributosHilo;
+
+	// CREACIÓN DEL HILO EN ESCUCHA
+	pthread_attr_init(&atributosHilo);
+	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
+	pthread_attr_destroy(&atributosHilo);
+
+
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_SERVIDOR", true, LOG_LEVEL_INFO);
+
+	activo = 1;
+
+	while(activo) {
+
+	}
 
 	// CARGA DE FS EN MEMORIA CON MMAP
 	printf("\n---------------------------");

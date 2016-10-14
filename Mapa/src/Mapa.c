@@ -198,6 +198,11 @@ int main(void) {
 				log_info(logger, "Se envía ubicación de la PokéNest %c al entrenador", ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
 				free(mensajeRespuesta);
 
+				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
+				log_info(logger, "Cargando archivo de configuración");
+				if (cargarConfiguracion(&configMapa) == 1)
+					return EXIT_FAILURE;
+
 				//VUELVO A ENCOLAR AL ENTRENADOR
 				reencolarEntrenador(entrenadorAEjecutar);
 
@@ -262,6 +267,11 @@ int main(void) {
 				free(mensajeRespuesta);
 				log_info(logger, "Se le informa al entrenador su nueva posición: (%d,%d)", entrenadorAEjecutar->ubicacion.x, entrenadorAEjecutar->ubicacion.y);
 
+				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
+				log_info(logger, "Cargando archivo de configuración");
+				if (cargarConfiguracion(&configMapa) == 1)
+					return EXIT_FAILURE;
+
 				//VUELVO A ENCOLAR AL ENTRENADOR
 				reencolarEntrenador(entrenadorAEjecutar);
 
@@ -304,6 +314,11 @@ int main(void) {
 				free(mensajeRespuesta);
 				log_info(logger, "Se le confirma al entrenador la captura del Pokémon solicitado (%c)", entrenadorAEjecutar->idPokenestActual);
 
+				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
+				log_info(logger, "Cargando archivo de configuración");
+				if (cargarConfiguracion(&configMapa) == 1)
+					return EXIT_FAILURE;
+
 				//VUELVO A ENCOLAR AL ENTRENADOR
 				reencolarEntrenador(entrenadorAEjecutar);
 
@@ -316,6 +331,11 @@ int main(void) {
 
 				free(mensajeRespuesta);
 				log_info(logger, "El entrenador %s (%c) ha completado todos sus objetivos dentro del mapa", entrenadorAEjecutar->nombre, entrenadorAEjecutar->id);
+
+				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
+				log_info(logger, "Cargando archivo de configuración");
+				if (cargarConfiguracion(&configMapa) == 1)
+					return EXIT_FAILURE;
 
 				break;
 			}

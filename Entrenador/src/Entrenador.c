@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <signal.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
@@ -80,8 +81,6 @@ int main(void) {
 						log_destroy(logger);
 						exit(EXIT_FAILURE);
 					}
-
-					//while(1);
 				}
 
 				// TODO Analizar otros posibles casos
@@ -108,7 +107,7 @@ int main(void) {
 		{
 			log_info(logger, "Socket %d: se le ha concedido un turno", mapa_s->descriptor);
 
-			// Capturar pokémon
+			// Capturar Pokémon
 			solicitarCaptura(mapa_s);
 			if(mapa_s->error != NULL)
 			{
@@ -134,6 +133,14 @@ int main(void) {
 		// El entrenador está conectado al mapa
 		conectado = 1;
 
+		pthread_t hiloSignal;
+		pthread_attr_t atributosHiloSignal;
+
+		//Lanzo hilo de seniales
+		pthread_attr_init(&atributosHiloSignal);
+		pthread_create(&hiloSignal, &atributosHiloSignal, (void*) signal_handler, NULL);
+		pthread_attr_destroy(&atributosHiloSignal);
+
 		// Determinar la ubicación inicial del entrenador en el mapa
 		ubicacion.x = 1;
 		ubicacion.y = 1;
@@ -147,37 +154,58 @@ int main(void) {
 			// Al finalizar la recolección de objetivos dentro del mapa, el entrenador informa al mapa sobre la
 			// situación y se desconecta
 
-			// Enviar mensaje OBJETIVOS_COMPLETADOS
-			paquete_t paquete;
-			mensaje_t mensajeObjetivosCompletos;
+			// Recibir mensaje TURNO
+			mensaje_t mensajeTurno;
 
-			mensajeObjetivosCompletos.tipoMensaje = OBJETIVOS_COMPLETADOS;
-			crearPaquete((void*) &mensajeObjetivosCompletos, &paquete);
-			if(paquete.tamanioPaquete == 0)
-			{
-				mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-				log_info(logger, mapa_s->error);
-				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-				return;
-			}
-
-			enviarMensaje(mapa_s, paquete);
+			mensajeTurno.tipoMensaje = TURNO;
+			recibirMensaje(mapa_s, &mensajeTurno);
 			if(mapa_s->error != NULL)
 			{
 				log_info(logger, mapa_s->error);
 				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-			    return;
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				exit(EXIT_FAILURE);
 			}
 
-			free(paquete.paqueteSerializado);
+			if(mensajeTurno.tipoMensaje == TURNO)
+			{
+				log_info(logger, "Socket %d: se le ha concedido un turno", mapa_s->descriptor);
 
-			log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
+				// Enviar mensaje OBJETIVOS_COMPLETADOS
+				paquete_t paquete;
+				mensaje_t mensajeObjetivosCompletos;
 
-			log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-			eliminarSocket(mapa_s);
+				mensajeObjetivosCompletos.tipoMensaje = OBJETIVOS_COMPLETADOS;
+				crearPaquete((void*) &mensajeObjetivosCompletos, &paquete);
+				if(paquete.tamanioPaquete == 0)
+				{
+					mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, mapa_s->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+					return;
+				}
 
-			conectado = 0;
+				enviarMensaje(mapa_s, paquete);
+				if(mapa_s->error != NULL)
+				{
+					log_info(logger, mapa_s->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+					return;
+				}
+
+				free(paquete.paqueteSerializado);
+
+				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
+
+				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+				eliminarSocket(mapa_s);
+
+				conectado = 0;
+			}
 		}
+
+		while(1);
 	}
 
 	/* Creación del log */
@@ -194,6 +222,7 @@ int main(void) {
 	log_info(logger, "Los reintentos son: %d \n", configEntrenador.Reintentos);
 
 	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _obtenerObjetivosCiudad);
+
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -374,21 +403,38 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 direccion_t calcularMovimiento(t_ubicacion ubicacionEntrenador, t_ubicacion ubicacionPokeNest, char* ejeAnterior) {
 	direccion_t direccion;
 
-	if(*ejeAnterior == 'x')
+	if(ubicacionEntrenador.x != ubicacionPokeNest.x && ubicacionEntrenador.y != ubicacionPokeNest.y)
+	{
+		if(*ejeAnterior == 'x')
+		{
+			if(ubicacionEntrenador.y > ubicacionPokeNest.y)
+				direccion = ARRIBA;
+			else
+				direccion = ABAJO;
+			*ejeAnterior = 'y';
+		}
+		else if(*ejeAnterior == 'y')
+		{
+			if(ubicacionEntrenador.x > ubicacionPokeNest.x)
+				direccion = IZQUIERDA;
+			else
+				direccion = DERECHA;
+			*ejeAnterior = 'x';
+		}
+	}
+	else if(ubicacionEntrenador.x == ubicacionPokeNest.x)
 	{
 		if(ubicacionEntrenador.y > ubicacionPokeNest.y)
 			direccion = ARRIBA;
 		else
 			direccion = ABAJO;
-		*ejeAnterior = 'y';
 	}
-	else if(*ejeAnterior == 'y')
+	else
 	{
 		if(ubicacionEntrenador.x > ubicacionPokeNest.x)
 			direccion = IZQUIERDA;
 		else
 			direccion = DERECHA;
-		*ejeAnterior = 'x';
 	}
 
 	return direccion;
@@ -445,7 +491,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		ubicacion->x = mensajeConfirmaDesplazamiento.ubicacionX;
 		ubicacion->y = mensajeConfirmaDesplazamiento.ubicacionY;
 
-		log_info(logger, "Socket %d: su ubicación actual es (%d,%d)", mapa_s->error, ubicacion->x, ubicacion->y);
+		log_info(logger, "Socket %d: su ubicación actual es (%d,%d)", mapa_s->descriptor, ubicacion->x, ubicacion->y);
 	}
 
 	// TODO Analizar otros posibles casos
@@ -498,16 +544,44 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	}
  }
 
-void signal_handler(int signal) {
-    switch (signal) {
-        case SIGTERM:
-            //Sacar una vida
-            break;
-        case SIGUSR1:
-            //Dar una vida
-            break;
-        default:
-            fprintf(stderr, "Codigo Inválido: %d\n", signal);
-            return;
-    }
+void signal_handler() {
+ 	 struct sigaction sa;
+ 	 // Print pid, so that we can send signals from other shells
+ 	 printf("My pid is: %d\n", getpid());
+
+ 	 // Setup the sighub handler
+ 	 sa.sa_handler = &signal_termination_handler;
+
+ 	 // Restart the system call, if at all possible
+ 	 sa.sa_flags = SA_RESTART;
+
+ 	 // Block every signal during the handler
+ 	 sigfillset(&sa.sa_mask);
+
+ 	 if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+ 	    perror("Error: cannot handle SIGUSR1"); // Should not happen
+ 	 }
+
+
+ 	 if (sigaction(SIGTERM, &sa, NULL) == -1) {
+ 	    perror("Error: cannot handle SIGINT"); // Should not happen
+ 	 }
+}
+
+void signal_termination_handler(int signum) {
+ 	switch (signum) {
+ 	        case SIGTERM:
+ 	        	configEntrenador.Vidas--;
+ 	        	log_info(logger, "Vida perdida por signal: %d \n", configEntrenador.Vidas);
+ 	        	printf("Vidas Restantes: %d\n", configEntrenador.Vidas);
+ 	            break;
+ 	        case SIGUSR1:
+ 	        	configEntrenador.Vidas++;
+ 	        	log_info(logger, "Vida obtenida por signal: %d \n", configEntrenador.Vidas);
+ 	        	printf("Vidas Restantes: %d\n", configEntrenador.Vidas);
+ 	            break;
+ 	        default:
+ 	            fprintf(stderr, "Codigo Invalido: %d\n", signum);
+ 	            return;
+ 	}
 }

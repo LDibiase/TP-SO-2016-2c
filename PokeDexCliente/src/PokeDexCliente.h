@@ -18,10 +18,24 @@ struct t_runtime_options {
 	char* welcome_msg;
 } runtime_options;
 
+//Mensaje Pokedex Cliente-Servidor
+typedef struct mensajePokedex {
+	uint32_t tipoMensaje;
+	uint32_t ruta;
+	uint32_t nombre;
+} mensajeDePokedex;
 
+// Mensajes
+typedef enum tipoMensajePokedex {
+	CONEXION_A_SERVIDOR,
+	LEER,
+	LISTAR,
+	ESCRIBIR,
+	ABRIR
+} tipoMensaje_pokedex;
 
 /* Declaración de funciones */
-
+socket_t* conectarAPokedexServidor(char* ip, char* puerto);
 
 
 #endif /* POKEDEXCLIENTE_H_ */

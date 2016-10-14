@@ -545,9 +545,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
  }
 
 void signal_handler() {
- //    const char *signal_name;
- //    sigset_t pending;
-
  	 struct sigaction sa;
 
  	    // Print pid, so that we can send signals from other shells
@@ -575,10 +572,14 @@ void signal_handler() {
 void signal_termination_handler(int signum) {
  	switch (signum) {
  	        case SIGTERM:
- 	        	printf("Caught SIGTERM, Sacar una vida\n");
+ 	        	configEntrenador.Vidas--;
+ 	        	log_info(logger, "Vida perdida por signal: %d \n", configEntrenador.Vidas);
+ 	        	printf("Vidas Restantes: %d\n", configEntrenador.Vidas);
  	            break;
  	        case SIGUSR1:
- 	        	printf("Caught SIGUSR1, Dar una vida\n");
+ 	        	configEntrenador.Vidas++;
+ 	        	log_info(logger, "Vida obtenida por signal: %d \n", configEntrenador.Vidas);
+ 	        	printf("Vidas Restantes: %d\n", configEntrenador.Vidas);
  	            break;
  	        default:
  	            fprintf(stderr, "Codigo Invalido: %d\n", signum);

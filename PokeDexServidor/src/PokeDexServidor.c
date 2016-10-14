@@ -335,8 +335,9 @@ void aceptarConexiones() {
 		pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
 
 		log_info(logger, "Escuchando conexiones");
-
+		printf("Llegue aca");
 		cli_socket_s = aceptarConexion(*mi_socket_s);
+		printf("Llegue y aca");
 		if(cli_socket_s->descriptor == 0)
 		{
 			log_info(logger, "Se rechaza conexión");
@@ -354,6 +355,7 @@ void aceptarConexiones() {
 		mensaje_pokedex_cliente mensajeConexionPokdexCliente;
 
 		mensajeConexionPokdexCliente.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
+
 		recibirMensaje(cli_socket_s, &mensajeConexionPokdexCliente);
 		if(cli_socket_s->error != NULL)
 		{
@@ -361,8 +363,7 @@ void aceptarConexiones() {
 			eliminarSocket(cli_socket_s);
 		}
 
-		if(mensajeConexionPokdexCliente.tipoMensaje != CONEXION_POKEDEX_CLIENTE)
-		{
+		if(mensajeConexionPokdexCliente.tipoMensaje != CONEXION_POKEDEX_CLIENTE) {
 			// Enviar mensaje RECHAZA_CONEXION
 			paquete_t paquete;
 			mensaje_t mensajeRechazaConexion;

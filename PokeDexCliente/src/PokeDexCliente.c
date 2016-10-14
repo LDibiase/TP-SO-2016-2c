@@ -161,7 +161,7 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 		paquete_t paquete;
 		mensajeDePokedex mensajePokedex;
 
-		mensajePokedex.tipoMensaje = CONEXION_A_SERVIDOR;
+		mensajePokedex.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
 		mensajePokedex.ruta = DEFAULT_FILE_PATH;
 
 		crearPaquete((void*) &mensajePokedex, &paquete);

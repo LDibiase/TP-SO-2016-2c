@@ -41,7 +41,7 @@ t_list* items;
 t_queue* colaReady;
 t_queue* colaBloqueados;
 
-//SEMAFORO PARA SINCRONIZAR LAS COLAS
+//SEMÁFORO PARA SINCRONIZAR LAS COLAS
 pthread_mutex_t mutex;
 
 int main(void) {
@@ -56,10 +56,10 @@ int main(void) {
 	// Variables para la diagramación del mapa
 	int rows, cols;
 
-	// Inicialización de la lista de entrenadores conectados
+	// Creación de las colas de planificación
 	entrenadores = list_create();
-	colaBloqueados = queue_create();
 	colaReady = queue_create();
+	colaBloqueados = queue_create();
 
 
 	//CREACIÓN DEL ARCHIVO DE LOG
@@ -71,7 +71,7 @@ int main(void) {
 	if (cargarConfiguracion(&configMapa) == 1)
 		return EXIT_FAILURE;
 
-	log_info(logger, "El algoritmo es: %s \n", configMapa.Algoritmo);
+	log_info(logger, "El algoritmo de planificación es: %s \n", configMapa.Algoritmo);
 	log_info(logger, "Batalla: %d \n", configMapa.Batalla);
 	log_info(logger, "El IP es: %s \n", configMapa.IP);
 	log_info(logger, "El puerto es: %s \n", configMapa.Puerto);

@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <signal.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
@@ -131,6 +132,14 @@ int main(void) {
 
 		// El entrenador está conectado al mapa
 		conectado = 1;
+
+		pthread_t hiloSignal;
+		pthread_attr_t atributosHiloSignal;
+
+		//Lanzo hilo de seniales
+		pthread_attr_init(&atributosHiloSignal);
+		pthread_create(&hiloSignal, &atributosHiloSignal, (void*) signal_handler, NULL);
+		pthread_attr_destroy(&atributosHiloSignal);
 
 		// Determinar la ubicación inicial del entrenador en el mapa
 		ubicacion.x = 1;
@@ -535,16 +544,44 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	}
  }
 
-void signal_handler(int signal) {
-    switch (signal) {
-        case SIGTERM:
-            //Sacar una vida
-            break;
-        case SIGUSR1:
-            //Dar una vida
-            break;
-        default:
-            fprintf(stderr, "Codigo Inválido: %d\n", signal);
-            return;
-    }
+void signal_handler() {
+ 	 struct sigaction sa;
+ 	 // Print pid, so that we can send signals from other shells
+ 	 printf("My pid is: %d\n", getpid());
+
+ 	 // Setup the sighub handler
+ 	 sa.sa_handler = &signal_termination_handler;
+
+ 	 // Restart the system call, if at all possible
+ 	 sa.sa_flags = SA_RESTART;
+
+ 	 // Block every signal during the handler
+ 	 sigfillset(&sa.sa_mask);
+
+ 	 if (sigaction(SIGUSR1, &sa, NULL) == -1) {
+ 	    perror("Error: cannot handle SIGUSR1"); // Should not happen
+ 	 }
+
+
+ 	 if (sigaction(SIGTERM, &sa, NULL) == -1) {
+ 	    perror("Error: cannot handle SIGINT"); // Should not happen
+ 	 }
+}
+
+void signal_termination_handler(int signum) {
+ 	switch (signum) {
+ 	        case SIGTERM:
+ 	        	configEntrenador.Vidas--;
+ 	        	log_info(logger, "Vida perdida por signal: %d \n", configEntrenador.Vidas);
+ 	        	printf("Vidas Restantes: %d\n", configEntrenador.Vidas);
+ 	            break;
+ 	        case SIGUSR1:
+ 	        	configEntrenador.Vidas++;
+ 	        	log_info(logger, "Vida obtenida por signal: %d \n", configEntrenador.Vidas);
+ 	        	printf("Vidas Restantes: %d\n", configEntrenador.Vidas);
+ 	            break;
+ 	        default:
+ 	            fprintf(stderr, "Codigo Invalido: %d\n", signum);
+ 	            return;
+ 	}
 }

@@ -71,9 +71,9 @@ int main(void) {
 
 	activo = 1;
 
-	while(activo) {
-
-	}
+	//while(activo) {
+	//
+	//}
 
 	// CARGA DE FS EN MEMORIA CON MMAP
 	printf("\n---------------------------");
@@ -205,16 +205,102 @@ int main(void) {
 	char* ruta = "/";
 	escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
 
+	getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
+	readdir_callback("/Pallet Town/Pokemons");
+
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
 	close(fileFS); //Cierro el archivo
 
-	//Libero memoria
+	//Test de escritura en OSADA
+	//FILE *fp;
+	//fp = fopen("test.txt", "w+");
+	//fread(buffer,)
+
+
+	////////////////////
+	///// SHUTDOWN /////
+	////////////////////
 	free(bitmapS);
 	free(tablaAsignaciones);
 	bitmapS=NULL;
 	tablaAsignaciones=NULL;
 
 	return EXIT_SUCCESS;
+}
+
+int readdir_callback(const char *path) {
+	int i;
+	int dirPadre = getattr_callback(path);
+	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+		if (tablaArchivos[i].state != 0) {
+			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
+				printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
+
+			} else {
+				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
+					 printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
+				}
+			}
+		}
+	}
+}
+
+int getattr_callback(const char *path) { //, struct stat *stbuf) {
+ // memset(stbuf, 0, sizeof(struct stat));
+
+printf("\nBuscando ruta: %s \n", path);
+  char** array = string_split(path, "/");
+  int i = 0;
+  int res = -1;
+  int dirPadre = 65535;
+  while (array[i]) {
+	  char* fname = array[i];
+	  printf("Buscando nombre: %s \n", array[i]);
+	  res = buscarTablaAchivos(dirPadre,array[i]);
+	  printf("Encontrado id: %d \n", res);
+	  dirPadre = res;
+	  i++;
+  }
+  if (tablaArchivos[res].state == 1) {
+	  printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+  }
+  if (tablaArchivos[res].state == 2) {
+	  printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+  }
+  return res;
+}
+  /*
+  if (strcmp(path, "/") == 0) {
+    stbuf->st_mode = S_IFDIR | 0755;
+    stbuf->st_nlink = 2;
+    return 0;
+  }
+
+  if (strcmp(path, filepath) == 0) {
+    stbuf->st_mode = S_IFREG | 0777;
+    stbuf->st_nlink = 1;
+    stbuf->st_size = strlen(filecontent);
+    return 0;
+  }
+
+  return -1;*/
+
+int buscarTablaAchivos(int dirPadre, char* fname) {
+	  	int i;
+	  	int res = -1;
+	  	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+	  		if (tablaArchivos[i].state != 0) {
+	  			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un direcotrio
+	  				res = i;
+
+	  			} else {
+	  				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un archivo
+	  					res = i;
+	  				}
+	  			}
+	  		}
+	  	}
+	  	return res;
 }
 
 void escribirEstructura(int dirPadre, char* ruta) {

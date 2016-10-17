@@ -22,7 +22,8 @@
 #include "osada.h"
 #include <commons/bitarray.h>
 #include <sys/mman.h>
-#include "protocoloMapaEntrenador.h"
+
+#include "protocoloPokedexClienteServidor.h"
 
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 #define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje
@@ -61,19 +62,9 @@ int main(void) {
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 
-	// CREACIÓN DEL HILO EN ESCUCHA
-	pthread_attr_init(&atributosHilo);
-	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
-	pthread_attr_destroy(&atributosHilo);
-
 
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_SERVIDOR", true, LOG_LEVEL_INFO);
 
-	activo = 1;
-
-	//while(activo) {
-	//
-	//}
 
 	// CARGA DE FS EN MEMORIA CON MMAP
 	printf("\n---------------------------");
@@ -207,6 +198,18 @@ int main(void) {
 
 	getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
 	readdir_callback("/Pallet Town/Pokemons");
+
+
+
+
+	// CREACIÓN DEL HILO EN ESCUCHA
+	pthread_attr_init(&atributosHilo);
+	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
+	pthread_attr_destroy(&atributosHilo);
+
+	activo = 1;
+	while(activo){
+	}
 
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
 	close(fileFS); //Cierro el archivo
@@ -421,9 +424,7 @@ void aceptarConexiones() {
 		pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
 
 		log_info(logger, "Escuchando conexiones");
-		printf("Llegue aca");
 		cli_socket_s = aceptarConexion(*mi_socket_s);
-		printf("Llegue y aca");
 		if(cli_socket_s->descriptor == 0)
 		{
 			log_info(logger, "Se rechaza conexión");
@@ -438,7 +439,7 @@ void aceptarConexiones() {
 		///////////////////////
 
 		// Recibir mensaje CONEXION_POKEDEX_CLIENTE
-		mensaje_pokedex_cliente mensajeConexionPokdexCliente;
+		mensajeDePokedex mensajeConexionPokdexCliente;
 
 		mensajeConexionPokdexCliente.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
 
@@ -483,7 +484,7 @@ void aceptarConexiones() {
 			eliminarSocket(cli_socket_s);
 		}
 
-		log_info(logger, "Socket %d: mi nombre es %s", cli_socket_s->descriptor, mensajeConexionPokdexCliente.nombre);
+		log_info(logger, "Socket %d: mi nombre es %s", cli_socket_s->descriptor);
 
 		pokedex_cliente->nombre = mensajeConexionPokdexCliente.nombre;
 		pokedex_cliente->socket = cli_socket_s;

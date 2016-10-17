@@ -20,7 +20,7 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "protocoloMapaEntrenador.h"
+#include "protocoloPokedexClienteServidor.h"
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
 
@@ -163,6 +163,7 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 
 		mensajePokedex.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
 		mensajePokedex.ruta = DEFAULT_FILE_PATH;
+		mensajePokedex.nombre= "Test";
 
 		crearPaquete((void*) &mensajePokedex, &paquete);
 

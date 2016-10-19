@@ -187,8 +187,9 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 		// Recibir mensaje ACEPTA_CONEXION
 		mensaje_t mensajeAceptaConexion;
 
-		mensajeAceptaConexion.tipoMensaje = CONEXION_POKEDEX;
+		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
 		recibirMensaje(pokedex_servidor, &mensajeAceptaConexion);
+
 		if(pokedex_servidor->error != NULL)
 		{
 			log_info(logger, pokedex_servidor->error);

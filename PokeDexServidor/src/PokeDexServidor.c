@@ -76,7 +76,6 @@ int main(void) {
 	pmapFS = (char*)mmap(0, statFS.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileFS, 0); //puntero al primer byte del FS (array de bytes)
 	printf("El tamaño del FS es %d \n", statFS.st_size);
 
-
 	memcpy(&cabeceraFS, &pmapFS[0], sizeof(cabeceraFS));
 	// Valida que sea un FS OSADA
 	if (memcmp(cabeceraFS.magic_number, "OsadaFS", 7) != 0)	{
@@ -490,12 +489,13 @@ void aceptarConexiones() {
 		pokedex_cliente->socket = cli_socket_s;
 
 		// Enviar mensaje ACEPTA_CONEXION
-		paquete_t paquete;
+		paquete_t paquete2;
 		mensaje_t mensajeAceptaConexion;
 
 		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
-		crearPaquete((void*) &mensajeAceptaConexion, &paquete);
-		if(paquete.tamanioPaquete == 0)
+
+		crearPaquete((void*) &mensajeAceptaConexion, &paquete2);
+		if(paquete2.tamanioPaquete == 0)
 		{
 			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
@@ -505,7 +505,7 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		enviarMensaje(pokedex_cliente->socket, paquete);
+		enviarMensaje(pokedex_cliente->socket, paquete2);
 		if(pokedex_cliente->socket->error != NULL)
 		{
 			log_info(logger, pokedex_cliente->socket->error);
@@ -516,7 +516,7 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		free(paquete.paqueteSerializado);
+		free(paquete2.paqueteSerializado);
 
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", pokedex_cliente->socket->descriptor);

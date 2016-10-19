@@ -13,7 +13,7 @@
 #include <errno.h>
 #include <commons/string.h>
 #include "socket.h"
-#include "protocoloMapaEntrenador.h"
+#include "protocoloPokedexClienteServidor.h"
 
 //////////////ESTRUCTURAS PRIVADAS//////////////
 typedef struct {

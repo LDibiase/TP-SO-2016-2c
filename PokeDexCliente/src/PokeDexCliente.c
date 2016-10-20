@@ -108,7 +108,7 @@ static struct fuse_operations fuse_oper = {
 };
 
 int main(int argc, char *argv[]) {
-	struct socket* serv_socket_s;
+	struct socket* pokedex;
 	/* Creación del log */
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_CLIENTE", true, LOG_LEVEL_INFO);
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
@@ -130,16 +130,35 @@ int main(int argc, char *argv[]) {
 		printf("%s\n", runtime_options.welcome_msg);
 	}
 
-	serv_socket_s = conectarAPokedexServidor("127.0.0.1", "8080");
+	pokedex = conectarAPokedexServidor("127.0.0.1", "8080");
+
+	// Enviar mensaje READ
+	paquete_t paqueteLectura;
+	mensaje_t mensajeQuieroLeer;
+
+	mensajeQuieroLeer.tipoMensaje = LEER;
+
+	crearPaquete((void*) &mensajeQuieroLeer, &paqueteLectura);
+	printf("creo bien el paqeetee");
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	while(1) {
+
+	}
 
 	// Esta es la funcion principal de FUSE, es la que se encarga
 	// de realizar el montaje, comuniscarse con el kernel, delegar todo
 	// en varios threads
 	return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
 
-	while(1);
-
-	eliminarSocket(serv_socket_s);
+	eliminarSocket(pokedex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
@@ -206,5 +225,5 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 			break;
 		}
 
-		return mensajeAceptaConexion.tipoMensaje;
+		return pokedex_servidor;
 }

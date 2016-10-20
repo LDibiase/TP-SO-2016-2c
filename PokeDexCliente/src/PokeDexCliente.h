@@ -25,14 +25,6 @@ typedef struct mensajePokedex {
 	uint32_t nombre;
 } mensajeDePokedex;
 
-// Mensajes
-typedef enum tipoMensajePokedex {
-	CONEXION_A_SERVIDOR,
-	LEER,
-	LISTAR,
-	ESCRIBIR,
-	ABRIR
-} tipoMensaje_pokedex;
 
 /* Declaración de funciones */
 socket_t* conectarAPokedexServidor(char* ip, char* puerto);

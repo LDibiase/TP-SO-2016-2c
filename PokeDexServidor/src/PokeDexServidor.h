@@ -25,11 +25,7 @@ typedef struct mensajePokedex {
 
 // Mensajes
 typedef enum tipoMensajePokedex {
-	CONEXION_A_SERVIDOR,
-	LEER,
-	LISTAR,
-	ESCRIBIR,
-	ABRIR
+	CONEXION_A_SERVIDOR
 } tipoMensaje_pokedex;
 
 /* Declaración de funciones */

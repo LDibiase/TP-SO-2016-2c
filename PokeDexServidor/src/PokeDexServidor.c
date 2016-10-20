@@ -520,5 +520,28 @@ void aceptarConexiones() {
 
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", pokedex_cliente->socket->descriptor);
+
+		while(1) {
+			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
+			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+
+			recibirMensaje(pokedex_cliente->socket, mensajeRespuesta);
+
+			if(pokedex_cliente->socket->error != NULL)
+			{
+				free(mensajeRespuesta);
+				log_info(logger, pokedex_cliente->socket->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
+				//TODO Cerrar todos los sockets y salir
+				eliminarSocket(pokedex_cliente->socket);
+			}
+
+			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
+				case LEER:
+					log_info(logger, "Socket %d: solicito LEER", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de lectura recibida");
+				break;
+			}
+		}
 	}
 }

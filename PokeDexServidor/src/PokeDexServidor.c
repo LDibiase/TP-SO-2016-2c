@@ -584,8 +584,10 @@ void aceptarConexiones() {
 		operacionPlanificada = malloc(sizeof(t_pokedex_cliente));
 		*operacionPlanificada = *pokedex_cliente;
 
+
 		pthread_mutex_lock(&mutex);
 		queue_push(colaOperaciones, operacionPlanificada);
 		pthread_mutex_unlock(&mutex);
+
 	}
 }

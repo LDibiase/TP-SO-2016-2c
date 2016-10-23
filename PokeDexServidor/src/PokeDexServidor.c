@@ -22,6 +22,7 @@
 #include "osada.h"
 #include <commons/bitarray.h>
 #include <sys/mman.h>
+#include <commons/collections/queue.h>
 
 #include "protocoloPokedexClienteServidor.h"
 
@@ -46,6 +47,7 @@ int inicioBloqueDatos;				//INICIO BLOQUE DE DATOS
 pthread_mutex_t mutex;				//SEMAFORO PARA SINCRONIZAR OPERACIONES
 /* Logger */
 t_log* logger;
+t_queue* colaOperaciones;
 
 int main(void) {
 	// Variables para el manejo del FileSystem OSADA
@@ -55,7 +57,6 @@ int main(void) {
 	unsigned char * bitmapS;		// BITMAP
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
 	int i;
-	int activo;
 	pthread_mutex_init(&mutex, NULL);
 
 	// Variables para la creación del hilo en escucha
@@ -206,8 +207,36 @@ int main(void) {
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
 
-	activo = 1;
-	while(activo){
+	colaOperaciones = queue_create();
+
+	while(1) {
+		if(queue_size(colaOperaciones)> 0)
+		{
+			t_pokedex_cliente* pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
+			pthread_mutex_lock(&mutex);
+			pokedex_cliente = queue_pop(colaOperaciones);
+			pthread_mutex_unlock(&mutex);
+			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
+			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+
+			recibirMensaje(pokedex_cliente->socket, mensajeRespuesta);
+
+			if(pokedex_cliente->socket->error != NULL)
+			{
+				free(mensajeRespuesta);
+				log_info(logger, pokedex_cliente->socket->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
+				//TODO Cerrar todos los sockets y salir
+				eliminarSocket(pokedex_cliente->socket);
+			}
+
+			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
+				case LEER:
+					log_info(logger, "Socket %d: solicito LEER", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de lectura recibida");
+				break;
+			}
+	}
 	}
 
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
@@ -521,27 +550,14 @@ void aceptarConexiones() {
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", pokedex_cliente->socket->descriptor);
 
-		while(1) {
-			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
-			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+		//SE AGREGA LA OPERACION PENDIENTE
+		t_pokedex_cliente* operacionPlanificada;
 
-			recibirMensaje(pokedex_cliente->socket, mensajeRespuesta);
+		operacionPlanificada = malloc(sizeof(t_pokedex_cliente));
+		*operacionPlanificada = *pokedex_cliente;
 
-			if(pokedex_cliente->socket->error != NULL)
-			{
-				free(mensajeRespuesta);
-				log_info(logger, pokedex_cliente->socket->error);
-				log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
-				//TODO Cerrar todos los sockets y salir
-				eliminarSocket(pokedex_cliente->socket);
-			}
-
-			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
-				case LEER:
-					log_info(logger, "Socket %d: solicito LEER", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de lectura recibida");
-				break;
-			}
-		}
+		pthread_mutex_lock(&mutex);
+		queue_push(colaOperaciones, operacionPlanificada);
+		pthread_mutex_unlock(&mutex);
 	}
 }

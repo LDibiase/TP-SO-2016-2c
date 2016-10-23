@@ -31,6 +31,8 @@ typedef enum tipoMensajePokedex {
 /* Declaración de funciones */
 void leerArchivo(int archivoID, char* ruta);
 void escribirEstructura(int dirPadre, char* ruta);
+int getattr_callback(const char *path);
+int readdir_callback(const char *path);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

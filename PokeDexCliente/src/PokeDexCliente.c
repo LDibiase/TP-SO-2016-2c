@@ -26,6 +26,7 @@
 
 /* Variables */
 t_log* logger;
+socket_t* pokedex_servidor;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
 
@@ -164,7 +165,7 @@ int main(int argc, char *argv[]) {
 }
 
 socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
-	socket_t* pokedex_servidor;
+
 
 	pokedex_servidor = conectarAServidor(ip, puerto);
 	if(pokedex_servidor->descriptor == 0)

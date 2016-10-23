@@ -537,7 +537,7 @@ void aceptarConexiones() {
 			}
 
 			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
-				case LEER:
+				case LEER_ARCHIVO:
 					log_info(logger, "Socket %d: solicito LEER", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
 					printf("Solicitud de lectura recibida");
 				break;

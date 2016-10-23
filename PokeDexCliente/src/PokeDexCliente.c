@@ -136,7 +136,7 @@ int main(int argc, char *argv[]) {
 	paquete_t paqueteLectura;
 	mensaje_t mensajeQuieroLeer;
 
-	mensajeQuieroLeer.tipoMensaje = LEER;
+	mensajeQuieroLeer.tipoMensaje = LEER_ARCHIVO;
 
 	crearPaquete((void*) &mensajeQuieroLeer, &paqueteLectura);
 	printf("creo bien el paqeetee");

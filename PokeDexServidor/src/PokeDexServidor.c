@@ -538,8 +538,36 @@ void aceptarConexiones() {
 
 			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
 				case LEER_ARCHIVO:
-					log_info(logger, "Socket %d: solicito LEER", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					log_info(logger, "Socket %d: solicito LEER_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
 					printf("Solicitud de lectura recibida");
+				break;
+				case CREAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito CREAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de crear archivo recibida");
+				break;
+				case ESCRIBIR_MODIFICAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito ESCRIBIR_MODIFICAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de escribir modificar archivo recibida");
+				break;
+				case BORRAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito BORRAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de borrar archivo recibida");
+				break;
+				case CREAR_DIRECTORIO:
+					log_info(logger, "Socket %d: solicito CREAR_DIRECTORIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de crear directorio recibida");
+				break;
+				case LISTAR_DIRECTORIO:
+					log_info(logger, "Socket %d: solicito LISTAR_DIRECTORIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de listar directorio recibida");
+				break;
+				case BORRAR_DIRECTORIO_VACIO:
+					log_info(logger, "Socket %d: solicito BORRAR_DIRECTORIO_VACIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de borrar directorio vacio recibida");
+				break;
+				case RENOMBRAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito RENOMBRAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de renombrar archivo recibida");
 				break;
 			}
 		}

@@ -35,8 +35,8 @@ typedef struct mensaje {
 
 // Mensaje 1
 typedef struct mensaje1 {
-	uint32_t tamanioPath;
 	uint32_t tipoMensaje;
+	uint32_t tamanioPath;
 	char* path;
 } mensaje1_t;
 

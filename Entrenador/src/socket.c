@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <commons/string.h>
 #include "socket.h"
-#include "protocoloMapaEntrenador.h"
 
 //////////////ESTRUCTURAS PRIVADAS//////////////
 typedef struct {
@@ -83,7 +82,7 @@ socket_t* nuevoSocket() {
 
 void eliminarSocket(socket_t* socket_s) {
 	free(socket_s->error);
-	free(socket_s);
+	close(socket_s->descriptor);
 }
 
 socket_t* crearServidor(char* ip, char* puerto) {
@@ -238,7 +237,7 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 	case SOLICITA_UBICACION:
 		punteroAuxiliar = paquete->paqueteSerializado;
 
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje5_t*) mensaje)->idPokeNest);
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje4_t*) mensaje)->idPokeNest);
 		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 		if(paquete->paqueteSerializado == NULL)
 		{
@@ -247,15 +246,15 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			return;
 		}
 
-		tamanioOperando = sizeof(((mensaje5_t*) mensaje)->idPokeNest);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->idPokeNest), tamanioOperando);
+		tamanioOperando = sizeof(((mensaje4_t*) mensaje)->idPokeNest);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje4_t*) mensaje)->idPokeNest), tamanioOperando);
 		offset = offset + tamanioOperando;
 
 		break;
 	case BRINDA_UBICACION:
 		punteroAuxiliar = paquete->paqueteSerializado;
 
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje6_t*) mensaje)->ubicacionX) + sizeof(((mensaje6_t*) mensaje)->ubicacionY);
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje5_t*) mensaje)->ubicacionX) + sizeof(((mensaje5_t*) mensaje)->ubicacionY);
 		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 		if(paquete->paqueteSerializado == NULL)
 		{
@@ -264,19 +263,19 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			return;
 		}
 
-		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->ubicacionX);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje6_t*) mensaje)->ubicacionX), tamanioOperando);
+		tamanioOperando = sizeof(((mensaje5_t*) mensaje)->ubicacionX);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->ubicacionX), tamanioOperando);
 		offset = offset + tamanioOperando;
 
-		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->ubicacionY);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje6_t*) mensaje)->ubicacionY), tamanioOperando);
+		tamanioOperando = sizeof(((mensaje5_t*) mensaje)->ubicacionY);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->ubicacionY), tamanioOperando);
 		offset = offset + tamanioOperando;
 
 		break;
 	case SOLICITA_DESPLAZAMIENTO:
 		punteroAuxiliar = paquete->paqueteSerializado;
 
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje7_t*) mensaje)->direccion);
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje6_t*) mensaje)->direccion);
 		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 		if(paquete->paqueteSerializado == NULL)
 		{
@@ -285,15 +284,15 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			return;
 		}
 
-		tamanioOperando = sizeof(((mensaje7_t*) mensaje)->direccion);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje7_t*) mensaje)->direccion), tamanioOperando);
+		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->direccion);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje6_t*) mensaje)->direccion), tamanioOperando);
 		offset = offset + tamanioOperando;
 
 		break;
 	case CONFIRMA_DESPLAZAMIENTO:
 		punteroAuxiliar = paquete->paqueteSerializado;
 
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje8_t*) mensaje)->ubicacionX) + sizeof(((mensaje8_t*) mensaje)->ubicacionY);
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje7_t*) mensaje)->ubicacionX) + sizeof(((mensaje7_t*) mensaje)->ubicacionY);
 		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 		if(paquete->paqueteSerializado == NULL)
 		{
@@ -302,12 +301,12 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			return;
 		}
 
-		tamanioOperando = sizeof(((mensaje8_t*) mensaje)->ubicacionX);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje8_t*) mensaje)->ubicacionX), tamanioOperando);
+		tamanioOperando = sizeof(((mensaje7_t*) mensaje)->ubicacionX);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje7_t*) mensaje)->ubicacionX), tamanioOperando);
 		offset = offset + tamanioOperando;
 
-		tamanioOperando = sizeof(((mensaje8_t*) mensaje)->ubicacionY);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje8_t*) mensaje)->ubicacionY), tamanioOperando);
+		tamanioOperando = sizeof(((mensaje7_t*) mensaje)->ubicacionY);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje7_t*) mensaje)->ubicacionY), tamanioOperando);
 		offset = offset + tamanioOperando;
 
 		break;
@@ -333,9 +332,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 	buffer = malloc(tamanioBuffer);
 
 	bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-	if(bytesRecibidos == -1)
+	if(bytesRecibidos == 0)
+	{
+		socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+		free(buffer);
+		return;
+	}
+	else if(bytesRecibidos == -1)
 	{
 		socket->error = strerror(errno);
+		free(buffer);
 		return;
 	}
 
@@ -350,9 +356,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
@@ -363,9 +376,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
@@ -377,9 +397,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
@@ -390,94 +417,136 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			break;
 		case SOLICITA_UBICACION:
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->idPokeNest);
+			tamanioBuffer = sizeof(((mensaje4_t*) mensaje)->idPokeNest);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
-			memcpy(&(((mensaje5_t*) mensaje)->idPokeNest), buffer, tamanioBuffer);
+			memcpy(&(((mensaje4_t*) mensaje)->idPokeNest), buffer, tamanioBuffer);
 
 			free(buffer);
 
 			break;
 		case BRINDA_UBICACION:
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->ubicacionX);
+			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->ubicacionX);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
-			memcpy(&(((mensaje6_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
+			memcpy(&(((mensaje5_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
 
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->ubicacionY);
+			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->ubicacionY);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
-			memcpy(&(((mensaje6_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
+			memcpy(&(((mensaje5_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
 
 			free(buffer);
 
 			break;
 		case SOLICITA_DESPLAZAMIENTO:
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->direccion);
+			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->direccion);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
-			memcpy(&(((mensaje7_t*) mensaje)->direccion), buffer, tamanioBuffer);
+			memcpy(&(((mensaje6_t*) mensaje)->direccion), buffer, tamanioBuffer);
 
 			free(buffer);
 
 			break;
 		case CONFIRMA_DESPLAZAMIENTO:
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->ubicacionX);
+			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->ubicacionX);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
-			memcpy(&(((mensaje8_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
+			memcpy(&(((mensaje7_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
 
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->ubicacionY);
+			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->ubicacionY);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
-			memcpy(&(((mensaje8_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
+			memcpy(&(((mensaje7_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
 
 			free(buffer);
 

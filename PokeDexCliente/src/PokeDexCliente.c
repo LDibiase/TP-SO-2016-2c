@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <commons/log.h>
 //#include <Utility_Library/socket.h>
-#include "socket.h" // BORRAR
 #include "PokeDexCliente.h"
 #include <stddef.h>
 #include <stdlib.h>
@@ -20,7 +19,9 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "protocoloPokedexClienteServidor.h"
+//#include "protocoloPokedexClienteServidor.h"
+
+
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
 

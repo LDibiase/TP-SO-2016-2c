@@ -13,7 +13,6 @@
 #include <errno.h>
 #include <commons/string.h>
 #include "socket.h"
-#include "protocoloPokedexClienteServidor.h"
 
 //////////////ESTRUCTURAS PRIVADAS//////////////
 typedef struct {
@@ -83,7 +82,7 @@ socket_t* nuevoSocket() {
 
 void eliminarSocket(socket_t* socket_s) {
 	free(socket_s->error);
-	free(socket_s);
+	close(socket_s->descriptor);
 }
 
 socket_t* crearServidor(char* ip, char* puerto) {
@@ -253,9 +252,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 	buffer = malloc(tamanioBuffer);
 
 	bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-	if(bytesRecibidos == -1)
+	if(bytesRecibidos == 0)
+	{
+		socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+		free(buffer);
+		return;
+	}
+	else if(bytesRecibidos == -1)
 	{
 		socket->error = strerror(errno);
+		free(buffer);
 		return;
 	}
 
@@ -270,9 +276,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 
@@ -283,9 +296,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
 			{
 				socket->error = strerror(errno);
+				free(buffer);
 				return;
 			}
 

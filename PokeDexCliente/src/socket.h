@@ -7,6 +7,8 @@
 
 #ifndef UTILITY_LIBRARY_SOCKET_H_
 #define UTILITY_LIBRARY_SOCKET_H_
+#include <unistd.h>
+#include "protocoloPokedexClienteServidor.h"
 #include <stdint.h>
 
 /* Definición de estructuras */

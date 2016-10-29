@@ -1,13 +1,14 @@
 /*
- * protocoloMapaEntrenador.h
+ * protocoloPokedexClienteServidor.h
  *
  *  Created on: 17/9/2016
  *      Author: utnso
  */
 
-#ifndef UTILITY_LIBRARY_PROTOCOLOMAPAENTRENADOR_H_
-#define UTILITY_LIBRARY_PROTOCOLOMAPAENTRENADOR_H_
+#ifndef UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_
+#define UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_
 #include <stdint.h>
+
 
 /* PROTOCOLO DE COMUNICACIÓN */
 
@@ -33,11 +34,12 @@ typedef struct mensaje {
 } mensaje_t;
 
 // Mensaje 1
-typedef struct mensaje8 {
-	uint32_t tipoMensaje;
+typedef struct mensaje1 {
 	uint32_t tamanioPath;
+	uint32_t tipoMensaje;
 	char* path;
 } mensaje1_t;
 
 
-#endif /* UTILITY_LIBRARY_PROTOCOLOMAPAENTRENADOR_H_ */
+
+#endif /* UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_ */

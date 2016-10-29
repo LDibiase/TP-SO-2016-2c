@@ -7,7 +7,7 @@
 
 #ifndef MAPA_H_
 #define MAPA_H_
-#include "protocoloMapaEntrenador.h" // BORRAR
+#include "socket.h"
 
 /* Definición de estructuras */
 
@@ -26,7 +26,7 @@ typedef struct entrenador {
 	char idPokenestActual;
 	char* nombre;
 	int faltaEjecutar;
-	int numeroRafaga;
+	int utEjecutadas;
 	socket_t* socket;
 	t_ubicacion ubicacion;
 } t_entrenador;
@@ -52,16 +52,17 @@ typedef struct pokenest {
 void encolarEntrenador(t_entrenador* entrenador);
 void reencolarEntrenador(t_entrenador* entrenador);
 void calcularFaltante(t_entrenador entrenador);
-void insertarOrdenado(t_entrenador* entrenador, t_queue* lista);
-void insertarAlFinal(t_entrenador* entrenador, t_queue* lista);
+void insertarOrdenado(t_entrenador* entrenador, t_queue* cola, pthread_mutex_t* mutex);
+void insertarAlFinal(t_entrenador* entrenador, t_queue* cola, pthread_mutex_t* mutex);
 void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa);
 t_ubicacion calcularMovimiento(t_ubicacion ubicacionActual, t_ubicacion ubicacionFinal);
 ITEM_NIVEL* find_by_id(t_list* lista, char idBuscado);
 t_ubicacion buscarPokenest(t_list* lista, char pokemon);
 t_list* cargarObjetivos();
-t_list* cargarPokenest();
+t_list* cargarPokenests();
 t_mapa_pokenest leerPokenest(char* metadata);
 int cargarConfiguracion(t_mapa_config* structConfig);
 void aceptarConexiones();
+void eliminarEntrenador(t_entrenador* entrenador);
 
 #endif /* MAPA_H_ */

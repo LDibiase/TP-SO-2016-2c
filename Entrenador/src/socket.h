@@ -7,7 +7,8 @@
 
 #ifndef UTILITY_LIBRARY_SOCKET_H_
 #define UTILITY_LIBRARY_SOCKET_H_
-#include <stdint.h>
+#include <unistd.h>
+#include "protocoloMapaEntrenador.h"
 
 /* Definición de estructuras */
 

@@ -5,6 +5,9 @@
  *      Author: utnso
  */
 
+#include <stdint.h>
+#include "socket.h"
+
 #ifndef POKEDEXCLIENTE_H_
 #define POKEDEXCLIENTE_H_
 #define DEFAULT_FILE_PATH "/" DEFAULT_FILE_NAME

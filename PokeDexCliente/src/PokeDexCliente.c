@@ -11,7 +11,6 @@
 #include <stdlib.h>
 #include <commons/log.h>
 //#include <Utility_Library/socket.h>
-#include "socket.h" // BORRAR
 #include "PokeDexCliente.h"
 #include <stddef.h>
 #include <stdlib.h>
@@ -20,14 +19,16 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "protocoloPokedexClienteServidor.h"
+//#include "protocoloPokedexClienteServidor.h"
+
+
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
 
 /* Variables */
 t_log* logger;
 socket_t* pokedex_servidor;
-struct socket* pokedex;
+socket_t* pokedex;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
 
@@ -56,11 +57,12 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	(void) fi;
 
 	// Enviar mensaje READ
-	pokedex = conectarAPokedexServidor("127.0.0.1", "8080");
 	paquete_t paqueteLectura;
-	mensaje_t mensajeQuieroLeer;
+	mensaje1_t mensajeQuieroLeer;
 
-	mensajeQuieroLeer.tipoMensaje = LEER_ARCHIVO;;
+	mensajeQuieroLeer.tipoMensaje = READDIR;
+	mensajeQuieroLeer.path = path;
+	mensajeQuieroLeer.tamanioPath = strlen(mensajeQuieroLeer.path) + 1;
 
 	crearPaquete((void*) &mensajeQuieroLeer, &paqueteLectura);
 	if(paqueteLectura.tamanioPaquete == 0) {
@@ -74,7 +76,6 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
-	filler(buf, "asd", NULL, 0);
 
 	filler(buf, DEFAULT_FILE_NAME, NULL, 0);
 
@@ -151,23 +152,6 @@ int main(int argc, char *argv[]) {
 	}
 
 	pokedex = conectarAPokedexServidor("127.0.0.1", "8080");
-
-	// Enviar mensaje READ
-	paquete_t paqueteLectura;
-	mensaje_t mensajeQuieroLeer;
-
-	mensajeQuieroLeer.tipoMensaje = LEER_ARCHIVO;
-
-	crearPaquete((void*) &mensajeQuieroLeer, &paqueteLectura);
-	printf("creo bien el paqeetee");
-	if(paqueteLectura.tamanioPaquete == 0) {
-		pokedex_servidor->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-		log_info(logger, pokedex_servidor->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
-		exit(EXIT_FAILURE);
-	}
-
-	enviarMensaje(pokedex_servidor, paqueteLectura);
 
 	// Esta es la funcion principal de FUSE, es la que se encarga
 	// de realizar el montaje, comuniscarse con el kernel, delegar todo

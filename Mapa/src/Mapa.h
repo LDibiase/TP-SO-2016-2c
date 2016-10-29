@@ -26,6 +26,7 @@ typedef struct entrenador {
 	char idPokenestActual;
 	char* nombre;
 	int faltaEjecutar;
+	int utEjecutadas;
 	socket_t* socket;
 	t_ubicacion ubicacion;
 } t_entrenador;

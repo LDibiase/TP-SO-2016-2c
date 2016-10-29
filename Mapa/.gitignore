@@ -36,3 +36,4 @@
 *.dSYM/
 *.su
 /Debug/
+/mapa.log

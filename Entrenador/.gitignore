@@ -36,3 +36,5 @@
 *.dSYM/
 *.su
 /Debug/
+/config.cfg
+/entrenador.log

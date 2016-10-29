@@ -124,70 +124,18 @@ int main(void) {
 			pthread_mutex_unlock(&mutexReady);
 
 			//SE ATIENDEN LAS SOLICITUDES DEL PRIMER ENTRENADOR EN LA COLA DE LISTOS
-			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
-			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+			int solicitoCaptura = 0;
+			entrenadorAEjecutar->utEjecutadas = 0;
 
-			recibirMensaje(entrenadorAEjecutar->socket, mensajeRespuesta);
-
-			if(entrenadorAEjecutar->socket->error != NULL)
+			while((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum && !solicitoCaptura) ||
+				  (string_equals_ignore_case(configMapa.Algoritmo, "SRDF") && !solicitoCaptura))
 			{
-				free(mensajeRespuesta);
-				queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-				queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-				list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-				pthread_mutex_lock(&mutexLog);
-				log_info(logger, entrenadorAEjecutar->socket->error);
-				log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-				log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-				pthread_mutex_unlock(&mutexLog);
-				log_destroy(logger);
-				pthread_mutex_destroy(&mutexEntrenadores);
-				pthread_mutex_destroy(&mutexReady);
-				pthread_mutex_destroy(&mutexBlocked);
-				pthread_mutex_destroy(&mutexLog);
-				return EXIT_FAILURE;
-			}
+				void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
+				((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
 
-			//HAGO UN SWITCH PARA DETERMINAR QUÉ ACCIÓN DESEA REALIZAR EL ENTRENADOR
-			t_ubicacion pokeNestSolicitada;
-			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
-			case SOLICITA_UBICACION:
-				log_info(logger, "Socket %d: solicito ubicación de la PokéNest", entrenadorAEjecutar->socket->descriptor, ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
-
-				pokeNestSolicitada = buscarPokenest(items, ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
-				entrenadorAEjecutar->idPokenestActual = ((mensaje4_t*) mensajeRespuesta)->idPokeNest;
-
-				mensajeBrindaUbicacion.tipoMensaje = BRINDA_UBICACION;
-				mensajeBrindaUbicacion.ubicacionX = pokeNestSolicitada.x;
-				mensajeBrindaUbicacion.ubicacionY = pokeNestSolicitada.y;
-
-				paquete_t paquetePokenest;
-				crearPaquete((void*) &mensajeBrindaUbicacion, &paquetePokenest);
-
-				if(paquetePokenest.tamanioPaquete == 0)
-				{
-					free(mensajeRespuesta);
-					queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-					queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-					list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-					pthread_mutex_lock(&mutexLog);
-					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-					log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
-					log_destroy(logger);
-					pthread_mutex_destroy(&mutexEntrenadores);
-					pthread_mutex_destroy(&mutexReady);
-					pthread_mutex_destroy(&mutexBlocked);
-					pthread_mutex_destroy(&mutexLog);
-					return EXIT_FAILURE;
-				}
-
-				enviarMensaje(entrenadorAEjecutar->socket, paquetePokenest);
-
+				recibirMensaje(entrenadorAEjecutar->socket, mensajeRespuesta);
 				if(entrenadorAEjecutar->socket->error != NULL)
 				{
-					free(paquetePokenest.paqueteSerializado);
 					free(mensajeRespuesta);
 					queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
 					queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
@@ -205,171 +153,199 @@ int main(void) {
 					return EXIT_FAILURE;
 				}
 
-				free(paquetePokenest.paqueteSerializado);
-				log_info(logger, "Se envía ubicación de la PokéNest %c al entrenador", ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
-				free(mensajeRespuesta);
+				//HAGO UN SWITCH PARA DETERMINAR QUÉ ACCIÓN DESEA REALIZAR EL ENTRENADOR
+				t_ubicacion pokeNestSolicitada;
+				switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
+				case SOLICITA_UBICACION:
+					log_info(logger, "Socket %d: solicito ubicación de la PokéNest", entrenadorAEjecutar->socket->descriptor, ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
 
-				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
-				log_info(logger, "Cargando archivo de configuración");
-				if (cargarConfiguracion(&configMapa) == 1)
-					return EXIT_FAILURE;
+					pokeNestSolicitada = buscarPokenest(items, ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
+					entrenadorAEjecutar->idPokenestActual = ((mensaje4_t*) mensajeRespuesta)->idPokeNest;
 
-				//VUELVO A ENCOLAR AL ENTRENADOR
-				reencolarEntrenador(entrenadorAEjecutar);
+					mensajeBrindaUbicacion.tipoMensaje = BRINDA_UBICACION;
+					mensajeBrindaUbicacion.ubicacionX = pokeNestSolicitada.x;
+					mensajeBrindaUbicacion.ubicacionY = pokeNestSolicitada.y;
 
-				break;
-			case SOLICITA_DESPLAZAMIENTO:
-				mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
+					paquete_t paquetePokenest;
+					crearPaquete((void*) &mensajeBrindaUbicacion, &paquetePokenest);
+					if(paquetePokenest.tamanioPaquete == 0)
+					{
+						free(mensajeRespuesta);
+						queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
+						queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
+						list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
+						pthread_mutex_lock(&mutexLog);
+						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+						log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+						pthread_mutex_unlock(&mutexLog);
+						log_destroy(logger);
+						pthread_mutex_destroy(&mutexEntrenadores);
+						pthread_mutex_destroy(&mutexReady);
+						pthread_mutex_destroy(&mutexBlocked);
+						pthread_mutex_destroy(&mutexLog);
+						return EXIT_FAILURE;
+					}
 
-				//MODIFICO LA UBICACIÓN DEL ENTRENADOR DE ACUERDO A LA DIRECCIÓN DE DESPLAZAMIENTO SOLICITADA
-				switch(((mensaje6_t*) mensajeRespuesta)->direccion)
-				{
-					case ARRIBA:
-						log_info(logger, "Socket %d: solicito desplazamiento hacia arriba", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.y)--;
-						break;
-					case ABAJO:
-						log_info(logger, "Socket %d: solicito desplazamiento hacia abajo", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.y)++;
-						break;
-					case IZQUIERDA:
-						log_info(logger, "Socket %d: solicito desplazamiento hacia la izquierda", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.x)--;
-						break;
-					case DERECHA:
-						log_info(logger, "Socket %d: solicito desplazamiento hacia la derecha", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.x)++;
-						break;
-				}
+					enviarMensaje(entrenadorAEjecutar->socket, paquetePokenest);
+					if(entrenadorAEjecutar->socket->error != NULL)
+					{
+						free(paquetePokenest.paqueteSerializado);
+						free(mensajeRespuesta);
+						log_info(logger, entrenadorAEjecutar->socket->error);
+						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+						//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+						eliminarSocket(entrenadorAEjecutar->socket);
+						exit(-1);
+					}
 
-				realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
-
-				//LE ENVÍO AL ENTRENADOR SU NUEVA UBICACIÓN
-				mensajeConfirmaDesplazamiento.ubicacionX = entrenadorAEjecutar->ubicacion.x;
-				mensajeConfirmaDesplazamiento.ubicacionY = entrenadorAEjecutar->ubicacion.y;
-
-				paquete_t paqueteDesplazamiento;
-				crearPaquete((void*) &mensajeConfirmaDesplazamiento, &paqueteDesplazamiento);
-
-				if(paqueteDesplazamiento.tamanioPaquete == 0)
-				{
+					free(paquetePokenest.paqueteSerializado);
+					log_info(logger, "Se envía ubicación de la PokéNest %c al entrenador", ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
 					free(mensajeRespuesta);
-					queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-					queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-					list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-					pthread_mutex_lock(&mutexLog);
-					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-					log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
-					log_destroy(logger);
-					pthread_mutex_destroy(&mutexEntrenadores);
-					pthread_mutex_destroy(&mutexReady);
-					pthread_mutex_destroy(&mutexBlocked);
-					pthread_mutex_destroy(&mutexLog);
-					return EXIT_FAILURE;
-				}
 
-				enviarMensaje(entrenadorAEjecutar->socket, paqueteDesplazamiento);
+					//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
+					//TODO IMPLEMENTAR SIGNAL PARA RECARGAR CONFIGURACIÓN
+					log_info(logger, "Cargando archivo de configuración");
+					if (cargarConfiguracion(&configMapa) == 1)
+						return EXIT_FAILURE;
 
-				if(entrenadorAEjecutar->socket->error != NULL)
-				{
+					entrenadorAEjecutar->utEjecutadas++;
+
+					break;
+				case SOLICITA_DESPLAZAMIENTO:
+					mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
+
+					//MODIFICO LA UBICACIÓN DEL ENTRENADOR DE ACUERDO A LA DIRECCIÓN DE DESPLAZAMIENTO SOLICITADA
+					switch(((mensaje6_t*) mensajeRespuesta)->direccion)
+					{
+						case ARRIBA:
+							log_info(logger, "Socket %d: solicito desplazamiento hacia arriba", entrenadorAEjecutar->socket->descriptor);
+							(entrenadorAEjecutar->ubicacion.y)--;
+							break;
+						case ABAJO:
+							log_info(logger, "Socket %d: solicito desplazamiento hacia abajo", entrenadorAEjecutar->socket->descriptor);
+							(entrenadorAEjecutar->ubicacion.y)++;
+							break;
+						case IZQUIERDA:
+							log_info(logger, "Socket %d: solicito desplazamiento hacia la izquierda", entrenadorAEjecutar->socket->descriptor);
+							(entrenadorAEjecutar->ubicacion.x)--;
+							break;
+						case DERECHA:
+							log_info(logger, "Socket %d: solicito desplazamiento hacia la derecha", entrenadorAEjecutar->socket->descriptor);
+							(entrenadorAEjecutar->ubicacion.x)++;
+							break;
+					}
+
+					realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+
+					//LE ENVÍO AL ENTRENADOR SU NUEVA UBICACIÓN
+					mensajeConfirmaDesplazamiento.ubicacionX = entrenadorAEjecutar->ubicacion.x;
+					mensajeConfirmaDesplazamiento.ubicacionY = entrenadorAEjecutar->ubicacion.y;
+
+					paquete_t paqueteDesplazamiento;
+					crearPaquete((void*) &mensajeConfirmaDesplazamiento, &paqueteDesplazamiento);
+					if(paqueteDesplazamiento.tamanioPaquete == 0)
+					{
+						free(mensajeRespuesta);
+						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+						//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+						eliminarSocket(entrenadorAEjecutar->socket);
+						exit(-1);
+					}
+
+					enviarMensaje(entrenadorAEjecutar->socket, paqueteDesplazamiento);
+					if(entrenadorAEjecutar->socket->error != NULL)
+					{
+						free(paqueteDesplazamiento.paqueteSerializado);
+						free(mensajeRespuesta);
+						queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
+						queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
+						list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
+						pthread_mutex_lock(&mutexLog);
+						log_info(logger, entrenadorAEjecutar->socket->error);
+						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+						log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+						pthread_mutex_unlock(&mutexLog);
+						log_destroy(logger);
+						pthread_mutex_destroy(&mutexEntrenadores);
+						pthread_mutex_destroy(&mutexReady);
+						pthread_mutex_destroy(&mutexBlocked);
+						pthread_mutex_destroy(&mutexLog);
+						return EXIT_FAILURE;
+					}
+
 					free(paqueteDesplazamiento.paqueteSerializado);
 					free(mensajeRespuesta);
-					queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-					queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-					list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-					pthread_mutex_lock(&mutexLog);
-					log_info(logger, entrenadorAEjecutar->socket->error);
-					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-					log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
-					log_destroy(logger);
-					pthread_mutex_destroy(&mutexEntrenadores);
-					pthread_mutex_destroy(&mutexReady);
-					pthread_mutex_destroy(&mutexBlocked);
-					pthread_mutex_destroy(&mutexLog);
-					return EXIT_FAILURE;
-				}
+					log_info(logger, "Se le informa al entrenador su nueva posición: (%d,%d)", entrenadorAEjecutar->ubicacion.x, entrenadorAEjecutar->ubicacion.y);
 
-				free(paqueteDesplazamiento.paqueteSerializado);
-				free(mensajeRespuesta);
-				log_info(logger, "Se le informa al entrenador su nueva posición: (%d,%d)", entrenadorAEjecutar->ubicacion.x, entrenadorAEjecutar->ubicacion.y);
+					//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
+					//TODO IMPLEMENTAR SIGNAL PARA RECARGAR CONFIGURACIÓN
+					log_info(logger, "Cargando archivo de configuración");
+					if (cargarConfiguracion(&configMapa) == 1)
+						return EXIT_FAILURE;
 
-				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
-				log_info(logger, "Cargando archivo de configuración");
-				if (cargarConfiguracion(&configMapa) == 1)
-					return EXIT_FAILURE;
+					entrenadorAEjecutar->utEjecutadas++;
 
-				//VUELVO A ENCOLAR AL ENTRENADOR
-				reencolarEntrenador(entrenadorAEjecutar);
+					break;
+				case SOLICITA_CAPTURA:
+					log_info(logger, "Socket %d: solicito capturar Pokémon", entrenadorAEjecutar->socket->descriptor);
 
-				break;
-			case SOLICITA_CAPTURA:
-				log_info(logger, "Socket %d: solicito capturar Pokémon", entrenadorAEjecutar->socket->descriptor);
+					solicitoCaptura = 1;
 
-				mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
+					mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
 
-				paquete_t paqueteCaptura;
-				crearPaquete((void*) &mensajeConfirmaCaptura, &paqueteCaptura);
+					paquete_t paqueteCaptura;
+					crearPaquete((void*) &mensajeConfirmaCaptura, &paqueteCaptura);
+					if(paqueteCaptura.tamanioPaquete == 0)
+					{
+						free(mensajeRespuesta);
+						queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
+						queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
+						list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
+						pthread_mutex_lock(&mutexLog);
+						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+						log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+						pthread_mutex_unlock(&mutexLog);
+						log_destroy(logger);
+						pthread_mutex_destroy(&mutexEntrenadores);
+						pthread_mutex_destroy(&mutexReady);
+						pthread_mutex_destroy(&mutexBlocked);
+						pthread_mutex_destroy(&mutexLog);
+						return EXIT_FAILURE;
+					}
 
-				if(paqueteCaptura.tamanioPaquete == 0)
-				{
-					free(mensajeRespuesta);
-					queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-					queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-					list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-					pthread_mutex_lock(&mutexLog);
-					log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-					log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
-					log_destroy(logger);
-					pthread_mutex_destroy(&mutexEntrenadores);
-					pthread_mutex_destroy(&mutexReady);
-					pthread_mutex_destroy(&mutexBlocked);
-					pthread_mutex_destroy(&mutexLog);
-					return EXIT_FAILURE;
-				}
+					//TODO LÓGICA DE ASIGNACIÓN DE POKÉMON AL ENTRENADOR
+					restarRecurso(items, entrenadorAEjecutar->idPokenestActual);
 
-				//TODO LÓGICA DE ASIGNACIÓN DE POKÉMON AL ENTRENADOR
-				restarRecurso(items, entrenadorAEjecutar->idPokenestActual);
+					enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
+					if(entrenadorAEjecutar->socket->error != NULL)
+					{
+						free(paqueteCaptura.paqueteSerializado);
+						free(mensajeRespuesta);
+						log_info(logger, entrenadorAEjecutar->socket->error);
+						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+						//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
+						eliminarSocket(entrenadorAEjecutar->socket);
+						exit(-1);
+					}
 
-				enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
-
-				if(entrenadorAEjecutar->socket->error != NULL)
-				{
 					free(paqueteCaptura.paqueteSerializado);
 					free(mensajeRespuesta);
-					queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-					queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-					list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-					pthread_mutex_lock(&mutexLog);
-					log_info(logger, entrenadorAEjecutar->socket->error);
-					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-					log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
-					log_destroy(logger);
-					pthread_mutex_destroy(&mutexEntrenadores);
-					pthread_mutex_destroy(&mutexReady);
-					pthread_mutex_destroy(&mutexBlocked);
-					pthread_mutex_destroy(&mutexLog);
-					return EXIT_FAILURE;
+					log_info(logger, "Se le confirma al entrenador la captura del Pokémon solicitado (%c)", entrenadorAEjecutar->idPokenestActual);
+
+					//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
+					//TODO IMPLEMENTAR SIGNAL PARA RECARGAR CONFIGURACIÓN
+					log_info(logger, "Cargando archivo de configuración");
+					if (cargarConfiguracion(&configMapa) == 1)
+						return EXIT_FAILURE;
+
+					entrenadorAEjecutar->utEjecutadas++;
+
+					//VUELVO A ENCOLAR AL ENTRENADOR
+					reencolarEntrenador(entrenadorAEjecutar);
 				}
-
-				free(paqueteCaptura.paqueteSerializado);
-				free(mensajeRespuesta);
-				log_info(logger, "Se le confirma al entrenador la captura del Pokémon solicitado (%c)", entrenadorAEjecutar->idPokenestActual);
-
-				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
-				log_info(logger, "Cargando archivo de configuración");
-				if (cargarConfiguracion(&configMapa) == 1)
-					return EXIT_FAILURE;
-
-				//VUELVO A ENCOLAR AL ENTRENADOR
-				reencolarEntrenador(entrenadorAEjecutar);
-
-				break;
 			}
 		}
 	}

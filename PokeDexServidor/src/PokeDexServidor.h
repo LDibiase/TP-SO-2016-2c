@@ -16,9 +16,23 @@ typedef struct pokedex_cliente {
 	socket_t* socket;
 } t_pokedex_cliente;
 
+//Mensaje Pokedex Cliente-Servidor
+typedef struct mensajePokedex {
+	uint32_t tipoMensaje;
+	uint32_t ruta;
+	uint32_t nombre;
+} mensajeDePokedex;
+
+// Mensajes
+typedef enum tipoMensajePokedex {
+	CONEXION_A_SERVIDOR
+} tipoMensaje_pokedex;
+
 /* Declaración de funciones */
 void leerArchivo(int archivoID, char* ruta);
 void escribirEstructura(int dirPadre, char* ruta);
+int getattr_callback(const char *path);
+int readdir_callback(const char *path);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

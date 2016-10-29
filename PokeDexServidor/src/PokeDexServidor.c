@@ -22,7 +22,9 @@
 #include "osada.h"
 #include <commons/bitarray.h>
 #include <sys/mman.h>
-#include "protocoloMapaEntrenador.h"
+#include <commons/collections/queue.h>
+
+#include "protocoloPokedexClienteServidor.h"
 
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 #define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje
@@ -45,6 +47,7 @@ int inicioBloqueDatos;				//INICIO BLOQUE DE DATOS
 pthread_mutex_t mutex;				//SEMAFORO PARA SINCRONIZAR OPERACIONES
 /* Logger */
 t_log* logger;
+t_queue* colaOperaciones;
 
 int main(void) {
 	// Variables para el manejo del FileSystem OSADA
@@ -54,26 +57,15 @@ int main(void) {
 	unsigned char * bitmapS;		// BITMAP
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
 	int i;
-	int activo;
 	pthread_mutex_init(&mutex, NULL);
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 
-	// CREACIÓN DEL HILO EN ESCUCHA
-	pthread_attr_init(&atributosHilo);
-	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
-	pthread_attr_destroy(&atributosHilo);
-
 
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_SERVIDOR", true, LOG_LEVEL_INFO);
 
-	activo = 1;
-
-	while(activo) {
-
-	}
 
 	// CARGA DE FS EN MEMORIA CON MMAP
 	printf("\n---------------------------");
@@ -84,7 +76,6 @@ int main(void) {
 	stat(rutaFS,&statFS);
 	pmapFS = (char*)mmap(0, statFS.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileFS, 0); //puntero al primer byte del FS (array de bytes)
 	printf("El tamaño del FS es %d \n", statFS.st_size);
-
 
 	memcpy(&cabeceraFS, &pmapFS[0], sizeof(cabeceraFS));
 	// Valida que sea un FS OSADA
@@ -205,16 +196,170 @@ int main(void) {
 	char* ruta = "/";
 	escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
 
+	getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
+	readdir_callback("/Pallet Town/Pokemons");
+
+
+
+
+	// CREACIÓN DEL HILO EN ESCUCHA
+	pthread_attr_init(&atributosHilo);
+	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
+	pthread_attr_destroy(&atributosHilo);
+
+	colaOperaciones = queue_create();
+
+	while(1) {
+		if(queue_size(colaOperaciones)> 0)
+		{
+			t_pokedex_cliente* pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
+			pthread_mutex_lock(&mutex);
+			pokedex_cliente = queue_pop(colaOperaciones);
+			pthread_mutex_unlock(&mutex);
+			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
+			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+
+			recibirMensaje(pokedex_cliente->socket, mensajeRespuesta);
+
+			if(pokedex_cliente->socket->error != NULL)
+			{
+				free(mensajeRespuesta);
+				log_info(logger, pokedex_cliente->socket->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
+				//TODO Cerrar todos los sockets y salir
+				eliminarSocket(pokedex_cliente->socket);
+			}
+
+			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
+				case LEER_ARCHIVO:
+					log_info(logger, "Socket %d: solicito LEER_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de lectura recibida");
+				break;
+				case CREAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito CREAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de crear archivo recibida");
+				break;
+				case ESCRIBIR_MODIFICAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito ESCRIBIR_MODIFICAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de escribir modificar archivo recibida");
+				break;
+				case BORRAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito BORRAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de borrar archivo recibida");
+				break;
+				case CREAR_DIRECTORIO:
+					log_info(logger, "Socket %d: solicito CREAR_DIRECTORIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de crear directorio recibida");
+				break;
+				case LISTAR_DIRECTORIO:
+					log_info(logger, "Socket %d: solicito LISTAR_DIRECTORIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de listar directorio recibida");
+				break;
+				case BORRAR_DIRECTORIO_VACIO:
+					log_info(logger, "Socket %d: solicito BORRAR_DIRECTORIO_VACIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de borrar directorio vacio recibida");
+				break;
+				case RENOMBRAR_ARCHIVO:
+					log_info(logger, "Socket %d: solicito RENOMBRAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
+					printf("Solicitud de renombrar archivo recibida");
+				break;
+			}
+	}
+	}
+
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
 	close(fileFS); //Cierro el archivo
 
-	//Libero memoria
+	//Test de escritura en OSADA
+	//FILE *fp;
+	//fp = fopen("test.txt", "w+");
+	//fread(buffer,)
+
+
+	////////////////////
+	///// SHUTDOWN /////
+	////////////////////
 	free(bitmapS);
 	free(tablaAsignaciones);
 	bitmapS=NULL;
 	tablaAsignaciones=NULL;
 
 	return EXIT_SUCCESS;
+}
+
+int readdir_callback(const char *path) {
+	int i;
+	int dirPadre = getattr_callback(path);
+	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+		if (tablaArchivos[i].state != 0) {
+			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
+				printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
+
+			} else {
+				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
+					 printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
+				}
+			}
+		}
+	}
+}
+
+int getattr_callback(const char *path) { //, struct stat *stbuf) {
+ // memset(stbuf, 0, sizeof(struct stat));
+
+printf("\nBuscando ruta: %s \n", path);
+  char** array = string_split(path, "/");
+  int i = 0;
+  int res = -1;
+  int dirPadre = 65535;
+  while (array[i]) {
+	  char* fname = array[i];
+	  printf("Buscando nombre: %s \n", array[i]);
+	  res = buscarTablaAchivos(dirPadre,array[i]);
+	  printf("Encontrado id: %d \n", res);
+	  dirPadre = res;
+	  i++;
+  }
+  if (tablaArchivos[res].state == 1) {
+	  printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+  }
+  if (tablaArchivos[res].state == 2) {
+	  printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+  }
+  return res;
+}
+  /*
+  if (strcmp(path, "/") == 0) {
+    stbuf->st_mode = S_IFDIR | 0755;
+    stbuf->st_nlink = 2;
+    return 0;
+  }
+
+  if (strcmp(path, filepath) == 0) {
+    stbuf->st_mode = S_IFREG | 0777;
+    stbuf->st_nlink = 1;
+    stbuf->st_size = strlen(filecontent);
+    return 0;
+  }
+
+  return -1;*/
+
+int buscarTablaAchivos(int dirPadre, char* fname) {
+	  	int i;
+	  	int res = -1;
+	  	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+	  		if (tablaArchivos[i].state != 0) {
+	  			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un direcotrio
+	  				res = i;
+
+	  			} else {
+	  				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un archivo
+	  					res = i;
+	  				}
+	  			}
+	  		}
+	  	}
+	  	return res;
 }
 
 void escribirEstructura(int dirPadre, char* ruta) {
@@ -335,9 +480,7 @@ void aceptarConexiones() {
 		pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
 
 		log_info(logger, "Escuchando conexiones");
-		printf("Llegue aca");
 		cli_socket_s = aceptarConexion(*mi_socket_s);
-		printf("Llegue y aca");
 		if(cli_socket_s->descriptor == 0)
 		{
 			log_info(logger, "Se rechaza conexión");
@@ -352,7 +495,7 @@ void aceptarConexiones() {
 		///////////////////////
 
 		// Recibir mensaje CONEXION_POKEDEX_CLIENTE
-		mensaje_pokedex_cliente mensajeConexionPokdexCliente;
+		mensajeDePokedex mensajeConexionPokdexCliente;
 
 		mensajeConexionPokdexCliente.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
 
@@ -397,18 +540,19 @@ void aceptarConexiones() {
 			eliminarSocket(cli_socket_s);
 		}
 
-		log_info(logger, "Socket %d: mi nombre es %s", cli_socket_s->descriptor, mensajeConexionPokdexCliente.nombre);
+		log_info(logger, "Socket %d: mi nombre es %s", cli_socket_s->descriptor);
 
 		pokedex_cliente->nombre = mensajeConexionPokdexCliente.nombre;
 		pokedex_cliente->socket = cli_socket_s;
 
 		// Enviar mensaje ACEPTA_CONEXION
-		paquete_t paquete;
+		paquete_t paquete2;
 		mensaje_t mensajeAceptaConexion;
 
 		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
-		crearPaquete((void*) &mensajeAceptaConexion, &paquete);
-		if(paquete.tamanioPaquete == 0)
+
+		crearPaquete((void*) &mensajeAceptaConexion, &paquete2);
+		if(paquete2.tamanioPaquete == 0)
 		{
 			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
@@ -418,7 +562,7 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		enviarMensaje(pokedex_cliente->socket, paquete);
+		enviarMensaje(pokedex_cliente->socket, paquete2);
 		if(pokedex_cliente->socket->error != NULL)
 		{
 			log_info(logger, pokedex_cliente->socket->error);
@@ -429,9 +573,21 @@ void aceptarConexiones() {
 			exit(error);
 		}
 
-		free(paquete.paqueteSerializado);
+		free(paquete2.paqueteSerializado);
 
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", pokedex_cliente->socket->descriptor);
+
+		//SE AGREGA LA OPERACION PENDIENTE
+		t_pokedex_cliente* operacionPlanificada;
+
+		operacionPlanificada = malloc(sizeof(t_pokedex_cliente));
+		*operacionPlanificada = *pokedex_cliente;
+
+
+		pthread_mutex_lock(&mutex);
+		queue_push(colaOperaciones, operacionPlanificada);
+		pthread_mutex_unlock(&mutex);
+
 	}
 }

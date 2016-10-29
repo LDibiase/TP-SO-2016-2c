@@ -20,12 +20,14 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
-#include "protocoloMapaEntrenador.h"
+#include "protocoloPokedexClienteServidor.h"
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
 
 /* Variables */
 t_log* logger;
+socket_t* pokedex_servidor;
+struct socket* pokedex;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
 
@@ -53,8 +55,26 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	(void) offset;
 	(void) fi;
 
+	// Enviar mensaje READ
+	pokedex = conectarAPokedexServidor("127.0.0.1", "8080");
+	paquete_t paqueteLectura;
+	mensaje_t mensajeQuieroLeer;
+
+	mensajeQuieroLeer.tipoMensaje = LEER_ARCHIVO;;
+
+	crearPaquete((void*) &mensajeQuieroLeer, &paqueteLectura);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
+	filler(buf, "asd", NULL, 0);
 
 	filler(buf, DEFAULT_FILE_NAME, NULL, 0);
 
@@ -108,7 +128,7 @@ static struct fuse_operations fuse_oper = {
 };
 
 int main(int argc, char *argv[]) {
-	struct socket* serv_socket_s;
+
 	/* Creación del log */
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_CLIENTE", true, LOG_LEVEL_INFO);
 	struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
@@ -130,22 +150,41 @@ int main(int argc, char *argv[]) {
 		printf("%s\n", runtime_options.welcome_msg);
 	}
 
-	serv_socket_s = conectarAPokedexServidor("127.0.0.1", "8080");
+	pokedex = conectarAPokedexServidor("127.0.0.1", "8080");
+
+	// Enviar mensaje READ
+	paquete_t paqueteLectura;
+	mensaje_t mensajeQuieroLeer;
+
+	mensajeQuieroLeer.tipoMensaje = LEER_ARCHIVO;
+
+	crearPaquete((void*) &mensajeQuieroLeer, &paqueteLectura);
+	printf("creo bien el paqeetee");
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex_servidor->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex_servidor->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex_servidor->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex_servidor, paqueteLectura);
 
 	// Esta es la funcion principal de FUSE, es la que se encarga
 	// de realizar el montaje, comuniscarse con el kernel, delegar todo
 	// en varios threads
-	return fuse_main(args.argc, args.argv, &fuse_oper, NULL);
+	fuse_main(args.argc, args.argv, &fuse_oper, NULL);
 
-	while(1);
+	while(1) {
 
-	eliminarSocket(serv_socket_s);
+	}
+
+	eliminarSocket(pokedex);
 	log_destroy(logger);
 	return EXIT_SUCCESS;
 }
 
 socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
-	socket_t* pokedex_servidor;
+
 
 	pokedex_servidor = conectarAServidor(ip, puerto);
 	if(pokedex_servidor->descriptor == 0)
@@ -163,6 +202,7 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 
 		mensajePokedex.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
 		mensajePokedex.ruta = DEFAULT_FILE_PATH;
+		mensajePokedex.nombre= "Test";
 
 		crearPaquete((void*) &mensajePokedex, &paquete);
 
@@ -186,8 +226,9 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 		// Recibir mensaje ACEPTA_CONEXION
 		mensaje_t mensajeAceptaConexion;
 
-		mensajeAceptaConexion.tipoMensaje = CONEXION_POKEDEX;
+		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
 		recibirMensaje(pokedex_servidor, &mensajeAceptaConexion);
+
 		if(pokedex_servidor->error != NULL)
 		{
 			log_info(logger, pokedex_servidor->error);
@@ -204,5 +245,5 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 			break;
 		}
 
-		return mensajeAceptaConexion.tipoMensaje;
+		return pokedex_servidor;
 }

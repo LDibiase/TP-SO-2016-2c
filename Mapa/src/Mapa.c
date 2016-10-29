@@ -34,6 +34,8 @@ t_log* logger; // Archivo de log
 t_mapa_config configMapa; // Datos de configuración
 t_list* entrenadores; // Entrenadores conectados al mapa
 t_list* items; // Items existentes en el mapa (entrenadores y PokéNests)
+t_list* recursosTotales;
+t_list* recursosDisponibles;
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady;
@@ -92,6 +94,8 @@ int main(void) {
 	pthread_mutex_unlock(&mutexLog);
 
 	// Creación de la lista de entrenadores conectados y las colas de planificación
+	recursosTotales = list_create();
+	recursosDisponibles = list_create();
 	entrenadores = list_create();
 	colaReady = queue_create();
 	colaBlocked = queue_create();
@@ -483,6 +487,8 @@ t_ubicacion buscarPokenest(t_list* lista, char pokemon) {
 
 t_list* cargarPokenests() {
 	t_mapa_pokenest pokenestLeida;
+	t_mapa_pokenest* recursoTotales;
+	t_mapa_pokenest* recursoDisponibles;
 	t_list* newlist = list_create();
 
 	struct dirent* dent;
@@ -509,11 +515,17 @@ t_list* cargarPokenests() {
 			string_append(&str, dent->d_name);
 			string_append(&str, "/metadata");
 
-			pokenestLeida = leerPokenest(str);
-			CrearCaja(newlist, pokenestLeida.id[0], pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, 10);
+	        pokenestLeida = leerPokenest(str);
+	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, 10);
+	    	recursoTotales = malloc(sizeof(pokenestLeida));
+	    	recursoDisponibles = malloc(sizeof(pokenestLeida));
+	        *recursoTotales = pokenestLeida;
+	        *recursoDisponibles = pokenestLeida;
+	        list_add(recursosTotales, recursoTotales);
+	        list_add(recursosDisponibles, recursoDisponibles);
 
-			log_info(logger, "Se cargó la PokéNest: %c", pokenestLeida.id[0]);
-			free(str);
+	        log_info(logger, "Se cargó la PokéNest: %c", pokenestLeida.id);
+	    	free(str);
 		}
 	}
 
@@ -533,7 +545,7 @@ t_mapa_pokenest leerPokenest(char* metadata)
 			&& config_has_property(config, "Posicion")
 			&& config_has_property(config, "Identificador"))
 	{
-		structPokenest.id = strdup(config_get_string_value(config, "Identificador"));
+		structPokenest.id = *(config_get_string_value(config, "Identificador"));
 		structPokenest.tipo = strdup(config_get_string_value(config, "Tipo"));
 		char* posXY = strdup(config_get_string_value(config, "Posicion"));
 		char** array = string_split(posXY, ";");

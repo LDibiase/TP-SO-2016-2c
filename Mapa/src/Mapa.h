@@ -34,7 +34,7 @@ typedef struct entrenador {
 typedef struct pokenest {
 	char* tipo;
 	t_ubicacion ubicacion;
-	char* id;
+	char id;
 	int cantidad;
 } t_mapa_pokenest;
 

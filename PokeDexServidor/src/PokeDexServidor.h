@@ -16,6 +16,12 @@ typedef struct pokedex_cliente {
 	socket_t* socket;
 } t_pokedex_cliente;
 
+// OperacionOSADA
+typedef struct operacionOSADA {
+	void* operacion;
+	t_pokedex_cliente* socket;
+} operacionOSADA;
+
 //Mensaje Pokedex Cliente-Servidor
 typedef struct mensajePokedex {
 	uint32_t tipoMensaje;
@@ -32,7 +38,7 @@ typedef enum tipoMensajePokedex {
 void leerArchivo(int archivoID, char* ruta);
 void escribirEstructura(int dirPadre, char* ruta);
 int getattr_callback(const char *path);
-int readdir_callback(const char *path);
+char* readdir_callback(const char *path);
 void pokedexCliente(t_pokedex_cliente* pokedex_cliente);
 
 // Acepta múltiples conexiones de clientes

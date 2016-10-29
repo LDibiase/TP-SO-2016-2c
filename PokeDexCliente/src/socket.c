@@ -229,6 +229,26 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 		memcpy(paquete->paqueteSerializado + offset, ((mensaje1_t*) mensaje)->path, tamanioOperando);
 		offset = offset + tamanioOperando;
 		break;
+	case READDIR_RESPONSE:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje2_t*) mensaje)->tamanioMensaje) + ((mensaje2_t*) mensaje)->tamanioMensaje;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+				{
+					free(punteroAuxiliar);
+					paquete->tamanioPaquete = 0;
+					return;
+				}
+
+				tamanioOperando = sizeof(((mensaje2_t*) mensaje)->tamanioMensaje);
+				memcpy(paquete->paqueteSerializado + offset, &(((mensaje2_t*) mensaje)->tamanioMensaje), tamanioOperando);
+				offset = offset + tamanioOperando;
+
+				tamanioOperando = ((mensaje2_t*) mensaje)->tamanioMensaje;
+				memcpy(paquete->paqueteSerializado + offset, ((mensaje2_t*) mensaje)->mensaje, tamanioOperando);
+				offset = offset + tamanioOperando;
+		break;
 	}
 }
 
@@ -310,6 +330,50 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			((mensaje1_t*) mensaje)->path = malloc(tamanioBuffer);
 			memcpy(((mensaje1_t*) mensaje)->path, buffer, tamanioBuffer);
+			free(buffer);
+
+			break;
+		case READDIR_RESPONSE:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje2_t*) mensaje)->tamanioMensaje);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			memcpy(&(((mensaje2_t*) mensaje)->tamanioMensaje), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje2_t*) mensaje)->tamanioMensaje;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje2_t*) mensaje)->mensaje = malloc(tamanioBuffer);
+			memcpy(((mensaje2_t*) mensaje)->mensaje, buffer, tamanioBuffer);
 			free(buffer);
 
 			break;

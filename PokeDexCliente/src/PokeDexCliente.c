@@ -24,10 +24,10 @@
 
 
 #define LOG_FILE_PATH "PokeDexCliente.log"
+#define TAMANIO_MAXIMO_MENSAJE 50
 
 /* Variables */
 t_log* logger;
-socket_t* pokedex_servidor;
 socket_t* pokedex;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
@@ -74,8 +74,27 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 
 	enviarMensaje(pokedex, paqueteLectura);
 
+	// Recibir mensaje RESPUESTA
+	mensaje2_t mensajeREADDIR_RESPONSE;
+	mensajeREADDIR_RESPONSE.tipoMensaje = READDIR_RESPONSE;
+
+	recibirMensaje(pokedex, &mensajeREADDIR_RESPONSE);
+	if(pokedex->error != NULL)
+		{
+		log_info(logger, pokedex->error);
+		eliminarSocket(pokedex);
+	}
+
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
+
+	char** array = string_split(mensajeREADDIR_RESPONSE.mensaje, "#");
+	int i = 0;
+	while (array[i]) {
+		char* fname = array[i];
+		filler(buf, fname, NULL, 0);
+		i++;
+	}
 
 	filler(buf, DEFAULT_FILE_NAME, NULL, 0);
 
@@ -168,8 +187,7 @@ int main(int argc, char *argv[]) {
 }
 
 socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
-
-
+	socket_t* pokedex_servidor;
 	pokedex_servidor = conectarAServidor(ip, puerto);
 	if(pokedex_servidor->descriptor == 0)
 	{

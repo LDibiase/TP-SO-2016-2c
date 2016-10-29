@@ -212,16 +212,39 @@ int main(void) {
 	while(1) {
 		if(queue_size(colaOperaciones)> 0)
 		{
-			//t_pokedex_cliente* pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
+			operacionOSADA *operacionActual;
+			socket_t* socketPokedex;
+
 			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
 
 			pthread_mutex_lock(&mutex);
-			mensajeRespuesta = queue_pop(colaOperaciones);
+			operacionActual = queue_pop(colaOperaciones);
 			pthread_mutex_unlock(&mutex);
 
+			mensajeRespuesta = ((operacionOSADA*) operacionActual)->operacion;
+			socketPokedex = ((operacionOSADA*) operacionActual)->socket->socket;
 			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
 			case READDIR:
 				log_info(logger, "Solicito READDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+				char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
+				printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
+				// Enviar mensaje READ
+					paquete_t paqueteLectura;
+					mensaje2_t mensajeREADDIR_RESPONSE;
+
+					mensajeREADDIR_RESPONSE.tipoMensaje = READDIR_RESPONSE;
+					mensajeREADDIR_RESPONSE.tamanioMensaje = strlen(cadenaMensaje) + 1;
+					mensajeREADDIR_RESPONSE.mensaje = cadenaMensaje;
+
+					crearPaquete((void*) &mensajeREADDIR_RESPONSE, &paqueteLectura);
+					if(paqueteLectura.tamanioPaquete == 0) {
+						socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+						log_info(logger, socketPokedex->error);
+						log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+						exit(EXIT_FAILURE);
+					}
+
+					enviarMensaje(socketPokedex, paqueteLectura);
 				break;
 			}
 		}
@@ -247,44 +270,54 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
-int readdir_callback(const char *path) {
+char* readdir_callback(const char *path) {
+	char *cadenaMensaje = string_new();
 	int i;
 	int dirPadre = getattr_callback(path);
 	for (i = 0; i < TABLA_ARCHIVOS; i++) {
 		if (tablaArchivos[i].state != 0) {
 			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
 				printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
-
+				string_append(&cadenaMensaje, tablaArchivos[i].fname);
+				string_append(&cadenaMensaje, "#");
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
 					printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
+					string_append(&cadenaMensaje, tablaArchivos[i].fname);
+					string_append(&cadenaMensaje, "#");
 				}
 			}
 		}
 	}
+	return cadenaMensaje;
 }
 
 int getattr_callback(const char *path) { //, struct stat *stbuf) {
 	// memset(stbuf, 0, sizeof(struct stat));
 
 	printf("\nBuscando ruta: %s \n", path);
-	char** array = string_split(path, "/");
+	char** array;
 	int i = 0;
 	int res = -1;
 	int dirPadre = 65535;
-	while (array[i]) {
-		char* fname = array[i];
-		printf("Buscando nombre: %s \n", array[i]);
-		res = buscarTablaAchivos(dirPadre,array[i]);
-		printf("Encontrado id: %d \n", res);
-		dirPadre = res;
-		i++;
-	}
-	if (tablaArchivos[res].state == 1) {
-		printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
-	}
-	if (tablaArchivos[res].state == 2) {
-		printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+	if (!(string_equals_ignore_case(path, "/"))) {
+		array = string_split(path, "/");
+		while (array[i]) {
+			char* fname = array[i];
+			printf("Buscando nombre: %s \n", array[i]);
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			printf("Encontrado id: %d \n", res);
+			dirPadre = res;
+			i++;
+		}
+		if (tablaArchivos[res].state == 1) {
+			printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+		}
+		if (tablaArchivos[res].state == 2) {
+			printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+		}
+	} else {
+		res = dirPadre; //Estamos en el root
 	}
 	return res;
 }
@@ -552,6 +585,8 @@ void aceptarConexiones() {
 
 void pokedexCliente(t_pokedex_cliente* pokedex_cliente) {
 	while (1) {
+		operacionOSADA* operacionEjecutar = malloc(sizeof(operacionOSADA));
+
 		void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
 		((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
 
@@ -565,10 +600,12 @@ void pokedexCliente(t_pokedex_cliente* pokedex_cliente) {
 			//TODO Cerrar todos los sockets y salir
 			eliminarSocket(pokedex_cliente->socket);
 		}
+		((operacionOSADA*) operacionEjecutar)->operacion = mensajeRespuesta;
+		((operacionOSADA*) operacionEjecutar)->socket = pokedex_cliente;
 
 		//SE AGREGA LA OPERACION PENDIENTE
 		pthread_mutex_lock(&mutex);
-		queue_push(colaOperaciones, mensajeRespuesta);
+		queue_push(colaOperaciones, operacionEjecutar);
 		pthread_mutex_unlock(&mutex);
 	}
 }

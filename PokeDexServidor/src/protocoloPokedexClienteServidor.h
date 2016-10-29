@@ -25,8 +25,11 @@ typedef enum tipoMensaje {
 	ACEPTA_CONEXION,
 	RECHAZA_CONEXION,
 	CONEXION_POKEDEX_CLIENTE,
-	READDIR
+	READDIR,
+	READDIR_RESPONSE
 } tipoMensaje_t;
+
+
 
 // Mensaje genérico (sin operandos)
 typedef struct mensaje {
@@ -41,5 +44,11 @@ typedef struct mensaje1 {
 } mensaje1_t;
 
 
+// Mensaje 2
+typedef struct mensaje2 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioMensaje;
+	char* mensaje;
+} mensaje2_t;
 
 #endif /* UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_ */

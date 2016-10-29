@@ -230,6 +230,26 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 		offset = offset + tamanioOperando;
 
 		break;
+	case READDIR_RESPONSE:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje2_t*) mensaje)->tamanioMensaje) + ((mensaje2_t*) mensaje)->tamanioMensaje;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+				{
+					free(punteroAuxiliar);
+					paquete->tamanioPaquete = 0;
+					return;
+				}
+
+				tamanioOperando = sizeof(((mensaje2_t*) mensaje)->tamanioMensaje);
+				memcpy(paquete->paqueteSerializado + offset, &(((mensaje2_t*) mensaje)->tamanioMensaje), tamanioOperando);
+				offset = offset + tamanioOperando;
+
+				tamanioOperando = ((mensaje2_t*) mensaje)->tamanioMensaje;
+				memcpy(paquete->paqueteSerializado + offset, ((mensaje2_t*) mensaje)->mensaje, tamanioOperando);
+				offset = offset + tamanioOperando;
+		break;
 	}
 }
 

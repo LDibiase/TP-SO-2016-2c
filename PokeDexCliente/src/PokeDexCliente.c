@@ -28,7 +28,6 @@
 
 /* Variables */
 t_log* logger;
-socket_t* pokedex_servidor;
 socket_t* pokedex;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
@@ -79,11 +78,11 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	mensaje2_t mensajeREADDIR_RESPONSE;
 	mensajeREADDIR_RESPONSE.tipoMensaje = READDIR_RESPONSE;
 
-	recibirMensaje(pokedex_servidor, &mensajeREADDIR_RESPONSE);
-	if(pokedex_servidor->error != NULL)
+	recibirMensaje(pokedex, &mensajeREADDIR_RESPONSE);
+	if(pokedex->error != NULL)
 		{
-		log_info(logger, pokedex_servidor->error);
-		eliminarSocket(pokedex_servidor);
+		log_info(logger, pokedex->error);
+		eliminarSocket(pokedex);
 	}
 
 	filler(buf, ".", NULL, 0);
@@ -188,8 +187,7 @@ int main(int argc, char *argv[]) {
 }
 
 socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
-
-
+	socket_t* pokedex_servidor;
 	pokedex_servidor = conectarAServidor(ip, puerto);
 	if(pokedex_servidor->descriptor == 0)
 	{

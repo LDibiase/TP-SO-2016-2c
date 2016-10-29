@@ -210,10 +210,10 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 
 	// La lógica de serialización varía de acuerdo al tipo del mensaje a enviarse
 	switch(tipoMensaje) {
-	case CONEXION_ENTRENADOR:
+	case READDIR:
 		punteroAuxiliar = paquete->paqueteSerializado;
 
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje1_t*) mensaje)->tamanioNombreEntrenador) + ((mensaje1_t*) mensaje)->tamanioNombreEntrenador + sizeof(((mensaje1_t*) mensaje)->simboloEntrenador);
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje1_t*) mensaje)->tamanioPath) + ((mensaje1_t*) mensaje)->tamanioPath;
 		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 		if(paquete->paqueteSerializado == NULL)
 		{
@@ -222,92 +222,12 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			return;
 		}
 
-		tamanioOperando = sizeof(((mensaje1_t*) mensaje)->tamanioNombreEntrenador);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje1_t*) mensaje)->tamanioNombreEntrenador), tamanioOperando);
+		tamanioOperando = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje1_t*) mensaje)->tamanioPath), tamanioOperando);
 		offset = offset + tamanioOperando;
 
-		tamanioOperando = ((mensaje1_t*) mensaje)->tamanioNombreEntrenador;
-		memcpy(paquete->paqueteSerializado + offset, ((mensaje1_t*) mensaje)->nombreEntrenador, tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		tamanioOperando = sizeof(((mensaje1_t*) mensaje)->simboloEntrenador);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje1_t*) mensaje)->simboloEntrenador), tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		break;
-	case SOLICITA_UBICACION:
-		punteroAuxiliar = paquete->paqueteSerializado;
-
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje5_t*) mensaje)->idPokeNest);
-		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
-		if(paquete->paqueteSerializado == NULL)
-		{
-			free(punteroAuxiliar);
-			paquete->tamanioPaquete = 0;
-			return;
-		}
-
-		tamanioOperando = sizeof(((mensaje5_t*) mensaje)->idPokeNest);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->idPokeNest), tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		break;
-	case BRINDA_UBICACION:
-		punteroAuxiliar = paquete->paqueteSerializado;
-
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje6_t*) mensaje)->ubicacionX) + sizeof(((mensaje6_t*) mensaje)->ubicacionY);
-		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
-		if(paquete->paqueteSerializado == NULL)
-		{
-			free(punteroAuxiliar);
-			paquete->tamanioPaquete = 0;
-			return;
-		}
-
-		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->ubicacionX);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje6_t*) mensaje)->ubicacionX), tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->ubicacionY);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje6_t*) mensaje)->ubicacionY), tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		break;
-	case SOLICITA_DESPLAZAMIENTO:
-		punteroAuxiliar = paquete->paqueteSerializado;
-
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje7_t*) mensaje)->direccion);
-		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
-		if(paquete->paqueteSerializado == NULL)
-		{
-			free(punteroAuxiliar);
-			paquete->tamanioPaquete = 0;
-			return;
-		}
-
-		tamanioOperando = sizeof(((mensaje7_t*) mensaje)->direccion);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje7_t*) mensaje)->direccion), tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		break;
-	case CONFIRMA_DESPLAZAMIENTO:
-		punteroAuxiliar = paquete->paqueteSerializado;
-
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje8_t*) mensaje)->ubicacionX) + sizeof(((mensaje8_t*) mensaje)->ubicacionY);
-		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
-		if(paquete->paqueteSerializado == NULL)
-		{
-			free(punteroAuxiliar);
-			paquete->tamanioPaquete = 0;
-			return;
-		}
-
-		tamanioOperando = sizeof(((mensaje8_t*) mensaje)->ubicacionX);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje8_t*) mensaje)->ubicacionX), tamanioOperando);
-		offset = offset + tamanioOperando;
-
-		tamanioOperando = sizeof(((mensaje8_t*) mensaje)->ubicacionY);
-		memcpy(paquete->paqueteSerializado + offset, &(((mensaje8_t*) mensaje)->ubicacionY), tamanioOperando);
+		tamanioOperando = ((mensaje1_t*) mensaje)->tamanioPath;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje1_t*) mensaje)->path, tamanioOperando);
 		offset = offset + tamanioOperando;
 
 		break;
@@ -344,9 +264,9 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 	if(((mensaje_t*) mensaje)->tipoMensaje == tipoMensaje || ((mensaje_t*) mensaje)->tipoMensaje == INDEFINIDO)
 	{
 		switch(tipoMensaje) {
-		case CONEXION_ENTRENADOR:
+		case READDIR:
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioNombreEntrenador);
+			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
@@ -356,10 +276,10 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			memcpy(&(((mensaje1_t*) mensaje)->tamanioNombreEntrenador), buffer, tamanioBuffer);
+			memcpy(&(((mensaje1_t*) mensaje)->tamanioPath), buffer, tamanioBuffer);
 
 			free(buffer);
-			tamanioBuffer = ((mensaje1_t*) mensaje)->tamanioNombreEntrenador;
+			tamanioBuffer = ((mensaje1_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
@@ -369,115 +289,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje1_t*) mensaje)->nombreEntrenador = malloc(tamanioBuffer);
-			memcpy(((mensaje1_t*) mensaje)->nombreEntrenador, buffer, tamanioBuffer);
-
-			free(buffer);
-			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->simboloEntrenador);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				return;
-			}
-
-			memcpy(&(((mensaje1_t*) mensaje)->simboloEntrenador), buffer, tamanioBuffer);
-
-			free(buffer);
-
-			break;
-		case SOLICITA_UBICACION:
-			free(buffer);
-			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->idPokeNest);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				return;
-			}
-
-			memcpy(&(((mensaje5_t*) mensaje)->idPokeNest), buffer, tamanioBuffer);
-
-			free(buffer);
-
-			break;
-		case BRINDA_UBICACION:
-			free(buffer);
-			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->ubicacionX);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				return;
-			}
-
-			memcpy(&(((mensaje6_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
-
-			free(buffer);
-			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->ubicacionY);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				return;
-			}
-
-			memcpy(&(((mensaje6_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
-
-			free(buffer);
-
-			break;
-		case SOLICITA_DESPLAZAMIENTO:
-			free(buffer);
-			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->direccion);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				return;
-			}
-
-			memcpy(&(((mensaje7_t*) mensaje)->direccion), buffer, tamanioBuffer);
-
-			free(buffer);
-
-			break;
-		case CONFIRMA_DESPLAZAMIENTO:
-			free(buffer);
-			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->ubicacionX);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				return;
-			}
-
-			memcpy(&(((mensaje8_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
-
-			free(buffer);
-			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->ubicacionY);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				return;
-			}
-
-			memcpy(&(((mensaje8_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
+			((mensaje1_t*) mensaje)->path = malloc(tamanioBuffer);
+			memcpy(((mensaje1_t*) mensaje)->path, buffer, tamanioBuffer);
 
 			free(buffer);
 

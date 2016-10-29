@@ -33,6 +33,7 @@ void leerArchivo(int archivoID, char* ruta);
 void escribirEstructura(int dirPadre, char* ruta);
 int getattr_callback(const char *path);
 int readdir_callback(const char *path);
+void pokedexCliente(t_pokedex_cliente* pokedex_cliente);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

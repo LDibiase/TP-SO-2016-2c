@@ -212,59 +212,19 @@ int main(void) {
 	while(1) {
 		if(queue_size(colaOperaciones)> 0)
 		{
-			t_pokedex_cliente* pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
-			pthread_mutex_lock(&mutex);
-			pokedex_cliente = queue_pop(colaOperaciones);
-			pthread_mutex_unlock(&mutex);
+			//t_pokedex_cliente* pokedex_cliente = malloc(sizeof(t_pokedex_cliente));
 			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
-			((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
 
-			recibirMensaje(pokedex_cliente->socket, mensajeRespuesta);
-
-			if(pokedex_cliente->socket->error != NULL)
-			{
-				free(mensajeRespuesta);
-				log_info(logger, pokedex_cliente->socket->error);
-				log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
-				//TODO Cerrar todos los sockets y salir
-				eliminarSocket(pokedex_cliente->socket);
-			}
+			pthread_mutex_lock(&mutex);
+			mensajeRespuesta = queue_pop(colaOperaciones);
+			pthread_mutex_unlock(&mutex);
 
 			switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
-				case LEER_ARCHIVO:
-					log_info(logger, "Socket %d: solicito LEER_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de lectura recibida");
-				break;
-				case CREAR_ARCHIVO:
-					log_info(logger, "Socket %d: solicito CREAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de crear archivo recibida");
-				break;
-				case ESCRIBIR_MODIFICAR_ARCHIVO:
-					log_info(logger, "Socket %d: solicito ESCRIBIR_MODIFICAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de escribir modificar archivo recibida");
-				break;
-				case BORRAR_ARCHIVO:
-					log_info(logger, "Socket %d: solicito BORRAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de borrar archivo recibida");
-				break;
-				case CREAR_DIRECTORIO:
-					log_info(logger, "Socket %d: solicito CREAR_DIRECTORIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de crear directorio recibida");
-				break;
-				case LISTAR_DIRECTORIO:
-					log_info(logger, "Socket %d: solicito LISTAR_DIRECTORIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de listar directorio recibida");
-				break;
-				case BORRAR_DIRECTORIO_VACIO:
-					log_info(logger, "Socket %d: solicito BORRAR_DIRECTORIO_VACIO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de borrar directorio vacio recibida");
-				break;
-				case RENOMBRAR_ARCHIVO:
-					log_info(logger, "Socket %d: solicito RENOMBRAR_ARCHIVO", pokedex_cliente->socket->descriptor, ((mensaje5_t*) mensajeRespuesta)->idPokeNest);
-					printf("Solicitud de renombrar archivo recibida");
+			case READDIR:
+				log_info(logger, "Solicito READDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
 				break;
 			}
-	}
+		}
 	}
 
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
@@ -297,7 +257,7 @@ int readdir_callback(const char *path) {
 
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-					 printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
+					printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
 				}
 			}
 		}
@@ -305,30 +265,30 @@ int readdir_callback(const char *path) {
 }
 
 int getattr_callback(const char *path) { //, struct stat *stbuf) {
- // memset(stbuf, 0, sizeof(struct stat));
+	// memset(stbuf, 0, sizeof(struct stat));
 
-printf("\nBuscando ruta: %s \n", path);
-  char** array = string_split(path, "/");
-  int i = 0;
-  int res = -1;
-  int dirPadre = 65535;
-  while (array[i]) {
-	  char* fname = array[i];
-	  printf("Buscando nombre: %s \n", array[i]);
-	  res = buscarTablaAchivos(dirPadre,array[i]);
-	  printf("Encontrado id: %d \n", res);
-	  dirPadre = res;
-	  i++;
-  }
-  if (tablaArchivos[res].state == 1) {
-	  printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
-  }
-  if (tablaArchivos[res].state == 2) {
-	  printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
-  }
-  return res;
+	printf("\nBuscando ruta: %s \n", path);
+	char** array = string_split(path, "/");
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	while (array[i]) {
+		char* fname = array[i];
+		printf("Buscando nombre: %s \n", array[i]);
+		res = buscarTablaAchivos(dirPadre,array[i]);
+		printf("Encontrado id: %d \n", res);
+		dirPadre = res;
+		i++;
+	}
+	if (tablaArchivos[res].state == 1) {
+		printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+	}
+	if (tablaArchivos[res].state == 2) {
+		printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+	}
+	return res;
 }
-  /*
+/*
   if (strcmp(path, "/") == 0) {
     stbuf->st_mode = S_IFDIR | 0755;
     stbuf->st_nlink = 2;
@@ -345,21 +305,21 @@ printf("\nBuscando ruta: %s \n", path);
   return -1;*/
 
 int buscarTablaAchivos(int dirPadre, char* fname) {
-	  	int i;
-	  	int res = -1;
-	  	for (i = 0; i < TABLA_ARCHIVOS; i++) {
-	  		if (tablaArchivos[i].state != 0) {
-	  			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un direcotrio
-	  				res = i;
+	int i;
+	int res = -1;
+	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+		if (tablaArchivos[i].state != 0) {
+			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un direcotrio
+				res = i;
 
-	  			} else {
-	  				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un archivo
-	  					res = i;
-	  				}
-	  			}
-	  		}
-	  	}
-	  	return res;
+			} else {
+				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un archivo
+					res = i;
+				}
+			}
+		}
+	}
+	return res;
 }
 
 void escribirEstructura(int dirPadre, char* ruta) {
@@ -384,7 +344,7 @@ void escribirEstructura(int dirPadre, char* ruta) {
 
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-				leerArchivo(i,ruta);
+					leerArchivo(i,ruta);
 				}
 			}
 		}
@@ -540,9 +500,8 @@ void aceptarConexiones() {
 			eliminarSocket(cli_socket_s);
 		}
 
-		log_info(logger, "Socket %d: mi nombre es %s", cli_socket_s->descriptor);
+		log_info(logger, "Socket %d", cli_socket_s->descriptor);
 
-		pokedex_cliente->nombre = mensajeConexionPokdexCliente.nombre;
 		pokedex_cliente->socket = cli_socket_s;
 
 		// Enviar mensaje ACEPTA_CONEXION
@@ -578,16 +537,38 @@ void aceptarConexiones() {
 
 		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", pokedex_cliente->socket->descriptor);
 
+		// CREACIÓN DEL HILO POKEDEXCLIENTE
+		pthread_t hiloCliente;
+		pthread_attr_t atributosHiloCliente;
+
+		pthread_attr_init(&atributosHiloCliente);
+		pthread_create(&hiloCliente, &atributosHiloCliente, (void*) pokedexCliente, (void*)pokedex_cliente);
+		pthread_attr_destroy(&atributosHiloCliente);
+
+
+
+	}
+}
+
+void pokedexCliente(t_pokedex_cliente* pokedex_cliente) {
+	while (1) {
+		void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
+		((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+
+		recibirMensaje(pokedex_cliente->socket, mensajeRespuesta);
+
+		if(pokedex_cliente->socket->error != NULL)
+		{
+			free(mensajeRespuesta);
+			log_info(logger, pokedex_cliente->socket->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
+			//TODO Cerrar todos los sockets y salir
+			eliminarSocket(pokedex_cliente->socket);
+		}
+
 		//SE AGREGA LA OPERACION PENDIENTE
-		t_pokedex_cliente* operacionPlanificada;
-
-		operacionPlanificada = malloc(sizeof(t_pokedex_cliente));
-		*operacionPlanificada = *pokedex_cliente;
-
-
 		pthread_mutex_lock(&mutex);
-		queue_push(colaOperaciones, operacionPlanificada);
+		queue_push(colaOperaciones, mensajeRespuesta);
 		pthread_mutex_unlock(&mutex);
-
 	}
 }

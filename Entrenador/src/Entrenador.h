@@ -8,7 +8,7 @@
 #ifndef ENTRENADOR_H_
 #define ENTRENADOR_H_
 #include <commons/collections/list.h>
-#include "socket.h" // BORRAR
+#include "socket.h"
 
 /* Definición de estructuras */
 
@@ -22,7 +22,6 @@ typedef struct entrenador {
 	char* Simbolo;
 	t_list* CiudadesYObjetivos;
 	int Vidas;
-	int Reintentos;
 } t_entrenador_config;
 
 

@@ -54,8 +54,6 @@
 typedef enum tipoMensaje {
 	INDEFINIDO,
 	CONEXION_ENTRENADOR,
-	CONEXION_POKEDEX_CLIENTE,
-	CONEXION_POKEDEX,
 	ACEPTA_CONEXION,
 	RECHAZA_CONEXION,
 	TURNO,
@@ -82,30 +80,30 @@ typedef struct mensaje1 {
 } mensaje1_t;
 
 // Mensaje 5
-typedef struct mensaje5 {
+typedef struct mensaje4 {
 	uint32_t tipoMensaje;
 	char idPokeNest;
-} mensaje5_t;
+} mensaje4_t;
 
 // Mensaje 6
-typedef struct mensaje6 {
+typedef struct mensaje5 {
 	uint32_t tipoMensaje;
 	uint32_t ubicacionX;
 	uint32_t ubicacionY;
-} mensaje6_t;
+} mensaje5_t;
 
 // Mensaje 7
-typedef struct mensaje7 {
+typedef struct mensaje6 {
 	uint32_t tipoMensaje;
 	uint32_t direccion;
-} mensaje7_t;
+} mensaje6_t;
 
 // Mensaje 8
-typedef struct mensaje8 {
+typedef struct mensaje7 {
 	uint32_t tipoMensaje;
 	uint32_t ubicacionX;
 	uint32_t ubicacionY;
-} mensaje8_t;
+} mensaje7_t;
 
 // Direcciones de movimiento
 typedef enum direccion {IZQUIERDA, DERECHA, ARRIBA, ABAJO} direccion_t;

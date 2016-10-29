@@ -75,6 +75,7 @@ socket_t* nuevoSocket() {
 
 	socket_s = malloc(sizeof(socket_t));
 	socket_s->descriptor = 0;
+	socket_s->errorCode = 0;
 	socket_s->error = NULL;
 
 	return socket_s;
@@ -83,6 +84,7 @@ socket_t* nuevoSocket() {
 void eliminarSocket(socket_t* socket_s) {
 	free(socket_s->error);
 	close(socket_s->descriptor);
+	free(socket_s);
 }
 
 socket_t* crearServidor(char* ip, char* puerto) {
@@ -99,6 +101,7 @@ socket_t* crearServidor(char* ip, char* puerto) {
 	socketInformation_s = crearSocket(ip, puerto);
 	if(socketInformation_s->descriptor == 0)
 	{
+		socket_s->errorCode = 1;
 		socket_s->error = socketInformation_s->error;
 		free(socketInformation_s);
 		return socket_s;

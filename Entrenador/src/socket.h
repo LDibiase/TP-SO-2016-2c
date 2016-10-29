@@ -15,6 +15,7 @@
 // Estructura socket
 typedef struct socket {
 	int descriptor;
+	int errorCode;
 	char* error;
 } socket_t;
 

@@ -36,6 +36,8 @@ t_list* entrenadores; // Entrenadores conectados al mapa
 t_list* items; // Items existentes en el mapa (entrenadores y PokéNests)
 t_list* recursosTotales;
 t_list* recursosDisponibles;
+t_list* recursosAsignados;
+t_list* recursosSolicitados;
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady;
@@ -96,6 +98,8 @@ int main(void) {
 	// Creación de la lista de entrenadores conectados y las colas de planificación
 	recursosTotales = list_create();
 	recursosDisponibles = list_create();
+	recursosAsignados = list_create();
+	recursosSolicitados = list_create();
 	entrenadores = list_create();
 	colaReady = queue_create();
 	colaBlocked = queue_create();
@@ -746,6 +750,48 @@ void aceptarConexiones() {
 		*entrenadorPlanificado = *entrenador;
 
 		encolarEntrenador(entrenadorPlanificado);
+
+		t_recursosEntrenador* recursosAsignadosEntrenador;
+		t_recursosEntrenador* recursosSolicitadosEntrenador;
+
+		recursosAsignadosEntrenador = malloc(sizeof(t_recursosEntrenador));
+		recursosSolicitadosEntrenador = malloc(sizeof(t_recursosEntrenador));
+
+		recursosAsignadosEntrenador->recursos = list_create();
+		recursosSolicitadosEntrenador->recursos = list_create();
+
+		void _agregarRecursosEntrenador(t_mapa_pokenest* recurso)
+		{
+			t_mapa_pokenest* recursoAsignado;
+			t_mapa_pokenest* recursoSolicitado;
+
+			recursoAsignado = malloc(sizeof(t_mapa_pokenest));
+			recursoSolicitado = malloc(sizeof(t_mapa_pokenest));
+
+			recursoAsignado->id = recurso->id;
+			recursoAsignado->cantidad = 10; //*recurso->cantidad;
+
+			recursoSolicitado->id = recurso->id;
+			recursoSolicitado->cantidad = 10; //*recurso->cantidad;
+
+			list_add(recursosAsignadosEntrenador->recursos, recursoAsignado);
+			list_add(recursosSolicitadosEntrenador->recursos, recursoSolicitado);
+		}
+
+		list_iterate(recursosTotales, (void*) _agregarRecursosEntrenador);
+
+		list_add(recursosAsignados, (void*) recursosAsignadosEntrenador);
+		list_add(recursosSolicitados, (void*) recursosSolicitadosEntrenador);
+
+		/*pokenestLeida = leerPokenest(str);
+		CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, 10);
+		recursoTotales = malloc(sizeof(pokenestLeida));
+		recursoDisponibles = malloc(sizeof(pokenestLeida));
+		*recursoTotales = pokenestLeida;
+		*recursoDisponibles = pokenestLeida;
+		list_add(recursosTotales, recursoTotales);
+		list_add(recursosDisponibles, recursoDisponibles);*/
+
 
 		log_info(logger, "Se planificó al entrenador %s (%c)", entrenadorPlanificado->nombre, entrenadorPlanificado->id);
 	}

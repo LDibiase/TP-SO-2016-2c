@@ -38,6 +38,10 @@ typedef struct pokenest {
 	int cantidad;
 } t_mapa_pokenest;
 
+typedef struct recursosEntrenador {
+	char id;
+	t_list* recursos;
+} t_recursosEntrenador;
 
 /* Constantes */
 

@@ -32,6 +32,33 @@ socket_t* pokedex;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
 
+	paquete_t paqueteLectura;
+	mensaje1_t mensajeQuieroGetAttr;
+
+	mensajeQuieroGetAttr.tipoMensaje = GETATTR;
+	mensajeQuieroGetAttr.path = path;
+	mensajeQuieroGetAttr.tamanioPath = strlen(mensajeQuieroGetAttr.path) + 1;
+
+	crearPaquete((void*) &mensajeQuieroGetAttr, &paqueteLectura);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	// Recibir mensaje RESPUESTA
+	mensaje3_t mensajeGETATTR_RESPONSE;
+	mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
+
+	recibirMensaje(pokedex, &mensajeGETATTR_RESPONSE);
+	if(pokedex->error != NULL)
+		{
+		log_info(logger, pokedex->error);
+		eliminarSocket(pokedex);
+	}
 	//Si path es igual a "/" nos estan pidiendo los atributos del punto de montaje
 
 	memset(stbuf, 0, sizeof(struct stat));

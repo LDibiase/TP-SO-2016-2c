@@ -246,6 +246,25 @@ int main(void) {
 
 					enviarMensaje(socketPokedex, paqueteLectura);
 				break;
+			case GETATTR: ;
+
+					paquete_t paqueteGetAttr;
+					mensaje3_t mensajeGETATTR_RESPONSE;
+
+					mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
+					mensajeGETATTR_RESPONSE.tamanioArchivo = 50;
+					mensajeGETATTR_RESPONSE.tipoArchivo = 1;
+
+					crearPaquete((void*) &mensajeGETATTR_RESPONSE, &paqueteGetAttr);
+					if(paqueteGetAttr.tamanioPaquete == 0) {
+						socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+						log_info(logger, socketPokedex->error);
+						log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+						exit(EXIT_FAILURE);
+					}
+
+					enviarMensaje(socketPokedex, paqueteGetAttr);
+				break;
 			}
 		}
 	}

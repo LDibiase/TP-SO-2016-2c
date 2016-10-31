@@ -250,6 +250,47 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 				memcpy(paquete->paqueteSerializado + offset, ((mensaje2_t*) mensaje)->mensaje, tamanioOperando);
 				offset = offset + tamanioOperando;
 		break;
+	case GETATTR:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje1_t*) mensaje)->tamanioPath) + ((mensaje1_t*) mensaje)->tamanioPath;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje1_t*) mensaje)->tamanioPath), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje1_t*) mensaje)->tamanioPath;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje1_t*) mensaje)->path, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		break;
+	case GETATTR_RESPONSE:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje3_t*) mensaje)->tamanioArchivo);
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje3_t*) mensaje)->tamanioArchivo);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje3_t*) mensaje)->tamanioArchivo), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje3_t*) mensaje)->tamanioArchivo;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje3_t*) mensaje)->tamanioArchivo, tamanioOperando);
+		offset = offset + tamanioOperando;
+		break;
 	}
 }
 
@@ -332,6 +373,50 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			((mensaje1_t*) mensaje)->path = malloc(tamanioBuffer);
 			memcpy(((mensaje1_t*) mensaje)->path, buffer, tamanioBuffer);
 
+			free(buffer);
+
+			break;
+		case GETATTR_RESPONSE:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje3_t*) mensaje)->tamanioArchivo);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			memcpy(&(((mensaje3_t*) mensaje)->tamanioArchivo), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje3_t*) mensaje)->tamanioArchivo;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje3_t*) mensaje)->tamanioArchivo = malloc(tamanioBuffer);
+			memcpy(((mensaje3_t*) mensaje)->tamanioArchivo, buffer, tamanioBuffer);
 			free(buffer);
 
 			break;

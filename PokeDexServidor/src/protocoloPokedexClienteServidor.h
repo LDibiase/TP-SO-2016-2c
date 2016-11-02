@@ -28,7 +28,9 @@ typedef enum tipoMensaje {
 	READDIR,
 	READDIR_RESPONSE,
 	GETATTR,
-	GETATTR_RESPONSE
+	GETATTR_RESPONSE,
+	READ,
+	READ_RESPONSE
 } tipoMensaje_t;
 
 
@@ -59,5 +61,18 @@ typedef struct mensaje3 {
 	int tipoArchivo;
 	int tamanioArchivo;
 } mensaje3_t;
+
+typedef struct mensaje4 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioPath;
+	char* path;
+	int bytes;
+} mensaje4_t;
+
+typedef struct mensaje5 {
+	uint32_t tipoMensaje;
+	int bytes;
+	int* dataBlock;
+} mensaje5_t;
 
 #endif /* UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_ */

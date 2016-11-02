@@ -85,7 +85,7 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	(void) offset;
 	(void) fi;
 
-	// Enviar mensaje READ
+	// Enviar mensaje READDIR
 	paquete_t paqueteLectura;
 	mensaje1_t mensajeQuieroLeer;
 
@@ -125,19 +125,44 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 		i++;
 	}
 
-	filler(buf, DEFAULT_FILE_NAME, NULL, 0);
+	//filler(buf, DEFAULT_FILE_NAME, NULL, 0);
 
 	return 0;
 }
 
 static int fuse_open(const char *path, struct fuse_file_info *fi) {
-	if (strcmp(path, DEFAULT_FILE_PATH) != 0)
-		return -ENOENT;
+	//if (strcmp(path, DEFAULT_FILE_PATH) != 0)
+	//	return -ENOENT;
 
+	//TODO: Verificar que el archivo exista
 	return 0;
 }
 
 static int fuse_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
+
+	// Enviar mensaje READ
+	paquete_t paqueteLectura;
+	mensaje4_t mensajeQuieroREAD;
+
+	mensajeQuieroREAD.tipoMensaje = READ;
+	mensajeQuieroREAD.path = path;
+	mensajeQuieroREAD.tamanioPath = strlen(mensajeQuieroREAD.path) + 1;
+	mensajeQuieroREAD.bytes = size;
+
+
+
+	crearPaquete((void*) &mensajeQuieroREAD, &paqueteLectura);
+	log_info(logger, "MENSAJE READ PATH: %s BYTES: %d", mensajeQuieroREAD.path, mensajeQuieroREAD.bytes);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	// Recibir mensaje RESPUESTA
 
 	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
 	    size_t len = strlen(DEFAULT_FILE_CONTENT);

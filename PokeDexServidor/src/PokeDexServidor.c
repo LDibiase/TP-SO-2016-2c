@@ -270,6 +270,31 @@ int main(void) {
 
 					enviarMensaje(socketPokedex, paqueteGetAttr);
 				break;
+			case READ:
+				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d \n", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->bytes);
+				//char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
+				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
+
+				// Enviar mensaje READ
+				/*
+				paquete_t paqueteREAD;
+				mensaje5_t mensajeREAD_RESPONSE;
+
+				mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
+				mensajeREAD_RESPONSE.dataBlock = 2222;
+				mensajeREAD_RESPONSE.bytes = strlen((char)mensajeREAD_RESPONSE.dataBlock);
+
+				crearPaquete((void*) &mensajeREAD_RESPONSE, &paqueteREAD);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteREAD);*/
+
+				break;
 			}
 		}
 	}

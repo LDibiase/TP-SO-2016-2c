@@ -64,16 +64,17 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 
 	memset(stbuf, 0, sizeof(struct stat));
 
-	if (strcmp(path, "/") == 0) {
+
+	if (mensajeGETATTR_RESPONSE.tipoArchivo == 2) {
 		stbuf->st_mode = S_IFDIR | 0777;
 	    stbuf->st_nlink = 2;
 	    return 0;
 	}
 
-	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
+	if (mensajeGETATTR_RESPONSE.tipoArchivo == 1)  {
 	    stbuf->st_mode = S_IFREG | 0777;
 	    stbuf->st_nlink = 1;
-	    stbuf->st_size = strlen(DEFAULT_FILE_CONTENT);
+	    stbuf->st_size = mensajeGETATTR_RESPONSE.tamanioArchivo;
 	    return 0;
 	}
 
@@ -116,7 +117,7 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 
-	char** array = string_split(mensajeREADDIR_RESPONSE.mensaje, "#");
+	char** array = string_split(mensajeREADDIR_RESPONSE.mensaje, "/");
 	int i = 0;
 	while (array[i]) {
 		char* fname = array[i];

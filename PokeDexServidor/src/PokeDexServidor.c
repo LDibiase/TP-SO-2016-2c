@@ -228,6 +228,7 @@ int main(void) {
 				log_info(logger, "Solicito READDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
 				char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
 				printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
+
 				// Enviar mensaje READ
 					paquete_t paqueteLectura;
 					mensaje2_t mensajeREADDIR_RESPONSE;
@@ -248,14 +249,16 @@ int main(void) {
 				break;
 			case GETATTR: ;
 					log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+					t_getattr getattr = getattr_callback(((mensaje1_t*) mensajeRespuesta)->path);
 
 					// Enviar mensaje GETATTR
 					paquete_t paqueteGetAttr;
 					mensaje3_t mensajeGETATTR_RESPONSE;
 
 					mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
-					mensajeGETATTR_RESPONSE.tamanioArchivo = 50;
-					mensajeGETATTR_RESPONSE.tipoArchivo = 1;
+					mensajeGETATTR_RESPONSE.tipoArchivo = getattr.tipoArchivo;
+					mensajeGETATTR_RESPONSE.tamanioArchivo = getattr.tamanioArchivo;
+
 
 					crearPaquete((void*) &mensajeGETATTR_RESPONSE, &paqueteGetAttr);
 					if(paqueteGetAttr.tamanioPaquete == 0) {
@@ -294,18 +297,18 @@ int main(void) {
 char* readdir_callback(const char *path) {
 	char *cadenaMensaje = string_new();
 	int i;
-	int dirPadre = getattr_callback(path);
+	int dirPadre = getDirPadre(path);
 	for (i = 0; i < TABLA_ARCHIVOS; i++) {
 		if (tablaArchivos[i].state != 0) {
 			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
 				printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
 				string_append(&cadenaMensaje, tablaArchivos[i].fname);
-				string_append(&cadenaMensaje, "#");
+				string_append(&cadenaMensaje, "/");
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
 					printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
 					string_append(&cadenaMensaje, tablaArchivos[i].fname);
-					string_append(&cadenaMensaje, "#");
+					string_append(&cadenaMensaje, "/");
 				}
 			}
 		}
@@ -313,9 +316,7 @@ char* readdir_callback(const char *path) {
 	return cadenaMensaje;
 }
 
-int getattr_callback(const char *path) { //, struct stat *stbuf) {
-	// memset(stbuf, 0, sizeof(struct stat));
-
+int getDirPadre(const char *path) {
 	printf("\nBuscando ruta: %s \n", path);
 	char** array;
 	int i = 0;
@@ -342,21 +343,28 @@ int getattr_callback(const char *path) { //, struct stat *stbuf) {
 	}
 	return res;
 }
-/*
-  if (strcmp(path, "/") == 0) {
-    stbuf->st_mode = S_IFDIR | 0755;
-    stbuf->st_nlink = 2;
-    return 0;
-  }
 
-  if (strcmp(path, filepath) == 0) {
-    stbuf->st_mode = S_IFREG | 0777;
-    stbuf->st_nlink = 1;
-    stbuf->st_size = strlen(filecontent);
-    return 0;
-  }
-
-  return -1;*/
+t_getattr getattr_callback(const char *path) {
+	printf("\nBuscando ruta: %s \n", path);
+	t_getattr res;
+	res.tipoArchivo = 0;
+	res.tamanioArchivo = 0;
+	if (!(string_equals_ignore_case(path, "/"))) {
+		int id = getDirPadre(path);
+		if (tablaArchivos[id].state == 1) {
+			printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[id].fname, tablaArchivos[id].state, tablaArchivos[id].file_size);
+			res.tipoArchivo = 1;
+			res.tamanioArchivo = tablaArchivos[id].file_size;
+		}
+		if (tablaArchivos[id].state == 2) {
+			printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[id].fname, tablaArchivos[id].state);
+			res.tipoArchivo = 2;
+		}
+	} else {
+		res.tipoArchivo = 2;
+	}
+	return res;
+}
 
 int buscarTablaAchivos(int dirPadre, char* fname) {
 	int i;

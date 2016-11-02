@@ -60,6 +60,7 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 		eliminarSocket(pokedex);
 	}
 	//Si path es igual a "/" nos estan pidiendo los atributos del punto de montaje
+	log_info(logger, "TIPO ARCHIVO %d  TAMAÑO ARCHIVO %d", mensajeGETATTR_RESPONSE.tipoArchivo, mensajeGETATTR_RESPONSE.tamanioArchivo);
 
 	memset(stbuf, 0, sizeof(struct stat));
 

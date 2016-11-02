@@ -247,7 +247,9 @@ int main(void) {
 					enviarMensaje(socketPokedex, paqueteLectura);
 				break;
 			case GETATTR: ;
+					log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
 
+					// Enviar mensaje GETATTR
 					paquete_t paqueteGetAttr;
 					mensaje3_t mensajeGETATTR_RESPONSE;
 

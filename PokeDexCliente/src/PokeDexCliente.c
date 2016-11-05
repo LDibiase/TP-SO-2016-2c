@@ -163,23 +163,29 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 	enviarMensaje(pokedex, paqueteLectura);
 
 	// Recibir mensaje RESPUESTA
+		mensaje5_t mensajeREAD_RESPONSE;
+		mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
 
-	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
-	    size_t len = strlen(DEFAULT_FILE_CONTENT);
-	    if (offset >= len) {
-	      return 0;
-	    }
+		recibirMensaje(pokedex, &mensajeREAD_RESPONSE);
+		log_info(logger, "MENSAJE READ_RESPONSE TAMAÑO BUFFER %d , BUFFER: %s", mensajeREAD_RESPONSE.tamanioBuffer, mensajeREAD_RESPONSE.buffer);
 
-	    if (offset + size > len) {
-	    	memcpy(buf, DEFAULT_FILE_CONTENT + offset, len - offset);
-	    	return len - offset;
-	    }
+		//TODO: verificar si el archivo existe
+		//if (strcmp(path, filepath) == 0) {
+		    size_t len = strlen(mensajeREAD_RESPONSE.buffer);
+		    if (offset >= len) {
+		      return 0;
+		    }
 
-	  		memcpy(buf, DEFAULT_FILE_CONTENT + offset, size);
-	  		return size;
-	 }
+		    if (offset + size > len) {
+		      memcpy(buf, mensajeREAD_RESPONSE.buffer + offset, len - offset);
+		      return len - offset;
+		    }
 
-	 return -ENOENT;
+		    memcpy(buf, mensajeREAD_RESPONSE.buffer + offset, size);
+		    return size;
+		  //}
+
+		  return -ENOENT;
 }
 
 static struct fuse_opt fuse_options[] = {

@@ -276,13 +276,13 @@ int main(void) {
 				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
 				// Enviar mensaje READ
-				/*
+
 				paquete_t paqueteREAD;
 				mensaje5_t mensajeREAD_RESPONSE;
 
 				mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
-				mensajeREAD_RESPONSE.dataBlock = 2222;
-				mensajeREAD_RESPONSE.bytes = strlen((char)mensajeREAD_RESPONSE.dataBlock);
+				mensajeREAD_RESPONSE.buffer = "123456789/0";
+				mensajeREAD_RESPONSE.tamanioBuffer = strlen(mensajeREAD_RESPONSE.buffer) + 1;
 
 				crearPaquete((void*) &mensajeREAD_RESPONSE, &paqueteREAD);
 				if(paqueteGetAttr.tamanioPaquete == 0) {
@@ -292,7 +292,7 @@ int main(void) {
 					exit(EXIT_FAILURE);
 				}
 
-				enviarMensaje(socketPokedex, paqueteREAD);*/
+				enviarMensaje(socketPokedex, paqueteREAD);
 
 				break;
 			}
@@ -389,6 +389,52 @@ t_getattr getattr_callback(const char *path) {
 		res.tipoArchivo = 2;
 	}
 	return res;
+}
+
+char* read_callback(const char *path, int offset, int tamanioBuffer){
+	int archivoID = getDirPadre(path);
+	char* archivoNombre = tablaArchivos[archivoID].fname;
+	int primerBloque = tablaArchivos[archivoID].first_block;
+	int tamanioArchivo = tablaArchivos[archivoID].file_size;
+
+	//Obtengo el bloque de datos correspondiente
+	int *block;
+	block =(int *)malloc(tamanioArchivo * sizeof(int));
+	//printf("\nTamaño del archivo %d \n", tamanioArchivo);
+
+	int sum = 0;
+	int i= 0;
+	int bloque = primerBloque;
+	//printf("\nPrimer bloque %d \n", bloque);
+
+	while (bloque != -1) {
+		if (tablaAsignaciones[bloque] != -1) {
+			pthread_mutex_lock(&mutex);
+			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
+			sum = sum + OSADA_BLOCK_SIZE;
+			pthread_mutex_unlock(&mutex);
+			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
+		} else {
+			pthread_mutex_lock(&mutex);
+			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (tamanioArchivo - sum) * sizeof(int));
+			//printf("\n ------Copia Parcial ------ %d", bloque);
+			//printf("\n Escribio %d", (tamanioArchivo - sum));
+			sum = sum + (tamanioArchivo - sum);
+			pthread_mutex_unlock(&mutex);
+		}
+
+		//printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
+		//printf("\n Cantidad Bytes restantes %d", (tamanioArchivo - sum));
+		//printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
+		pthread_mutex_lock(&mutex);
+		bloque = tablaAsignaciones[bloque];
+		pthread_mutex_unlock(&mutex);
+	}
+
+	free(block);
+	block=NULL;
+
+	return "a";
 }
 
 int buscarTablaAchivos(int dirPadre, char* fname) {

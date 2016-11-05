@@ -66,7 +66,8 @@ typedef struct mensaje4 {
 	uint32_t tipoMensaje;
 	uint32_t tamanioPath;
 	char* path;
-	int bytes;
+	int tamanioBuffer;
+	int offset;
 } mensaje4_t;
 
 typedef struct mensaje5 {

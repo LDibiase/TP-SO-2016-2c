@@ -147,12 +147,13 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 	mensajeQuieroREAD.tipoMensaje = READ;
 	mensajeQuieroREAD.path = path;
 	mensajeQuieroREAD.tamanioPath = strlen(mensajeQuieroREAD.path) + 1;
-	mensajeQuieroREAD.bytes = size;
+	mensajeQuieroREAD.tamanioBuffer = size;
+	mensajeQuieroREAD.offset = offset;
 
 
 
 	crearPaquete((void*) &mensajeQuieroREAD, &paqueteLectura);
-	log_info(logger, "MENSAJE READ PATH: %s BYTES: %d", mensajeQuieroREAD.path, mensajeQuieroREAD.bytes);
+	log_info(logger, "MENSAJE READ PATH: %s BYTES: %d OFFSET: %d", mensajeQuieroREAD.path, mensajeQuieroREAD.tamanioBuffer, mensajeQuieroREAD.offset);
 	if(paqueteLectura.tamanioPaquete == 0) {
 		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
 		log_info(logger, pokedex->error);

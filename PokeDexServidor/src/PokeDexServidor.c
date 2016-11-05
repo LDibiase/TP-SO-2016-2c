@@ -193,11 +193,11 @@ int main(void) {
 			}
 		}*/
 
-	char* ruta = "/";
-	escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
+	//char* ruta = "/";
+	//escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
 
-	getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
-	readdir_callback("/Pallet Town/Pokemons");
+	//getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
+	//readdir_callback("/Pallet Town/Pokemons");
 
 
 
@@ -227,7 +227,7 @@ int main(void) {
 			case READDIR:
 				log_info(logger, "Solicito READDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
 				char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
-				printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
+				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
 				// Enviar mensaje READ
 					paquete_t paqueteLectura;
@@ -271,7 +271,7 @@ int main(void) {
 					enviarMensaje(socketPokedex, paqueteGetAttr);
 				break;
 			case READ:
-				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d \n", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->bytes);
+				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
 				//char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
 				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
@@ -281,7 +281,7 @@ int main(void) {
 				mensaje5_t mensajeREAD_RESPONSE;
 
 				mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
-				mensajeREAD_RESPONSE.buffer = "123456789/0";
+				mensajeREAD_RESPONSE.buffer = read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer);
 				mensajeREAD_RESPONSE.tamanioBuffer = strlen(mensajeREAD_RESPONSE.buffer) + 1;
 
 				crearPaquete((void*) &mensajeREAD_RESPONSE, &paqueteREAD);
@@ -326,12 +326,12 @@ char* readdir_callback(const char *path) {
 	for (i = 0; i < TABLA_ARCHIVOS; i++) {
 		if (tablaArchivos[i].state != 0) {
 			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
-				printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
+				//printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
 				string_append(&cadenaMensaje, tablaArchivos[i].fname);
 				string_append(&cadenaMensaje, "/");
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-					printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
+					//printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
 					string_append(&cadenaMensaje, tablaArchivos[i].fname);
 					string_append(&cadenaMensaje, "/");
 				}
@@ -342,7 +342,7 @@ char* readdir_callback(const char *path) {
 }
 
 int getDirPadre(const char *path) {
-	printf("\nBuscando ruta: %s \n", path);
+	//printf("\nBuscando ruta: %s \n", path);
 	char** array;
 	int i = 0;
 	int res = -1;
@@ -351,17 +351,17 @@ int getDirPadre(const char *path) {
 		array = string_split(path, "/");
 		while (array[i]) {
 			char* fname = array[i];
-			printf("Buscando nombre: %s \n", array[i]);
+			//printf("Buscando nombre: %s \n", array[i]);
 			res = buscarTablaAchivos(dirPadre,array[i]);
-			printf("Encontrado id: %d \n", res);
+			//printf("Encontrado id: %d \n", res);
 			dirPadre = res;
 			i++;
 		}
 		if (tablaArchivos[res].state == 1) {
-			printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
 		}
 		if (tablaArchivos[res].state == 2) {
-			printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
 		}
 	} else {
 		res = dirPadre; //Estamos en el root
@@ -370,19 +370,19 @@ int getDirPadre(const char *path) {
 }
 
 t_getattr getattr_callback(const char *path) {
-	printf("\nBuscando ruta: %s \n", path);
+	//printf("\nBuscando ruta: %s \n", path);
 	t_getattr res;
 	res.tipoArchivo = 0;
 	res.tamanioArchivo = 0;
 	if (!(string_equals_ignore_case(path, "/"))) {
 		int id = getDirPadre(path);
 		if (tablaArchivos[id].state == 1) {
-			printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[id].fname, tablaArchivos[id].state, tablaArchivos[id].file_size);
+			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[id].fname, tablaArchivos[id].state, tablaArchivos[id].file_size);
 			res.tipoArchivo = 1;
 			res.tamanioArchivo = tablaArchivos[id].file_size;
 		}
 		if (tablaArchivos[id].state == 2) {
-			printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[id].fname, tablaArchivos[id].state);
+			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[id].fname, tablaArchivos[id].state);
 			res.tipoArchivo = 2;
 		}
 	} else {
@@ -393,17 +393,17 @@ t_getattr getattr_callback(const char *path) {
 
 char* read_callback(const char *path, int offset, int tamanioBuffer){
 	int archivoID = getDirPadre(path);
-	char* archivoNombre = tablaArchivos[archivoID].fname;
+	//char* archivoNombre = tablaArchivos[archivoID].fname;
 	int primerBloque = tablaArchivos[archivoID].first_block;
 	int tamanioArchivo = tablaArchivos[archivoID].file_size;
 
 	//Obtengo el bloque de datos correspondiente
 	int *block;
 	block =(int *)malloc(tamanioArchivo * sizeof(int));
-	//printf("\nTamaño del archivo %d \n", tamanioArchivo);
+	printf("\nTamaño del archivo %d \n", tamanioArchivo);
 
 	int sum = 0;
-	int i= 0;
+	//int i= 0;
 	int bloque = primerBloque;
 	//printf("\nPrimer bloque %d \n", bloque);
 
@@ -431,10 +431,9 @@ char* read_callback(const char *path, int offset, int tamanioBuffer){
 		pthread_mutex_unlock(&mutex);
 	}
 
-	free(block);
-	block=NULL;
-
-	return "a";
+	//free(block);
+	//block=NULL;
+	return block;
 }
 
 int buscarTablaAchivos(int dirPadre, char* fname) {
@@ -466,7 +465,7 @@ void escribirEstructura(int dirPadre, char* ruta) {
 				string_append(&str, ruta);
 				string_append(&str, tablaArchivos[i].fname);
 				mkdir(str, 0700);
-				printf("\nCreando DIRECTORIO %s \n", str);
+				//printf("\nCreando DIRECTORIO %s \n", str);
 
 				char *str2 = string_new();
 				string_append(&str2, ruta);
@@ -533,7 +532,7 @@ void leerArchivo(int archivoID, char* ruta){
 
 	pFile = fopen(str,"wb");
 	fwrite(block, tamanioArchivo, 1, pFile);
-	printf("Creando archivo %s \n", str);
+	//printf("Creando archivo %s \n", str);
 	fclose(pFile);
 	free(block);
 	block=NULL;

@@ -26,47 +26,56 @@
 #include "Mapa.h"
 #include "nivel.h"
 
-#define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
-#define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje
+#define BACKLOG 10 					// Cuántas conexiones pendientes se mantienen en cola
+#define TAMANIO_MAXIMO_MENSAJE 50	// Tamaño máximo de un mensaje
 
 /* Variables globales */
-t_log* logger; // Archivo de log
-t_mapa_config configMapa; // Datos de configuración
-t_list* entrenadores; // Entrenadores conectados al mapa
-t_list* items; // Items existentes en el mapa (entrenadores y PokéNests)
-t_list* recursosTotales;
-t_list* recursosDisponibles;
-t_list* recursosAsignados;
-t_list* recursosSolicitados;
+t_log* logger;			  		// Archivo de log
+t_mapa_config configMapa; 		// Datos de configuración
+t_list* entrenadores;	  		// Entrenadores conectados al mapa
+t_list* items; 			  		// Ítemes existentes en el mapa (entrenadores y PokéNests)
+t_list* recursosTotales;  		// Recursos existentes en el mapa (Pokémones)
+t_list* recursosDisponibles;	// Recursos disponibles en el mapa (Pokémones)
+t_list* recursosAsignados;		// Recursos asignados (Pokémones)
+t_list* recursosSolicitados;	// Recursos solicitados (Pokémones)
+int activo;						// Flag de actividad del mapa
 
 //COLAS DE PLANIFICACIÓN
-t_queue* colaReady;
-t_queue* colaBlocked;
+t_queue* colaReady; 			// Cola de entrenadores listos
+t_queue* colaBlocked;			// Cola de entrenadores bloqueados
+
+//SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
+pthread_mutex_t mutexLog;
 
 //SEMÁFOROS PARA SINCRONIZAR LA LISTA Y LAS COLAS
 pthread_mutex_t mutexEntrenadores;
 pthread_mutex_t mutexReady;
 pthread_mutex_t mutexBlocked;
 
-//SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
-pthread_mutex_t mutexLog;
-
 int main(void) {
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 
-	// Flag de actividad
-	int activo;
+	// Variables para la diagramación del mapa
+	int rows, cols;
 
 	//INICIALIZACIÓN DE LOS SEMÁFOROS
+	pthread_mutex_init(&mutexLog, NULL);
 	pthread_mutex_init(&mutexEntrenadores, NULL);
 	pthread_mutex_init(&mutexReady, NULL);
 	pthread_mutex_init(&mutexBlocked, NULL);
-	pthread_mutex_init(&mutexLog, NULL);
 
-	// Variables para la diagramación del mapa
-	int rows, cols;
+	// Creación de las listas de recursos
+	recursosTotales = list_create();
+	recursosDisponibles = list_create();
+	recursosAsignados = list_create();
+	recursosSolicitados = list_create();
+
+	// Creación de la lista de entrenadores conectados y las colas de planificación
+	entrenadores = list_create();
+	colaReady = queue_create();
+	colaBlocked = queue_create();
 
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
@@ -78,11 +87,7 @@ int main(void) {
 	if (cargarConfiguracion(&configMapa) == 1)
 	{
 		log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-		log_destroy(logger);
-		pthread_mutex_destroy(&mutexEntrenadores);
-		pthread_mutex_destroy(&mutexReady);
-		pthread_mutex_destroy(&mutexBlocked);
-		pthread_mutex_destroy(&mutexLog);
+		liberarMemoriaAlocada();
 		return EXIT_FAILURE;
 	}
 
@@ -95,41 +100,31 @@ int main(void) {
 	log_info(logger, "Tiempo de chequeo de deadlocks: %d", configMapa.TiempoChequeoDeadlock);
 	pthread_mutex_unlock(&mutexLog);
 
-	// Creación de la lista de entrenadores conectados y las colas de planificación
-	recursosTotales = list_create();
-	recursosDisponibles = list_create();
-	recursosAsignados = list_create();
-	recursosSolicitados = list_create();
-	entrenadores = list_create();
-	colaReady = queue_create();
-	colaBlocked = queue_create();
-
 	//INICIALIZACIÓN DEL MAPA
 	items = cargarPokenests(); //Carga de las Pokénest del mapa
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
 	nivel_gui_dibujar(items, "CodeTogether");
 
+	// Se setea en 1 (on) el flag de actividad
+	activo = 1;
+
 	//CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
 
-	//MENSAJES A UTILIZAR
-	mensaje5_t mensajeBrindaUbicacion;
-	mensaje7_t mensajeConfirmaDesplazamiento;
-	mensaje_t mensajeConfirmaCaptura;
-
-	// Se setea en 1 (on) el flag de actividad
-	activo = 1;
-
 	while(activo) {
-
 		if(list_size(colaReady->elements) > 0)
 		{
 			pthread_mutex_lock(&mutexReady);
 			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
 			pthread_mutex_unlock(&mutexReady);
+
+			//MENSAJES A UTILIZAR
+			mensaje5_t mensajeBrindaUbicacion;
+			mensaje7_t mensajeConfirmaDesplazamiento;
+			mensaje_t mensajeConfirmaCaptura;
 
 			//SE ATIENDEN LAS SOLICITUDES DEL PRIMER ENTRENADOR EN LA COLA DE LISTOS
 			int solicitoCaptura = 0;
@@ -145,19 +140,12 @@ int main(void) {
 				if(entrenadorAEjecutar->socket->error != NULL)
 				{
 					free(mensajeRespuesta);
-					queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-					queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-					list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
 					pthread_mutex_lock(&mutexLog);
 					log_info(logger, entrenadorAEjecutar->socket->error);
 					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
 					log_info(logger, "La ejecución del proceso finaliza de manera errónea");
 					pthread_mutex_unlock(&mutexLog);
-					log_destroy(logger);
-					pthread_mutex_destroy(&mutexEntrenadores);
-					pthread_mutex_destroy(&mutexReady);
-					pthread_mutex_destroy(&mutexBlocked);
-					pthread_mutex_destroy(&mutexLog);
+					liberarMemoriaAlocada();
 					return EXIT_FAILURE;
 				}
 
@@ -602,38 +590,33 @@ void aceptarConexiones() {
 	struct socket* mi_socket_s;
 
 	int returnValue;
-	int conectado;
 
 	mi_socket_s = crearServidor(configMapa.IP, configMapa.Puerto);
 	if(mi_socket_s->descriptor == 0)
 	{
-		queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-		queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-		list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
 		pthread_mutex_lock(&mutexLog);
-		log_info(logger, "Conexión fallida");
+		log_info(logger, "La creación del servidor ha resultado fallida");
 		log_info(logger, mi_socket_s->error);
 		log_info(logger, "La ejecución del proceso finaliza de manera errónea");
 		pthread_mutex_unlock(&mutexLog);
-		log_destroy(logger);
-		pthread_mutex_destroy(&mutexEntrenadores);
-		pthread_mutex_destroy(&mutexReady);
-		pthread_mutex_destroy(&mutexBlocked);
-		pthread_mutex_destroy(&mutexLog);
+		liberarMemoriaAlocada();
 		abort();
 	}
 
 	returnValue = escucharConexiones(*mi_socket_s, BACKLOG);
 	if(returnValue != 0)
 	{
+		pthread_mutex_lock(&mutexLog);
+		log_info(logger, "No ha sido posible iniciar la escucha de conexiones");
 		log_info(logger, strerror(returnValue));
+		log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+		pthread_mutex_unlock(&mutexLog);
 		eliminarSocket(mi_socket_s);
+		liberarMemoriaAlocada();
 		abort();
 	}
 
-	conectado = 1;
-
-	while(conectado) {
+	while(activo) {
 		struct socket* cli_socket_s;
 		t_entrenador* entrenador;
 
@@ -642,13 +625,14 @@ void aceptarConexiones() {
 		log_info(logger, "Escuchando conexiones");
 
 		cli_socket_s = aceptarConexion(*mi_socket_s);
-		if(cli_socket_s->descriptor == 0)
+		if(cli_socket_s->descriptor == -1)
 		{
-			log_info(logger, "Se rechaza conexión");
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "Se rechaza una conexión");
 			log_info(logger, cli_socket_s->error);
-			conectado = 0;
-			eliminarSocket(mi_socket_s);
-			abort();
+			pthread_mutex_unlock(&mutexLog);
+			free(entrenador);
+			continue;
 		}
 
 		///////////////////////
@@ -783,16 +767,6 @@ void aceptarConexiones() {
 		list_add(recursosAsignados, (void*) recursosAsignadosEntrenador);
 		list_add(recursosSolicitados, (void*) recursosSolicitadosEntrenador);
 
-		/*pokenestLeida = leerPokenest(str);
-		CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, 10);
-		recursoTotales = malloc(sizeof(pokenestLeida));
-		recursoDisponibles = malloc(sizeof(pokenestLeida));
-		*recursoTotales = pokenestLeida;
-		*recursoDisponibles = pokenestLeida;
-		list_add(recursosTotales, recursoTotales);
-		list_add(recursosDisponibles, recursoDisponibles);*/
-
-
 		log_info(logger, "Se planificó al entrenador %s (%c)", entrenadorPlanificado->nombre, entrenadorPlanificado->id);
 	}
 }
@@ -807,4 +781,24 @@ bool algoritmoDeteccion()
 {
 
 	return false;
+}
+
+void eliminarRecursosEntrenador(t_recursosEntrenador* recursosEntrenador) {
+	free(&(recursosEntrenador->id));
+	list_destroy_and_destroy_elements(recursosEntrenador->recursos, (void*) free);
+}
+
+void liberarMemoriaAlocada() {
+	list_destroy_and_destroy_elements(recursosTotales, (void*) free);
+	list_destroy_and_destroy_elements(recursosDisponibles, (void*) free);
+	list_destroy_and_destroy_elements(recursosAsignados, (void*) eliminarRecursosEntrenador);
+	list_destroy_and_destroy_elements(recursosSolicitados, (void*) eliminarRecursosEntrenador);
+	list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
+	queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
+	queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
+	log_destroy(logger);
+	pthread_mutex_destroy(&mutexEntrenadores);
+	pthread_mutex_destroy(&mutexReady);
+	pthread_mutex_destroy(&mutexBlocked);
+	pthread_mutex_destroy(&mutexLog);
 }

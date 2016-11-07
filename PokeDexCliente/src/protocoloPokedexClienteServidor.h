@@ -26,7 +26,11 @@ typedef enum tipoMensaje {
 	RECHAZA_CONEXION,
 	CONEXION_POKEDEX_CLIENTE,
 	READDIR,
-	READDIR_RESPONSE
+	READDIR_RESPONSE,
+	GETATTR,
+	GETATTR_RESPONSE,
+	READ,
+	READ_RESPONSE
 } tipoMensaje_t;
 
 
@@ -50,5 +54,26 @@ typedef struct mensaje2 {
 	uint32_t tamanioMensaje;
 	char* mensaje;
 } mensaje2_t;
+
+// Mensaje 3
+typedef struct mensaje3 {
+	uint32_t tipoMensaje;
+	int tipoArchivo;
+	int tamanioArchivo;
+} mensaje3_t;
+
+typedef struct mensaje4 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioPath;
+	char* path;
+	int tamanioBuffer;
+	int offset;
+} mensaje4_t;
+
+typedef struct mensaje5 {
+	uint32_t tipoMensaje;
+	int tamanioBuffer;
+	char* buffer;
+} mensaje5_t;
 
 #endif /* UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_ */

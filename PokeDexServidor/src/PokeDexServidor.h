@@ -16,6 +16,11 @@ typedef struct pokedex_cliente {
 	socket_t* socket;
 } t_pokedex_cliente;
 
+typedef struct getattr {
+	int tipoArchivo;
+	int tamanioArchivo;
+} t_getattr;
+
 // OperacionOSADA
 typedef struct operacionOSADA {
 	void* operacion;
@@ -37,9 +42,11 @@ typedef enum tipoMensajePokedex {
 /* Declaración de funciones */
 void leerArchivo(int archivoID, char* ruta);
 void escribirEstructura(int dirPadre, char* ruta);
-int getattr_callback(const char *path);
+t_getattr getattr_callback(const char *path);
 char* readdir_callback(const char *path);
 void pokedexCliente(t_pokedex_cliente* pokedex_cliente);
+int getDirPadre(const char *path);
+char* read_callback(const char *path, int offset, int tamanioBuffer);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

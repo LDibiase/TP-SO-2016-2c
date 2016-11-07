@@ -779,8 +779,39 @@ void eliminarEntrenador(t_entrenador* entrenador) {
 
 bool algoritmoDeteccion()
 {
+	//LISTA AUXILIAR PARA EL CHEQUEO
+	t_list* entrenadoresAux;
+	entrenadoresAux = list_create();
+	list_add_all(entrenadoresAux, entrenadores);
 
-	return false;
+	void _verificarAsignaciones(t_entrenador* entrenador)
+	{
+		bool _isTheOne(t_entrenador* entrenadorABuscar) {
+			return entrenadorABuscar->id == entrenador->id;
+		}
+
+		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _isTheOne);
+
+		//LOS QUE NO TIENEN NADA, LOS DESCARTO.
+		if(entrenadorConRecursos == NULL)
+		{
+			list_remove_by_condition(entrenadoresAux, (void*) _isTheOne);
+		}
+	}
+
+	void _verificarSolicitudes(t_entrenador* entrenador)
+	{
+		//TODO IMPLEMENT
+	}
+
+	//VERIFICO LOS ENTRENADORES QUE TIENEN ASIGNADO ALGO.
+	list_iterate(entrenadoresAux, (void*) _verificarAsignaciones);
+
+	//CON LOS ENTRENADORES QUE QUEDARON, CHEQUEO QUE SE PUEDAN CUMPLIR SUS PETICIONES
+	list_iterate(entrenadoresAux, (void*) _verificarSolicitudes);
+
+	//SI LUEGO DE ESTOS CHEQUEOS, HAY ENTRENADORES EN LA LISTA, QUIERE DECIR QUE ESTÁN INTERBLOQUEADOS
+	return list_size(entrenadoresAux) >= 2;
 }
 
 void eliminarRecursosEntrenador(t_recursosEntrenador* recursosEntrenador) {

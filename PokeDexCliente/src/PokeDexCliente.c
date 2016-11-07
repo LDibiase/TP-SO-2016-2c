@@ -32,20 +32,49 @@ socket_t* pokedex;
 
 static int fuse_getattr(const char *path, struct stat *stbuf) {
 
+	paquete_t paqueteLectura;
+	mensaje1_t mensajeQuieroGetAttr;
+
+	mensajeQuieroGetAttr.tipoMensaje = GETATTR;
+	mensajeQuieroGetAttr.path = path;
+	mensajeQuieroGetAttr.tamanioPath = strlen(mensajeQuieroGetAttr.path) + 1;
+
+	crearPaquete((void*) &mensajeQuieroGetAttr, &paqueteLectura);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	// Recibir mensaje RESPUESTA
+	mensaje3_t mensajeGETATTR_RESPONSE;
+	mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
+
+	recibirMensaje(pokedex, &mensajeGETATTR_RESPONSE);
+	if(pokedex->error != NULL)
+		{
+		log_info(logger, pokedex->error);
+		eliminarSocket(pokedex);
+	}
 	//Si path es igual a "/" nos estan pidiendo los atributos del punto de montaje
+	log_info(logger, "TIPO ARCHIVO %d  TAMAÑO ARCHIVO %d", mensajeGETATTR_RESPONSE.tipoArchivo, mensajeGETATTR_RESPONSE.tamanioArchivo);
 
 	memset(stbuf, 0, sizeof(struct stat));
 
-	if (strcmp(path, "/") == 0) {
+
+	if (mensajeGETATTR_RESPONSE.tipoArchivo == 2) {
 		stbuf->st_mode = S_IFDIR | 0777;
 	    stbuf->st_nlink = 2;
 	    return 0;
 	}
 
-	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
+	if (mensajeGETATTR_RESPONSE.tipoArchivo == 1)  {
 	    stbuf->st_mode = S_IFREG | 0777;
 	    stbuf->st_nlink = 1;
-	    stbuf->st_size = strlen(DEFAULT_FILE_CONTENT);
+	    stbuf->st_size = mensajeGETATTR_RESPONSE.tamanioArchivo;
 	    return 0;
 	}
 
@@ -56,7 +85,7 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	(void) offset;
 	(void) fi;
 
-	// Enviar mensaje READ
+	// Enviar mensaje READDIR
 	paquete_t paqueteLectura;
 	mensaje1_t mensajeQuieroLeer;
 
@@ -88,7 +117,7 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	filler(buf, ".", NULL, 0);
 	filler(buf, "..", NULL, 0);
 
-	char** array = string_split(mensajeREADDIR_RESPONSE.mensaje, "#");
+	char** array = string_split(mensajeREADDIR_RESPONSE.mensaje, "/");
 	int i = 0;
 	while (array[i]) {
 		char* fname = array[i];
@@ -96,36 +125,68 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 		i++;
 	}
 
-	filler(buf, DEFAULT_FILE_NAME, NULL, 0);
+	//filler(buf, DEFAULT_FILE_NAME, NULL, 0);
 
 	return 0;
 }
 
 static int fuse_open(const char *path, struct fuse_file_info *fi) {
-	if (strcmp(path, DEFAULT_FILE_PATH) != 0)
-		return -ENOENT;
+	//if (strcmp(path, DEFAULT_FILE_PATH) != 0)
+	//	return -ENOENT;
 
+	//TODO: Verificar que el archivo exista
 	return 0;
 }
 
 static int fuse_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
 
-	if (strcmp(path, DEFAULT_FILE_PATH) == 0) {
-	    size_t len = strlen(DEFAULT_FILE_CONTENT);
-	    if (offset >= len) {
-	      return 0;
-	    }
+	// Enviar mensaje READ
+	paquete_t paqueteLectura;
+	mensaje4_t mensajeQuieroREAD;
 
-	    if (offset + size > len) {
-	    	memcpy(buf, DEFAULT_FILE_CONTENT + offset, len - offset);
-	    	return len - offset;
-	    }
+	mensajeQuieroREAD.tipoMensaje = READ;
+	mensajeQuieroREAD.path = path;
+	mensajeQuieroREAD.tamanioPath = strlen(mensajeQuieroREAD.path) + 1;
+	mensajeQuieroREAD.tamanioBuffer = size;
+	mensajeQuieroREAD.offset = offset;
 
-	  		memcpy(buf, DEFAULT_FILE_CONTENT + offset, size);
-	  		return size;
-	 }
 
-	 return -ENOENT;
+
+	crearPaquete((void*) &mensajeQuieroREAD, &paqueteLectura);
+	log_info(logger, "MENSAJE READ PATH: %s BYTES: %d OFFSET: %d", mensajeQuieroREAD.path, mensajeQuieroREAD.tamanioBuffer, mensajeQuieroREAD.offset);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	// Recibir mensaje RESPUESTA
+		mensaje5_t mensajeREAD_RESPONSE;
+		mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
+
+		recibirMensaje(pokedex, &mensajeREAD_RESPONSE);
+		log_info(logger, "MENSAJE READ_RESPONSE TAMAÑO BUFFER %d , BUFFER: %s", mensajeREAD_RESPONSE.tamanioBuffer, mensajeREAD_RESPONSE.buffer);
+
+		//TODO: verificar si el archivo existe
+		//if (strcmp(path, filepath) == 0) {
+		    size_t len = strlen(mensajeREAD_RESPONSE.buffer);
+		    if (offset >= len) {
+		      return 0;
+		    }
+
+		    if (offset + size > len) {
+		      memcpy(buf, mensajeREAD_RESPONSE.buffer + offset, len - offset);
+		      return len - offset;
+		    }
+
+		    memcpy(buf, mensajeREAD_RESPONSE.buffer + offset, size);
+		    return size;
+		  //}
+
+		  return -ENOENT;
 }
 
 static struct fuse_opt fuse_options[] = {

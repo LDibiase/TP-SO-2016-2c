@@ -60,7 +60,7 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 		eliminarSocket(pokedex);
 	}
 	//Si path es igual a "/" nos estan pidiendo los atributos del punto de montaje
-	log_info(logger, "TIPO ARCHIVO %d  TAMAÑO ARCHIVO %d", mensajeGETATTR_RESPONSE.tipoArchivo, mensajeGETATTR_RESPONSE.tamanioArchivo);
+	//log_info(logger, "TIPO ARCHIVO %d  TAMAÑO ARCHIVO %d", mensajeGETATTR_RESPONSE.tipoArchivo, mensajeGETATTR_RESPONSE.tamanioArchivo);
 
 	memset(stbuf, 0, sizeof(struct stat));
 
@@ -168,7 +168,7 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 		mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
 
 		recibirMensaje(pokedex, &mensajeREAD_RESPONSE);
-		log_info(logger, "MENSAJE READ_RESPONSE TAMAÑO BUFFER %d , BUFFER: %s", mensajeREAD_RESPONSE.tamanioBuffer, mensajeREAD_RESPONSE.buffer);
+		//log_info(logger, "MENSAJE READ_RESPONSE TAMAÑO BUFFER %d , BUFFER: %s", mensajeREAD_RESPONSE.tamanioBuffer, mensajeREAD_RESPONSE.buffer);
 
 		//TODO: verificar si el archivo existe
 		//if (strcmp(path, filepath) == 0) {
@@ -206,6 +206,14 @@ static struct fuse_operations fuse_oper = {
 		.readdir = fuse_readdir,
 		.open = fuse_open,
 		.read = fuse_read,
+		//.create = fuse_create,
+		//.write = fuse_write,
+		//.flush = fuse_flush,
+		//.release = fuse_release,
+		//.unlink = fuse_unlink,
+		//.mkdir = fuse_mkdir,
+		//.rmdir = fuse_rmdir,
+		//.truncate = fuse_truncate,
 };
 
 int main(int argc, char *argv[]) {

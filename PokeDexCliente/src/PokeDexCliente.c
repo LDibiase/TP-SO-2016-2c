@@ -189,6 +189,39 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 		  return -ENOENT;
 }
 
+static int fuse_mkdir(const char *path, mode_t mode)
+{
+    int res;
+
+    //res = mkdir(path, mode);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+static int fuse_unlink(const char *path)
+{
+    int res;
+
+    //res = unlink(path);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
+static int fuse_rmdir(const char *path)
+{
+    int res;
+
+    //res = rmdir(path);
+    if(res == -1)
+        return -errno;
+
+    return 0;
+}
+
 static struct fuse_opt fuse_options[] = {
 		// Este es un parametro definido por nosotros
 		CUSTOM_FUSE_OPT_KEY("--welcome-msg %s", welcome_msg, 0),
@@ -206,13 +239,13 @@ static struct fuse_operations fuse_oper = {
 		.readdir = fuse_readdir,
 		.open = fuse_open,
 		.read = fuse_read,
+		//.mkdir = fuse_mkdir,
+		//.rmdir = fuse_rmdir,
+		//.unlink = fuse_unlink,
 		//.create = fuse_create,
 		//.write = fuse_write,
 		//.flush = fuse_flush,
 		//.release = fuse_release,
-		//.unlink = fuse_unlink,
-		//.mkdir = fuse_mkdir,
-		//.rmdir = fuse_rmdir,
 		//.truncate = fuse_truncate,
 };
 

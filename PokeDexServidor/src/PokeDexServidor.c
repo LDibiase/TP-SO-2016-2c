@@ -199,7 +199,7 @@ int main(void) {
 	//getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
 	//readdir_callback("/Pallet Town/Pokemons");
 
-
+	mkdir_callback("/Pokemons/DirTest");
 
 
 	// CREACIÓN DEL HILO EN ESCUCHA
@@ -339,6 +339,58 @@ char* readdir_callback(const char *path) {
 		}
 	}
 	return cadenaMensaje;
+}
+
+int mkdir_callback(const char *path) {
+	//printf("\nBuscando ruta: %s \n", path);
+	char** array;
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	if (!(string_equals_ignore_case(path, "/"))) {
+		array = string_split(path, "/");
+		while (array[i+1]) {
+			char* fname = array[i];
+			//printf("Buscando nombre: %s \n", array[i]);
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			//printf("Encontrado id: %d \n", res);
+			dirPadre = res;
+			i++;
+		}
+		if (tablaArchivos[res].state == 1) {
+			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+		}
+		if (tablaArchivos[res].state == 2) {
+			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+		}
+	} else {
+		res = dirPadre;
+	}
+
+	int id = get_firstEntry();
+
+	osada_file newDir;
+
+	strcpy(newDir.fname, array[i]);
+	newDir.state = 2;
+	newDir.parent_directory = res;
+	newDir.file_size = 0;
+	newDir.first_block = -1;
+	newDir.lastmod = 1475075773;
+	tablaArchivos[id] = newDir;
+
+	printf("\nCreando directorio: %s \n", path);
+	return 1;
+}
+
+int get_firstEntry() {
+	int i;
+	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+		if (tablaArchivos[i].state == 0) {
+			return i;
+		}
+	}
+	return -1;
 }
 
 int getDirPadre(const char *path) {

@@ -49,6 +49,7 @@ int getDirPadre(const char *path);
 char* read_callback(const char *path, int offset, int tamanioBuffer);
 int mkdir_callback(const char *path);
 int get_firstEntry();
+int rmdir_callback(const char *path);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

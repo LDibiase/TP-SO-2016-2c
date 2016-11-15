@@ -32,7 +32,9 @@ typedef enum tipoMensaje {
 	READ,
 	READ_RESPONSE,
 	MKDIR,
-	MKDIR_RESPONSE
+	MKDIR_RESPONSE,
+	RMDIR,
+	RMDIR_RESPONSE
 } tipoMensaje_t;
 
 
@@ -82,7 +84,6 @@ typedef struct mensaje6 {
 	uint32_t tipoMensaje;
 	uint32_t tamanioPath;
 	char* path;
-	int tamanioBuffer;
 	int modo;
 } mensaje6_t;
 

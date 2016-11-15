@@ -230,46 +230,46 @@ int main(void) {
 				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
 				// Enviar mensaje READ
-					paquete_t paqueteLectura;
-					mensaje2_t mensajeREADDIR_RESPONSE;
+				paquete_t paqueteLectura;
+				mensaje2_t mensajeREADDIR_RESPONSE;
 
-					mensajeREADDIR_RESPONSE.tipoMensaje = READDIR_RESPONSE;
-					mensajeREADDIR_RESPONSE.tamanioMensaje = strlen(cadenaMensaje) + 1;
-					mensajeREADDIR_RESPONSE.mensaje = cadenaMensaje;
+				mensajeREADDIR_RESPONSE.tipoMensaje = READDIR_RESPONSE;
+				mensajeREADDIR_RESPONSE.tamanioMensaje = strlen(cadenaMensaje) + 1;
+				mensajeREADDIR_RESPONSE.mensaje = cadenaMensaje;
 
-					crearPaquete((void*) &mensajeREADDIR_RESPONSE, &paqueteLectura);
-					if(paqueteLectura.tamanioPaquete == 0) {
-						socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-						log_info(logger, socketPokedex->error);
-						log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
-						exit(EXIT_FAILURE);
-					}
+				crearPaquete((void*) &mensajeREADDIR_RESPONSE, &paqueteLectura);
+				if(paqueteLectura.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
 
-					enviarMensaje(socketPokedex, paqueteLectura);
+				enviarMensaje(socketPokedex, paqueteLectura);
 				break;
 			case GETATTR: ;
-					log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
-					t_getattr getattr = getattr_callback(((mensaje1_t*) mensajeRespuesta)->path);
+			log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+			t_getattr getattr = getattr_callback(((mensaje1_t*) mensajeRespuesta)->path);
 
-					// Enviar mensaje GETATTR
-					paquete_t paqueteGetAttr;
-					mensaje3_t mensajeGETATTR_RESPONSE;
+			// Enviar mensaje GETATTR
+			paquete_t paqueteGetAttr;
+			mensaje3_t mensajeGETATTR_RESPONSE;
 
-					mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
-					mensajeGETATTR_RESPONSE.tipoArchivo = getattr.tipoArchivo;
-					mensajeGETATTR_RESPONSE.tamanioArchivo = getattr.tamanioArchivo;
+			mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
+			mensajeGETATTR_RESPONSE.tipoArchivo = getattr.tipoArchivo;
+			mensajeGETATTR_RESPONSE.tamanioArchivo = getattr.tamanioArchivo;
 
 
-					crearPaquete((void*) &mensajeGETATTR_RESPONSE, &paqueteGetAttr);
-					if(paqueteGetAttr.tamanioPaquete == 0) {
-						socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-						log_info(logger, socketPokedex->error);
-						log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
-						exit(EXIT_FAILURE);
-					}
+			crearPaquete((void*) &mensajeGETATTR_RESPONSE, &paqueteGetAttr);
+			if(paqueteGetAttr.tamanioPaquete == 0) {
+				socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, socketPokedex->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+				exit(EXIT_FAILURE);
+			}
 
-					enviarMensaje(socketPokedex, paqueteGetAttr);
-				break;
+			enviarMensaje(socketPokedex, paqueteGetAttr);
+			break;
 			case READ:
 				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
 				//char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
@@ -296,7 +296,7 @@ int main(void) {
 
 				break;
 			case MKDIR:
-				log_info(logger, "Solicito MKDIR del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje6_t*) mensajeRespuesta)->path, ((mensaje6_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje6_t*) mensajeRespuesta)->modo);
+				log_info(logger, "Solicito MKDIR del path: %s", ((mensaje6_t*) mensajeRespuesta)->path);
 
 				// Enviar mensaje MKDIR
 
@@ -315,6 +315,28 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteMKDIR);
+
+				break;
+			case RMDIR:
+				log_info(logger, "Solicito RMDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+
+				// Enviar mensaje RMDIR
+
+				paquete_t paqueteRMDIR;
+				mensaje7_t mensajeRMDIR_RESPONSE;
+
+				mensajeRMDIR_RESPONSE.tipoMensaje = RMDIR_RESPONSE;
+				mensajeRMDIR_RESPONSE.res = rmdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
+
+				crearPaquete((void*) &mensajeRMDIR_RESPONSE, &paqueteRMDIR);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteRMDIR);
 
 				break;
 			}
@@ -402,6 +424,37 @@ int mkdir_callback(const char *path) {
 	tablaArchivos[id] = newDir;
 
 	printf("\nCreando directorio: %s \n", path);
+	return 1;
+}
+
+int rmdir_callback(const char *path) {
+	//printf("\nBuscando ruta: %s \n", path);
+	char** array;
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	if (!(string_equals_ignore_case(path, "/"))) {
+		array = string_split(path, "/");
+		while (array[i]) {
+			char* fname = array[i];
+			//printf("Buscando nombre: %s \n", array[i]);
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			//printf("Encontrado id: %d \n", res);
+			dirPadre = res;
+			i++;
+		}
+		if (tablaArchivos[res].state == 1) {
+			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+		}
+		if (tablaArchivos[res].state == 2) {
+			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+		}
+	} else {
+		res = dirPadre;
+	}
+
+	tablaArchivos[res].state = 0;
+
 	return 1;
 }
 

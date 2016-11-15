@@ -240,13 +240,39 @@ static int fuse_unlink(const char *path)
 
 static int fuse_rmdir(const char *path)
 {
-    int res;
+	  int res;
 
-    //res = rmdir(path);
-    if(res == -1)
-        return -errno;
+	    // Enviar mensaje MKDIR
+	   paquete_t paqueteCrearDirectorio;
+	   mensaje1_t mensajeQuieroRMDIR;
 
-    return 0;
+	   mensajeQuieroRMDIR.tipoMensaje = RMDIR;
+	   mensajeQuieroRMDIR.path = path;
+	   mensajeQuieroRMDIR.tamanioPath = strlen(mensajeQuieroRMDIR.path) + 1;
+
+
+		crearPaquete((void*) &mensajeQuieroRMDIR, &paqueteCrearDirectorio);
+		log_info(logger, "MENSAJE RMDIR PATH: %s", mensajeQuieroRMDIR.path);
+		if(paqueteCrearDirectorio.tamanioPaquete == 0) {
+			pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, pokedex->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+			exit(EXIT_FAILURE);
+		}
+
+		enviarMensaje(pokedex, paqueteCrearDirectorio);
+
+		// Recibir mensaje RESPUESTA
+		mensaje7_t mensajeRMDIR_RESPONSE;
+		mensajeRMDIR_RESPONSE.tipoMensaje = RMDIR_RESPONSE;
+
+		recibirMensaje(pokedex, &mensajeRMDIR_RESPONSE);
+
+	    res = mensajeRMDIR_RESPONSE.res;
+	    if(res == -1)
+	        return -errno;
+
+	    return 0;
 }
 
 static struct fuse_opt fuse_options[] = {
@@ -267,7 +293,7 @@ static struct fuse_operations fuse_oper = {
 		.open = fuse_open,
 		.read = fuse_read,
 		.mkdir = fuse_mkdir,
-		//.rmdir = fuse_rmdir,
+		.rmdir = fuse_rmdir,
 		//.unlink = fuse_unlink,
 		//.create = fuse_create,
 		//.write = fuse_write,

@@ -199,7 +199,7 @@ int main(void) {
 	//getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
 	//readdir_callback("/Pallet Town/Pokemons");
 
-	mkdir_callback("/Pokemons/DirTest");
+	//mkdir_callback("/Pokemons/DirTest");
 
 
 	// CREACIÓN DEL HILO EN ESCUCHA
@@ -293,6 +293,28 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteREAD);
+
+				break;
+			case MKDIR:
+				log_info(logger, "Solicito MKDIR del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje6_t*) mensajeRespuesta)->path, ((mensaje6_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje6_t*) mensajeRespuesta)->modo);
+
+				// Enviar mensaje MKDIR
+
+				paquete_t paqueteMKDIR;
+				mensaje7_t mensajeMKDIR_RESPONSE;
+
+				mensajeMKDIR_RESPONSE.tipoMensaje = MKDIR_RESPONSE;
+				mensajeMKDIR_RESPONSE.res = mkdir_callback(((mensaje6_t*) mensajeRespuesta)->path);
+
+				crearPaquete((void*) &mensajeMKDIR_RESPONSE, &paqueteMKDIR);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteMKDIR);
 
 				break;
 			}

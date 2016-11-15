@@ -338,6 +338,56 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			offset = offset + tamanioOperando;
 
 			break;
+	case MKDIR:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje6_t*) mensaje)->tamanioPath) + sizeof(((mensaje6_t*) mensaje)->modo) + sizeof(((mensaje6_t*) mensaje)->tamanioBuffer) + ((mensaje6_t*) mensaje)->tamanioPath;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->tamanioPath);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje6_t*) mensaje)->tamanioPath), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje6_t*) mensaje)->tamanioPath;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje6_t*) mensaje)->path, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->tamanioBuffer);
+		memcpy(paquete->paqueteSerializado + offset, &((mensaje6_t*) mensaje)->tamanioBuffer, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = sizeof(((mensaje6_t*) mensaje)->modo);
+		memcpy(paquete->paqueteSerializado + offset, &((mensaje6_t*) mensaje)->modo, tamanioOperando);
+		offset = offset + tamanioOperando;
+		break;
+	case MKDIR_RESPONSE:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje7_t*) mensaje)->tamanioBuffer) + ((mensaje7_t*) mensaje)->tamanioBuffer;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje7_t*) mensaje)->tamanioBuffer);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->tamanioBuffer), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje7_t*) mensaje)->tamanioBuffer;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje7_t*) mensaje)->buffer, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		break;
+
 	}
 }
 
@@ -686,6 +736,136 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				free(buffer);
 
 				break;
+		case MKDIR:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->tamanioPath);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			memcpy(&(((mensaje6_t*) mensaje)->tamanioPath), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje6_t*) mensaje)->tamanioPath;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje6_t*) mensaje)->path = malloc(tamanioBuffer);
+			memcpy(((mensaje6_t*) mensaje)->path, buffer, tamanioBuffer);
+			free(buffer);
+
+			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->tamanioBuffer);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje6_t*) mensaje)->tamanioBuffer = malloc(tamanioBuffer);
+			memcpy(&((mensaje6_t*) mensaje)->tamanioBuffer, buffer, tamanioBuffer);
+			free(buffer);
+
+			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->modo);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje6_t*) mensaje)->modo = malloc(tamanioBuffer);
+			memcpy(&((mensaje6_t*) mensaje)->modo, buffer, tamanioBuffer);
+			free(buffer);
+
+			break;
+		case MKDIR_RESPONSE:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->tamanioBuffer);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			memcpy(&(((mensaje7_t*) mensaje)->tamanioBuffer), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje7_t*) mensaje)->tamanioBuffer;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje7_t*) mensaje)->buffer = malloc(tamanioBuffer);
+			memcpy(((mensaje7_t*) mensaje)->buffer, buffer, tamanioBuffer);
+			free(buffer);
+
+			break;
 		}
 	}
 

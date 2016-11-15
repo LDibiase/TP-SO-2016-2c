@@ -30,7 +30,9 @@ typedef enum tipoMensaje {
 	GETATTR,
 	GETATTR_RESPONSE,
 	READ,
-	READ_RESPONSE
+	READ_RESPONSE,
+	MKDIR,
+	MKDIR_RESPONSE
 } tipoMensaje_t;
 
 
@@ -75,5 +77,20 @@ typedef struct mensaje5 {
 	int tamanioBuffer;
 	char* buffer;
 } mensaje5_t;
+
+typedef struct mensaje6 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioPath;
+	char* path;
+	int tamanioBuffer;
+	int modo;
+} mensaje6_t;
+
+
+typedef struct mensaje7 {
+	uint32_t tipoMensaje;
+	int tamanioBuffer;
+	char* buffer;
+} mensaje7_t;
 
 #endif /* UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_ */

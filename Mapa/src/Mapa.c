@@ -805,11 +805,22 @@ void eliminarEntrenador(t_entrenador* entrenador) {
 
 bool algoritmoDeteccion()
 {
-	//LISTA AUXILIAR PARA EL CHEQUEO
+	//LISTA AUXILIAR DE ENTRENADORES
 	t_list* entrenadoresAux;
 	entrenadoresAux = list_create();
 	list_add_all(entrenadoresAux, entrenadores);
 
+	//LISTA AUXILIAR SOLICITUDES
+	t_list* solicitudesAux;
+	solicitudesAux = list_create();
+	list_add_all(solicitudesAux, recursosSolicitados);
+
+	//LISTA AUXILIAR DE DISPONIBLES
+	t_list* disponiblesAux;
+	disponiblesAux = list_create();
+	list_add_all(disponiblesAux, recursosDisponibles);
+
+	//VERIFICO QUE CADA ENTRENADOR TENGA ALGO ASIGNADO
 	void _verificarAsignaciones(t_entrenador* entrenador)
 	{
 		bool _isTheOne(t_entrenador* entrenadorABuscar) {
@@ -818,16 +829,70 @@ bool algoritmoDeteccion()
 
 		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _isTheOne);
 
-		//LOS QUE NO TIENEN NADA, LOS DESCARTO.
+		//LOS QUE NO TIENEN NADA, LOS DESCARTO DE LA LISTA DE ENTRENADORES Y DE SOLICITUDES.
 		if(entrenadorConRecursos == NULL)
 		{
 			list_remove_by_condition(entrenadoresAux, (void*) _isTheOne);
+			list_remove_by_condition(solicitudesAux, (void*) _isTheOne);
 		}
 	}
 
+	//VERIFICO QUE LAS SOLICITUDES SEAN POSIBLES
 	void _verificarSolicitudes(t_entrenador* entrenador)
 	{
-		//TODO IMPLEMENT
+		//ME FIJO QUE LA SOLICITUD SE PUEDA LLEVAR A CABO
+		bool _solicitudPosible(t_recursosEntrenador* entrenadorRecursos)
+		{
+			bool _cantidadSuficiente (t_mapa_pokenest* recurso)
+			{
+				bool _buscado(t_mapa_pokenest* recursoABuscar)
+				{
+					return recursoABuscar->id == recurso->id;
+				}
+
+				t_mapa_pokenest* recursoBuscado = list_find(entrenadorRecursos->recursos, (void*) _buscado);
+
+				return recurso->cantidad >= recursoBuscado->cantidad;
+			}
+
+			list_all_satisfy(disponiblesAux, (void*) _cantidadSuficiente);
+			return true;
+		}
+
+		//MIENTRAS HAYA ALGO EN LA LISTA DE SOLICITUDES
+		while(list_size(solicitudesAux) > 0)
+		{
+			//AGARRO EL PRIMER ENTRENADOR CON SU SOLICITUD
+			t_recursosEntrenador* entr = list_find(solicitudesAux, (void*) _solicitudPosible);
+			if(entr == NULL)
+				break;
+			else
+			{
+				//SI SE PUDO CUMPLIR CON LA SOLICITUD, DEVUELVO LOS RECURSOS Y SIGO CHEQUEANDO LOS OTROS ENTRENADORES
+				void _sumarRecurso(t_mapa_pokenest* recurso)
+				{
+					bool _buscado(t_mapa_pokenest* recursoABuscar)
+					{
+						return recursoABuscar->id == recurso->id;
+					}
+
+					t_mapa_pokenest* recursoAux = list_find(entr->recursos, (void*) _buscado);
+
+					recurso->cantidad = recurso->cantidad + recursoAux->cantidad;
+				}
+
+				list_iterate(disponiblesAux, (void*) _sumarRecurso);
+
+				bool _isTheOne(t_recursosEntrenador* entrenadorABuscar)
+				{
+					return entrenadorABuscar->id == entr->id;
+				}
+
+				//REMUEVO A DICHO ENTRENADOR DE LA LISTA, YA QUE NO SE ENCUENTRA EN INTERBLOQUEO
+				list_remove_by_condition(solicitudesAux, (void*) _isTheOne);
+				list_remove_by_condition(entrenadoresAux, (void*) _isTheOne);
+			}
+		}
 	}
 
 	//VERIFICO LOS ENTRENADORES QUE TIENEN ASIGNADO ALGO.

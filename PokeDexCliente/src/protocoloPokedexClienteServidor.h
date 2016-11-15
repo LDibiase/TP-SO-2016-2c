@@ -88,8 +88,7 @@ typedef struct mensaje6 {
 
 typedef struct mensaje7 {
 	uint32_t tipoMensaje;
-	int tamanioBuffer;
-	char* buffer;
+	int res;
 } mensaje7_t;
 
 #endif /* UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_ */

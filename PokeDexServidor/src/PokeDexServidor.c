@@ -199,7 +199,7 @@ int main(void) {
 	//getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
 	//readdir_callback("/Pallet Town/Pokemons");
 
-	mkdir_callback("/Pokemons/DirTest");
+	//mkdir_callback("/Pokemons/DirTest");
 
 
 	// CREACIÓN DEL HILO EN ESCUCHA
@@ -304,8 +304,7 @@ int main(void) {
 				mensaje7_t mensajeMKDIR_RESPONSE;
 
 				mensajeMKDIR_RESPONSE.tipoMensaje = MKDIR_RESPONSE;
-				mensajeMKDIR_RESPONSE.buffer = mkdir_callback(((mensaje6_t*) mensajeRespuesta)->path);
-				mensajeMKDIR_RESPONSE.tamanioBuffer = strlen(mensajeMKDIR_RESPONSE.buffer) + 1;
+				mensajeMKDIR_RESPONSE.res = mkdir_callback(((mensaje6_t*) mensajeRespuesta)->path);
 
 				crearPaquete((void*) &mensajeMKDIR_RESPONSE, &paqueteMKDIR);
 				if(paqueteGetAttr.tamanioPaquete == 0) {

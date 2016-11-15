@@ -220,7 +220,7 @@ static int fuse_mkdir(const char *path, mode_t mode)
 
 	recibirMensaje(pokedex, &mensajeMKDIR_RESPONSE);
 
-    res = mensajeMKDIR_RESPONSE.buffer;
+    res = mensajeMKDIR_RESPONSE.res;
     if(res == -1)
         return -errno;
 
@@ -266,7 +266,7 @@ static struct fuse_operations fuse_oper = {
 		.readdir = fuse_readdir,
 		.open = fuse_open,
 		.read = fuse_read,
-		//.mkdir = fuse_mkdir,
+		.mkdir = fuse_mkdir,
 		//.rmdir = fuse_rmdir,
 		//.unlink = fuse_unlink,
 		//.create = fuse_create,

@@ -369,7 +369,7 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 	case MKDIR_RESPONSE:
 			punteroAuxiliar = paquete->paqueteSerializado;
 
-			paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje7_t*) mensaje)->tamanioBuffer) + ((mensaje7_t*) mensaje)->tamanioBuffer;
+			paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje7_t*) mensaje)->res);
 			paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 			if(paquete->paqueteSerializado == NULL)
 			{
@@ -378,13 +378,10 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 				return;
 			}
 
-			tamanioOperando = sizeof(((mensaje7_t*) mensaje)->tamanioBuffer);
-			memcpy(paquete->paqueteSerializado + offset, &(((mensaje5_t*) mensaje)->tamanioBuffer), tamanioOperando);
+			tamanioOperando = sizeof(((mensaje7_t*) mensaje)->res);
+			memcpy(paquete->paqueteSerializado + offset, &(((mensaje7_t*) mensaje)->res), tamanioOperando);
 			offset = offset + tamanioOperando;
 
-			tamanioOperando = ((mensaje7_t*) mensaje)->tamanioBuffer;
-			memcpy(paquete->paqueteSerializado + offset, ((mensaje7_t*) mensaje)->buffer, tamanioOperando);
-			offset = offset + tamanioOperando;
 
 			break;
 	}
@@ -823,27 +820,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			break;
 		case MKDIR_RESPONSE:
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->tamanioBuffer);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
-				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-					free(buffer);
-					return;
-			}
-
-			memcpy(&(((mensaje7_t*) mensaje)->tamanioBuffer), buffer, tamanioBuffer);
-
-			free(buffer);
-			tamanioBuffer = ((mensaje7_t*) mensaje)->tamanioBuffer;
+			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
@@ -860,9 +837,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje7_t*) mensaje)->buffer = malloc(tamanioBuffer);
-			memcpy(((mensaje7_t*) mensaje)->buffer, buffer, tamanioBuffer);
-			free(buffer);
+			memcpy(&(((mensaje7_t*) mensaje)->res), buffer, tamanioBuffer);
 
 			break;
 		}

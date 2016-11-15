@@ -21,6 +21,11 @@ typedef struct getattr {
 	int tamanioArchivo;
 } t_getattr;
 
+typedef struct block {
+	char* block;
+	int size;
+} t_block;
+
 // OperacionOSADA
 typedef struct operacionOSADA {
 	void* operacion;
@@ -46,7 +51,7 @@ t_getattr getattr_callback(const char *path);
 char* readdir_callback(const char *path);
 void pokedexCliente(t_pokedex_cliente* pokedex_cliente);
 int getDirPadre(const char *path);
-char* read_callback(const char *path, int offset, int tamanioBuffer);
+t_block read_callback(const char *path, int offset, int tamanioBuffer);
 int mkdir_callback(const char *path);
 int get_firstEntry();
 int rmdir_callback(const char *path);

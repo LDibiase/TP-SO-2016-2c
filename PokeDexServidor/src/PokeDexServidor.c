@@ -275,14 +275,18 @@ int main(void) {
 				//char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
 				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
+
 				// Enviar mensaje READ
 
 				paquete_t paqueteREAD;
 				mensaje5_t mensajeREAD_RESPONSE;
+				t_block READ_RES;
+
+				READ_RES = read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer);
 
 				mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
-				mensajeREAD_RESPONSE.buffer = read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer);
-				mensajeREAD_RESPONSE.tamanioBuffer = strlen(mensajeREAD_RESPONSE.buffer) + 1;
+				mensajeREAD_RESPONSE.buffer = READ_RES.block;
+				mensajeREAD_RESPONSE.tamanioBuffer = READ_RES.size;
 
 				log_info(logger, "READRESPONSE: Cantidad de bytes: %d \n", mensajeREAD_RESPONSE.tamanioBuffer);
 
@@ -520,19 +524,21 @@ t_getattr getattr_callback(const char *path) {
 	return res;
 }
 
-char* read_callback(const char *path, int offset, int tamanioBuffer){
+t_block read_callback(const char *path, int offset, int tamanioBuffer){
 	int archivoID = getDirPadre(path);
 	int primerBloque = tablaArchivos[archivoID].first_block;
 	int tamanioArchivo = tablaArchivos[archivoID].file_size;
-
+	int limite;
+	t_block res;
 	//Obtengo el bloque de datos correspondiente
 	int *block;
-	if (tamanioArchivo<tamanioBuffer) {
-		block =(int *)malloc(tamanioArchivo * sizeof(int));
+	if (tamanioArchivo-offset<tamanioBuffer) {
+		limite = tamanioArchivo-offset;
 	} else {
-		block =(int *)malloc(tamanioBuffer * sizeof(int));
+		limite = tamanioBuffer;
 	}
 
+	block =(int *)malloc(limite * sizeof(int));
 	int sum = 0;
 	int sumOffset = 0;
 	int bloque = primerBloque;
@@ -545,7 +551,7 @@ char* read_callback(const char *path, int offset, int tamanioBuffer){
 	printf("\n sumOffset %d", sumOffset);
 	printf("\n tamanioBuffer %d", tamanioBuffer);
 
-	while ((bloque != -1) && (sum<tamanioBuffer)) {
+	while ((bloque != -1) && (sum<limite)) {
 		if (tablaAsignaciones[bloque] != -1) {
 			pthread_mutex_lock(&mutex);
 			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
@@ -570,7 +576,9 @@ char* read_callback(const char *path, int offset, int tamanioBuffer){
 	}
 
 	printf("\n sum %d", sum);
-	return block;
+	res.block = block;
+	res.size = limite;
+	return res;
 }
 
 int buscarTablaAchivos(int dirPadre, char* fname) {

@@ -284,6 +284,8 @@ int main(void) {
 				mensajeREAD_RESPONSE.buffer = read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer);
 				mensajeREAD_RESPONSE.tamanioBuffer = strlen(mensajeREAD_RESPONSE.buffer) + 1;
 
+				log_info(logger, "READRESPONSE: Cantidad de bytes: %d \n", mensajeREAD_RESPONSE.tamanioBuffer);
+
 				crearPaquete((void*) &mensajeREAD_RESPONSE, &paqueteREAD);
 				if(paqueteGetAttr.tamanioPaquete == 0) {
 					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
@@ -423,7 +425,7 @@ int mkdir_callback(const char *path) {
 	newDir.lastmod = 1475075773;
 	tablaArchivos[id] = newDir;
 
-	printf("\nCreando directorio: %s \n", path);
+	//printf("\nCreando directorio: %s \n", path);
 	return 1;
 }
 
@@ -520,21 +522,30 @@ t_getattr getattr_callback(const char *path) {
 
 char* read_callback(const char *path, int offset, int tamanioBuffer){
 	int archivoID = getDirPadre(path);
-	//char* archivoNombre = tablaArchivos[archivoID].fname;
 	int primerBloque = tablaArchivos[archivoID].first_block;
 	int tamanioArchivo = tablaArchivos[archivoID].file_size;
 
 	//Obtengo el bloque de datos correspondiente
 	int *block;
-	block =(int *)malloc(tamanioArchivo * sizeof(int));
-	printf("\nTamaño del archivo %d \n", tamanioArchivo);
+	if (tamanioArchivo<tamanioBuffer) {
+		block =(int *)malloc(tamanioArchivo * sizeof(int));
+	} else {
+		block =(int *)malloc(tamanioBuffer * sizeof(int));
+	}
 
 	int sum = 0;
-	//int i= 0;
+	int sumOffset = 0;
 	int bloque = primerBloque;
-	//printf("\nPrimer bloque %d \n", bloque);
 
-	while (bloque != -1) {
+	while (sumOffset<offset) {
+			bloque = tablaAsignaciones[bloque];
+			sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+		}
+
+	printf("\n sumOffset %d", sumOffset);
+	printf("\n tamanioBuffer %d", tamanioBuffer);
+
+	while ((bloque != -1) && (sum<tamanioBuffer)) {
 		if (tablaAsignaciones[bloque] != -1) {
 			pthread_mutex_lock(&mutex);
 			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
@@ -558,8 +569,7 @@ char* read_callback(const char *path, int offset, int tamanioBuffer){
 		pthread_mutex_unlock(&mutex);
 	}
 
-	//free(block);
-	//block=NULL;
+	printf("\n sum %d", sum);
 	return block;
 }
 

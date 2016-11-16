@@ -56,6 +56,10 @@ int main(void) {
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 
+	// Variables para la creación del hilo verificador de deadlock
+	pthread_t hiloDeadlock;
+	pthread_attr_t atributosHiloDeadlock;
+
 	// Flag de actividad
 	int activo;
 
@@ -114,6 +118,11 @@ int main(void) {
 	pthread_attr_init(&atributosHilo);
 	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
 	pthread_attr_destroy(&atributosHilo);
+
+	//CREACIÓN DEL HILO VERIFICADOR DE DEADLOCK
+	pthread_attr_init(&atributosHiloDeadlock);
+	pthread_create(&hiloDeadlock, &atributosHiloDeadlock, (void*) chequearDeadlock, NULL);
+	pthread_attr_destroy(&atributosHiloDeadlock);
 
 	//MENSAJES A UTILIZAR
 	mensaje5_t mensajeBrindaUbicacion;
@@ -903,4 +912,12 @@ bool algoritmoDeteccion()
 
 	//SI LUEGO DE ESTOS CHEQUEOS, HAY ENTRENADORES EN LA LISTA, QUIERE DECIR QUE ESTÁN INTERBLOQUEADOS
 	return list_size(entrenadoresAux) >= 2;
+}
+
+void chequearDeadlock()
+{
+	if(algoritmoDeteccion())
+	{
+
+	}
 }

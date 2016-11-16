@@ -68,5 +68,6 @@ t_mapa_pokenest leerPokenest(char* metadata);
 int cargarConfiguracion(t_mapa_config* structConfig);
 void aceptarConexiones();
 void eliminarEntrenador(t_entrenador* entrenador);
+void chequearDeadlock();
 
 #endif /* MAPA_H_ */

@@ -345,6 +345,28 @@ int main(void) {
 				enviarMensaje(socketPokedex, paqueteRMDIR);
 
 				break;
+			case UNLINK:
+				log_info(logger, "Solicito UNLINK del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+
+				// Enviar mensaje RMDIR
+
+				paquete_t paqueteUNLINK;
+				mensaje7_t mensajeUNLINK_RESPONSE;
+
+				mensajeUNLINK_RESPONSE.tipoMensaje = UNLINK_RESPONSE;
+				mensajeUNLINK_RESPONSE.res = rmdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
+
+				crearPaquete((void*) &mensajeUNLINK_RESPONSE, &paqueteUNLINK);
+				if(paqueteUNLINK.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteUNLINK);
+
+				break;
 			}
 		}
 	}

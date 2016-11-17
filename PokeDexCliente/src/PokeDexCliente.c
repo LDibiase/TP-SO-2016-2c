@@ -272,13 +272,39 @@ static int fuse_truncate(const char *path, off_t size)
 
 static int fuse_unlink(const char *path)
 {
-    int res;
+	int res;
 
-    //res = unlink(path);
-    if(res == -1)
-        return -errno;
+	// Enviar mensaje UNLINK
+	paquete_t paqueteBorrarArchivo;
+	mensaje1_t mensajeQuieroUNLINK;
 
-    return 0;
+	mensajeQuieroUNLINK.tipoMensaje = UNLINK;
+	mensajeQuieroUNLINK.path = path;
+	mensajeQuieroUNLINK.tamanioPath = strlen(mensajeQuieroUNLINK.path) + 1;
+
+
+	crearPaquete((void*) &mensajeQuieroUNLINK, &paqueteBorrarArchivo);
+	log_info(logger, "MENSAJE UNLINK PATH: %s", mensajeQuieroUNLINK.path);
+	if(paqueteBorrarArchivo.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteBorrarArchivo);
+
+	// Recibir mensaje RESPUESTA
+	mensaje7_t mensajeUNLINK_RESPONSE;
+	mensajeUNLINK_RESPONSE.tipoMensaje = UNLINK_RESPONSE;
+
+	recibirMensaje(pokedex, &mensajeUNLINK_RESPONSE);
+
+	res = mensajeUNLINK_RESPONSE.res;
+	if(res == -1)
+		return -errno;
+
+	return 0;
 }
 
 static struct fuse_opt fuse_options[] = {
@@ -301,7 +327,7 @@ static struct fuse_operations fuse_oper = {
 		.mkdir = fuse_mkdir,
 		.rmdir = fuse_rmdir,
 		.truncate = fuse_truncate,
-		//.unlink = fuse_unlink,
+		.unlink = fuse_unlink,
 		//.write = fuse_write,
 		//.create = fuse_create,
 

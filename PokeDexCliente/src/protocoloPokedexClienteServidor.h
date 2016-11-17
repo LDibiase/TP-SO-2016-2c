@@ -34,7 +34,9 @@ typedef enum tipoMensaje {
 	MKDIR,
 	MKDIR_RESPONSE,
 	RMDIR,
-	RMDIR_RESPONSE
+	RMDIR_RESPONSE,
+	UNLINK,
+	UNLINK_RESPONSE
 } tipoMensaje_t;
 
 

@@ -39,9 +39,9 @@
 									<listOptionValue builtIn="false" value="pthread"/>
 									<listOptionValue builtIn="false" value="nivel-gui"/>
 									<listOptionValue builtIn="false" value="ncurses"/>
-									<listOptionValue builtIn="false" value="pthread"/>
+									<listOptionValue builtIn="false" srcPrefixMapping="" srcRootPath="" value="pkmn-battle"/>
 								</option>
-								<option id="gnu.c.link.option.paths.1167380851" superClass="gnu.c.link.option.paths" valueType="libPaths">
+								<option id="gnu.c.link.option.paths.1167380851" name="Library search path (-L)" superClass="gnu.c.link.option.paths" valueType="libPaths">
 									<listOptionValue builtIn="false" value="/home/utnso/workspace/tp-2016-2c-CodeTogether/Utility_Library/Debug"/>
 								</option>
 								<inputType id="cdt.managedbuild.tool.gnu.c.linker.input.2023739894" superClass="cdt.managedbuild.tool.gnu.c.linker.input">
@@ -142,4 +142,5 @@
 			<resource resourceType="PROJECT" workspacePath="/Mapa"/>
 		</configuration>
 	</storageModule>
+	<storageModule moduleId="org.eclipse.cdt.internal.ui.text.commentOwnerProjectMappings"/>
 </cproject>

@@ -25,6 +25,8 @@
 #include <commons/log.h>
 #include "Mapa.h"
 #include "nivel.h"
+#include <pkmn/battle.h>
+#include <pkmn/factory.h>
 
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 #define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje

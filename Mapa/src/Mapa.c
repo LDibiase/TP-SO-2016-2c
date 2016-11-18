@@ -819,7 +819,7 @@ bool algoritmoDeteccion()
 	//LISTA AUXILIAR DE ENTRENADORES
 	t_list* entrenadoresAux;
 	entrenadoresAux = list_create();
-	list_add_all(entrenadoresAux, entrenadores);
+	list_add_all(entrenadoresAux, colaBlocked->elements);
 
 	//LISTA AUXILIAR SOLICITUDES
 	t_list* solicitudesAux;
@@ -920,6 +920,36 @@ void chequearDeadlock()
 {
 	if(algoritmoDeteccion())
 	{
+		t_pkmn_factory* pokemon_factory = create_pkmn_factory();
+		t_list* entrenadoresConPokemonesAPelear;
+		entrenadoresConPokemonesAPelear = list_create();
+
+		//CREO UN POKEMON POR CADA ENTRENADOR BLOQUEADO
+		int i;
+		for(i=0; i < list_size(colaBlocked->elements); i++)
+		{
+			//OBTENGO POKMEON DE MAYOR NIVEL DEL ENTRENADOR PARA PELEAR
+			t_pokemonEntrenador* pokemonConEntrenador;
+			pokemonConEntrenador = malloc(sizeof(t_pokemonEntrenador));
+
+			t_entrenador* entrenadorAux = list_get(colaBlocked->elements, i);
+			*pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
+
+			//CREO EL POKEMON DE LA "CLASE" DE LA BIBLIOTECA
+			//t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
+
+			list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
+		}
 
 	}
+}
+
+t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador)
+{
+	t_pokemonEntrenador entrenadorYPokemon;
+
+	//ME GUARDO EL ID DEL ENTRENADOR DEL POKEMON, PARA SABER CUAL ES EL PERDEDOR
+	entrenadorYPokemon.idEntrenador = entrenador->id;
+
+	return entrenadorYPokemon;
 }

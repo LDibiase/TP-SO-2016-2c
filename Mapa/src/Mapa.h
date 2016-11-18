@@ -43,6 +43,15 @@ typedef struct recursosEntrenador {
 	t_list* recursos;
 } t_recursosEntrenador;
 
+typedef struct pokemonEntrenador{
+	char id;
+	char* nombre;
+	char* tipo;
+	int poder;
+	int nivel;
+	char idEntrenador;
+}t_pokemonEntrenador;
+
 /* Constantes */
 
 // Ruta al archivo de log
@@ -69,5 +78,6 @@ int cargarConfiguracion(t_mapa_config* structConfig);
 void aceptarConexiones();
 void eliminarEntrenador(t_entrenador* entrenador);
 void chequearDeadlock();
+t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador);
 
 #endif /* MAPA_H_ */

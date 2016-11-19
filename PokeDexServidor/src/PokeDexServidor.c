@@ -271,12 +271,8 @@ int main(void) {
 			break;
 			case READ:
 				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
-				//char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
-				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
-
 
 				// Enviar mensaje READ
-
 				paquete_t paqueteREAD;
 				mensaje5_t mensajeREAD_RESPONSE;
 				t_block READ_RES;
@@ -366,6 +362,53 @@ int main(void) {
 				enviarMensaje(socketPokedex, paqueteUNLINK);
 
 				break;
+			case MKNOD:
+				log_info(logger, "Solicito MKNOD del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+
+				// Enviar mensaje MKNOD
+
+				paquete_t paqueteMKNOD;
+				mensaje7_t mensajeMKNOD_RESPONSE;
+
+				mensajeMKNOD_RESPONSE.tipoMensaje = MKNOD_RESPONSE;
+				mensajeMKNOD_RESPONSE.res = mknod_callback(((mensaje1_t*) mensajeRespuesta)->path);
+
+
+				crearPaquete((void*) &mensajeMKNOD_RESPONSE, &paqueteMKNOD);
+				if(paqueteMKNOD.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteMKNOD);
+
+				break;
+			case WRITE:
+				log_info(logger, "Solicito WRITE del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje8_t*) mensajeRespuesta)->offset);
+
+				// Enviar mensaje respuesta
+
+				paquete_t paqueteWRITE;
+				mensaje7_t mensajeWRITE_RESPONSE;
+
+				mensajeWRITE_RESPONSE.tipoMensaje = WRITE_RESPONSE;
+				mensajeWRITE_RESPONSE.res = 1;
+
+
+				crearPaquete((void*) &mensajeWRITE_RESPONSE, &paqueteWRITE);
+				if(paqueteWRITE.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteWRITE);
+				printf("Envie la res");
+
+				break;
 			}
 		}
 	}
@@ -443,6 +486,44 @@ int mkdir_callback(const char *path) {
 	return res;
 }
 
+int mknod_callback(const char *path) {
+	char** array;
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	if (!(string_equals_ignore_case(path, "/"))) {
+		array = string_split(path, "/");
+		while (array[i+1]) {
+			char* fname = array[i];
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			dirPadre = res;
+			i++;
+		}
+		if (tablaArchivos[res].state == 1) {
+			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+		}
+		if (tablaArchivos[res].state == 2) {
+			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+		}
+	} else {
+		res = dirPadre;
+	}
+
+	int id = get_firstEntry();
+
+	osada_file newDir;
+
+	strcpy(newDir.fname, array[i]);
+	newDir.state = 1;
+	newDir.parent_directory = res;
+	newDir.file_size = 0;
+	newDir.first_block = -1;
+	newDir.lastmod = 1475075773;
+	tablaArchivos[id] = newDir;
+
+	return res;
+}
+
 int rmdir_callback(const char *path) {
 	int archivoID = getDirPadre(path);
 
@@ -463,15 +544,15 @@ int unlink_callback(const char *path) {
 		int bloqueAnterior = bloque;
 
 		while (bloque != -1) {
-				//Limpio el bitmap
-				bitarray_set_bit(bitarray, bloque);
-				printf("\n Limpiando bitarray %d", bloque);
+			//Limpio el bitmap
+			bitarray_set_bit(bitarray, bloque);
+			printf("\n Limpiando bitarray %d", bloque);
 
-				bloqueAnterior = bloque;
-				bloque = tablaAsignaciones[bloque];
+			bloqueAnterior = bloque;
+			bloque = tablaAsignaciones[bloque];
 
-				//Limpio tabla de asignaciones
-				tablaAsignaciones[bloqueAnterior] = -1;
+			//Limpio tabla de asignaciones
+			tablaAsignaciones[bloqueAnterior] = -1;
 		}
 
 		//Limpio tabla de archivos
@@ -549,9 +630,9 @@ t_block read_callback(const char *path, int offset, int tamanioBuffer){
 	int bloque = primerBloque;
 
 	while (sumOffset<offset) {
-			bloque = tablaAsignaciones[bloque];
-			sumOffset = sumOffset + OSADA_BLOCK_SIZE;
-		}
+		bloque = tablaAsignaciones[bloque];
+		sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+	}
 
 	printf("\n sumOffset %d", sumOffset);
 	printf("\n tamanioBuffer %d", tamanioBuffer);

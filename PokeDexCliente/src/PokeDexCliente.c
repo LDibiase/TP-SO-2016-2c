@@ -296,6 +296,82 @@ static int fuse_unlink(const char *path)
 	return 0;
 }
 
+static int fuse_mknod(const char *path, mode_t mode, dev_t rdev)
+{
+	int res;
+
+	// Enviar mensaje UNLINK
+	paquete_t paqueteLectura;
+	mensaje1_t mensajeQuieroMKNOD;
+
+	mensajeQuieroMKNOD.tipoMensaje = MKNOD;
+	mensajeQuieroMKNOD.path = path;
+	mensajeQuieroMKNOD.tamanioPath = strlen(mensajeQuieroMKNOD.path) + 1;
+
+
+	crearPaquete((void*) &mensajeQuieroMKNOD, &paqueteLectura);
+	log_info(logger, "MENSAJE MKNOD PATH: %s", mensajeQuieroMKNOD.path);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	// Recibir mensaje RESPUESTA
+	mensaje7_t mensajeMKNOD_RESPONSE;
+	mensajeMKNOD_RESPONSE.tipoMensaje = MKNOD_RESPONSE;
+
+	recibirMensaje(pokedex, &mensajeMKNOD_RESPONSE);
+
+	res = mensajeMKNOD_RESPONSE.res;
+	if(res == -1)
+		return -errno;
+
+	return 0;
+}
+
+static int fuse_write(const char *path, const char *buf, size_t size, off_t offset) {
+	// Enviar mensaje WRITE
+		paquete_t paqueteLectura;
+		mensaje8_t mensajeQuieroWRITE;
+
+		mensajeQuieroWRITE.tipoMensaje = WRITE;
+		mensajeQuieroWRITE.path = path;
+		mensajeQuieroWRITE.tamanioPath = strlen(mensajeQuieroWRITE.path) + 1;
+		mensajeQuieroWRITE.buffer = buf;
+		mensajeQuieroWRITE.tamanioBuffer = size;
+		mensajeQuieroWRITE.offset = offset;
+
+		crearPaquete((void*) &mensajeQuieroWRITE, &paqueteLectura);
+		log_info(logger, "MENSAJE WRITE PATH: %s BYTES: %d OFFSET: %d", mensajeQuieroWRITE.path, mensajeQuieroWRITE.tamanioBuffer, mensajeQuieroWRITE.offset);
+		if(paqueteLectura.tamanioPaquete == 0) {
+			pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, pokedex->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+			exit(EXIT_FAILURE);
+		}
+
+		enviarMensaje(pokedex, paqueteLectura);
+
+		// Recibir mensaje RESPUESTA
+			mensaje7_t mensajeWRITE_RESPONSE;
+			mensajeWRITE_RESPONSE.tipoMensaje = WRITE_RESPONSE;
+
+			recibirMensaje(pokedex, &mensajeWRITE_RESPONSE);
+
+			int res = mensajeWRITE_RESPONSE.res;
+			log_info(logger, "MENSAJE mensajeWRITE_RESPONSE %d", mensajeWRITE_RESPONSE.res);
+			if(res == -1)
+				return -errno;
+
+			return 0;
+}
+
+
+
 static struct fuse_opt fuse_options[] = {
 		// Este es un parametro definido por nosotros
 		CUSTOM_FUSE_OPT_KEY("--welcome-msg %s", welcome_msg, 0),
@@ -317,10 +393,12 @@ static struct fuse_operations fuse_oper = {
 		.rmdir = fuse_rmdir,
 		.truncate = fuse_truncate,
 		.unlink = fuse_unlink,
-		//.write = fuse_write,
-		//.create = fuse_create,
+		.mknod = fuse_mknod,
+		.write = fuse_write,
+
 
 		//NO SON NECESARIAS
+		//.create = fuse_create,
 		//.flush = fuse_flush,
 		//.release = fuse_release,
 };

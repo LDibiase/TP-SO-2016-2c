@@ -227,7 +227,6 @@ int main(void) {
 			case READDIR:
 				log_info(logger, "Solicito READDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
 				char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
-				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
 				// Enviar mensaje READ
 				paquete_t paqueteLectura;
@@ -354,7 +353,7 @@ int main(void) {
 				mensaje7_t mensajeUNLINK_RESPONSE;
 
 				mensajeUNLINK_RESPONSE.tipoMensaje = UNLINK_RESPONSE;
-				mensajeUNLINK_RESPONSE.res = rmdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
+				mensajeUNLINK_RESPONSE.res = unlink_callback(((mensaje1_t*) mensajeRespuesta)->path);
 
 				crearPaquete((void*) &mensajeUNLINK_RESPONSE, &paqueteUNLINK);
 				if(paqueteUNLINK.tamanioPaquete == 0) {
@@ -373,11 +372,6 @@ int main(void) {
 
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
 	close(fileFS); //Cierro el archivo
-
-	//Test de escritura en OSADA
-	//FILE *fp;
-	//fp = fopen("test.txt", "w+");
-	//fread(buffer,)
 
 
 	////////////////////
@@ -398,12 +392,10 @@ char* readdir_callback(const char *path) {
 	for (i = 0; i < TABLA_ARCHIVOS; i++) {
 		if (tablaArchivos[i].state != 0) {
 			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
-				//printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
 				string_append(&cadenaMensaje, tablaArchivos[i].fname);
 				string_append(&cadenaMensaje, "/");
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-					//printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
 					string_append(&cadenaMensaje, tablaArchivos[i].fname);
 					string_append(&cadenaMensaje, "/");
 				}
@@ -414,7 +406,6 @@ char* readdir_callback(const char *path) {
 }
 
 int mkdir_callback(const char *path) {
-	//printf("\nBuscando ruta: %s \n", path);
 	char** array;
 	int i = 0;
 	int res = -1;
@@ -423,9 +414,7 @@ int mkdir_callback(const char *path) {
 		array = string_split(path, "/");
 		while (array[i+1]) {
 			char* fname = array[i];
-			//printf("Buscando nombre: %s \n", array[i]);
 			res = buscarTablaAchivos(dirPadre,array[i]);
-			//printf("Encontrado id: %d \n", res);
 			dirPadre = res;
 			i++;
 		}
@@ -451,39 +440,45 @@ int mkdir_callback(const char *path) {
 	newDir.lastmod = 1475075773;
 	tablaArchivos[id] = newDir;
 
-	//printf("\nCreando directorio: %s \n", path);
-	return 1;
+	return res;
 }
 
 int rmdir_callback(const char *path) {
-	//printf("\nBuscando ruta: %s \n", path);
-	char** array;
-	int i = 0;
-	int res = -1;
-	int dirPadre = 65535;
-	if (!(string_equals_ignore_case(path, "/"))) {
-		array = string_split(path, "/");
-		while (array[i]) {
-			char* fname = array[i];
-			//printf("Buscando nombre: %s \n", array[i]);
-			res = buscarTablaAchivos(dirPadre,array[i]);
-			//printf("Encontrado id: %d \n", res);
-			dirPadre = res;
-			i++;
-		}
-		if (tablaArchivos[res].state == 1) {
-			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
-		}
-		if (tablaArchivos[res].state == 2) {
-			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
-		}
-	} else {
-		res = dirPadre;
+	int archivoID = getDirPadre(path);
+
+	if (archivoID != -1) {
+		tablaArchivos[archivoID].state = 0;
 	}
 
-	tablaArchivos[res].state = 0;
+	return archivoID;
+}
 
-	return 1;
+int unlink_callback(const char *path) {
+
+	int archivoID = getDirPadre(path);
+
+	if (archivoID != -1) {
+		int primerBloque = tablaArchivos[archivoID].first_block;
+		int bloque = primerBloque;
+		int bloqueAnterior = bloque;
+
+		while (bloque != -1) {
+				//Limpio el bitmap
+				bitarray_set_bit(bitarray, bloque);
+				printf("\n Limpiando bitarray %d", bloque);
+
+				bloqueAnterior = bloque;
+				bloque = tablaAsignaciones[bloque];
+
+				//Limpio tabla de asignaciones
+				tablaAsignaciones[bloqueAnterior] = -1;
+		}
+
+		//Limpio tabla de archivos
+		tablaArchivos[archivoID].state = 0;
+	}
+
+	return archivoID;
 }
 
 int get_firstEntry() {
@@ -497,7 +492,6 @@ int get_firstEntry() {
 }
 
 int getDirPadre(const char *path) {
-	//printf("\nBuscando ruta: %s \n", path);
 	char** array;
 	int i = 0;
 	int res = -1;
@@ -506,17 +500,9 @@ int getDirPadre(const char *path) {
 		array = string_split(path, "/");
 		while (array[i]) {
 			char* fname = array[i];
-			//printf("Buscando nombre: %s \n", array[i]);
 			res = buscarTablaAchivos(dirPadre,array[i]);
-			//printf("Encontrado id: %d \n", res);
 			dirPadre = res;
 			i++;
-		}
-		if (tablaArchivos[res].state == 1) {
-			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
-		}
-		if (tablaArchivos[res].state == 2) {
-			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
 		}
 	} else {
 		res = dirPadre; //Estamos en el root
@@ -525,19 +511,16 @@ int getDirPadre(const char *path) {
 }
 
 t_getattr getattr_callback(const char *path) {
-	//printf("\nBuscando ruta: %s \n", path);
 	t_getattr res;
 	res.tipoArchivo = 0;
 	res.tamanioArchivo = 0;
 	if (!(string_equals_ignore_case(path, "/"))) {
 		int id = getDirPadre(path);
 		if (tablaArchivos[id].state == 1) {
-			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[id].fname, tablaArchivos[id].state, tablaArchivos[id].file_size);
 			res.tipoArchivo = 1;
 			res.tamanioArchivo = tablaArchivos[id].file_size;
 		}
 		if (tablaArchivos[id].state == 2) {
-			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[id].fname, tablaArchivos[id].state);
 			res.tipoArchivo = 2;
 		}
 	} else {

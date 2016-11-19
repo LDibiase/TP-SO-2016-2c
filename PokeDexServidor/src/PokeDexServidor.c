@@ -201,6 +201,8 @@ int main(void) {
 
 	//mkdir_callback("/Pokemons/DirTest");
 
+	//mknod_callback("/test.txt");
+
 
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
@@ -373,6 +375,7 @@ int main(void) {
 				mensajeMKNOD_RESPONSE.tipoMensaje = MKNOD_RESPONSE;
 				mensajeMKNOD_RESPONSE.res = mknod_callback(((mensaje1_t*) mensajeRespuesta)->path);
 
+				log_info(logger, "MKNOD res: %d", mensajeMKNOD_RESPONSE.res);
 
 				crearPaquete((void*) &mensajeMKNOD_RESPONSE, &paqueteMKNOD);
 				if(paqueteMKNOD.tamanioPaquete == 0) {
@@ -386,15 +389,16 @@ int main(void) {
 
 				break;
 			case WRITE:
-				log_info(logger, "Solicito WRITE del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje8_t*) mensajeRespuesta)->offset);
+				log_info(logger, "Solicito WRITE del path: %s Cantidad de bytes: %d OFFSET: %d \n BUFFER: %s ", ((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje8_t*) mensajeRespuesta)->offset, ((mensaje8_t*) mensajeRespuesta)->buffer);
 
 				// Enviar mensaje respuesta
 
 				paquete_t paqueteWRITE;
 				mensaje7_t mensajeWRITE_RESPONSE;
 
+				int res = write_callback(((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->offset, ((mensaje8_t*) mensajeRespuesta)->buffer, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer);
 				mensajeWRITE_RESPONSE.tipoMensaje = WRITE_RESPONSE;
-				mensajeWRITE_RESPONSE.res = 1;
+				mensajeWRITE_RESPONSE.res = res;
 
 
 				crearPaquete((void*) &mensajeWRITE_RESPONSE, &paqueteWRITE);
@@ -406,7 +410,6 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteWRITE);
-				printf("Envie la res");
 
 				break;
 			}
@@ -426,6 +429,67 @@ int main(void) {
 	tablaAsignaciones=NULL;
 
 	return EXIT_SUCCESS;
+}
+
+int getFirstBit() {
+	int j = bitarray_get_max_bit(bitarray);
+	int i = 0;
+	for (i = 0 ; i < j; i++) {
+		if (bitarray_test_bit(bitarray, i)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer){
+	int archivoID = getDirPadre(path);
+	int primerBloque = tablaArchivos[archivoID].first_block;
+
+	int sum = 0;
+	int sumOffset = 0;
+	int bloque = primerBloque;
+
+	while (sumOffset<offset) {
+		bloque = tablaAsignaciones[bloque];
+		sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+	}
+
+	printf("\n sumOffset %d", sumOffset);
+	printf("\n tamanioBuffer %d", tamanioBuffer);
+
+	if (bloque == -1) {
+		bloque = getFirstBit - inicioBloqueDatos;
+	}
+	while (sum<tamanioBuffer) {
+		if (tamanioBuffer - sum > OSADA_BLOCK_SIZE) {
+			pthread_mutex_lock(&mutex);
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(int)], OSADA_BLOCK_SIZE * sizeof(int));
+			sum = sum + OSADA_BLOCK_SIZE;
+			pthread_mutex_unlock(&mutex);
+			printf("\n Escribio %d", OSADA_BLOCK_SIZE);
+		} else {
+			pthread_mutex_lock(&mutex);
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(int)], (tamanioBuffer - sum) * sizeof(int));
+			printf("\n ------Copia Parcial ------ %d", bloque);
+			printf("\n Escribio %d", (tamanioBuffer - sum));
+			sum = sum + (tamanioBuffer - sum);
+			pthread_mutex_unlock(&mutex);
+		}
+
+		bitarray_set_bit(bitarray,bloque);
+		printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
+		printf("\n Cantidad Bytes restantes %d", (tamanioBuffer - sum));
+		int bloqueAnterior = bloque;
+		bloque = getFirstBit - inicioBloqueDatos;
+		tablaAsignaciones[bloqueAnterior] = bloque;
+
+		printf("\n Siguiente bloque %d", bloque);
+	}
+
+	printf("\n sum %d", sum);
+
+	return 1;
 }
 
 char* readdir_callback(const char *path) {
@@ -473,15 +537,18 @@ int mkdir_callback(const char *path) {
 
 	int id = get_firstEntry();
 
-	osada_file newDir;
-
-	strcpy(newDir.fname, array[i]);
-	newDir.state = 2;
-	newDir.parent_directory = res;
-	newDir.file_size = 0;
-	newDir.first_block = -1;
-	newDir.lastmod = 1475075773;
-	tablaArchivos[id] = newDir;
+	if (id == -1) {
+		return -1;
+	} else {
+		osada_file newDir;
+		strcpy(newDir.fname, array[i]);
+		newDir.state = 2;
+		newDir.parent_directory = res;
+		newDir.file_size = 0;
+		newDir.first_block = -1;
+		newDir.lastmod = 1475075773;
+		tablaArchivos[id] = newDir;
+	}
 
 	return res;
 }
@@ -510,18 +577,19 @@ int mknod_callback(const char *path) {
 	}
 
 	int id = get_firstEntry();
-
-	osada_file newDir;
-
-	strcpy(newDir.fname, array[i]);
-	newDir.state = 1;
-	newDir.parent_directory = res;
-	newDir.file_size = 0;
-	newDir.first_block = -1;
-	newDir.lastmod = 1475075773;
-	tablaArchivos[id] = newDir;
-
-	return res;
+	if (id == -1) {
+		return -1;
+	} else {
+		osada_file newDir;
+		strcpy(newDir.fname, array[i]);
+		newDir.state = 1;
+		newDir.parent_directory = res;
+		newDir.file_size = 0;
+		newDir.first_block = -1;
+		newDir.lastmod = 1475075773;
+		tablaArchivos[id] = newDir;
+	}
+	return id;
 }
 
 int rmdir_callback(const char *path) {

@@ -259,6 +259,12 @@ static int fuse_truncate(const char *path, off_t size)
     return 0;
 }
 
+static int fuse_flush(const char* path, struct fuse_file_info* fi)
+{
+    return 0;
+}
+
+
 static int fuse_unlink(const char *path)
 {
 	int res;
@@ -326,6 +332,7 @@ static int fuse_mknod(const char *path, mode_t mode, dev_t rdev)
 
 	recibirMensaje(pokedex, &mensajeMKNOD_RESPONSE);
 
+	log_info(logger, "MENSAJE MKNOD RES: %d", mensajeMKNOD_RESPONSE.res);
 	res = mensajeMKNOD_RESPONSE.res;
 	if(res == -1)
 		return -errno;
@@ -395,11 +402,10 @@ static struct fuse_operations fuse_oper = {
 		.unlink = fuse_unlink,
 		.mknod = fuse_mknod,
 		.write = fuse_write,
-
+		.flush = fuse_flush,
 
 		//NO SON NECESARIAS
 		//.create = fuse_create,
-		//.flush = fuse_flush,
 		//.release = fuse_release,
 };
 

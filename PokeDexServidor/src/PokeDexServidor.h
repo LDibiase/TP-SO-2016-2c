@@ -57,6 +57,8 @@ int get_firstEntry();
 int rmdir_callback(const char *path);
 int unlink_callback(const char *path);
 int mknod_callback(const char *path);
+int getFirstBit();
+int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer);
 
 
 // Acepta múltiples conexiones de clientes

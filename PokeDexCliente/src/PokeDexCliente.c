@@ -131,11 +131,44 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 }
 
 static int fuse_open(const char *path, struct fuse_file_info *fi) {
-	//if (strcmp(path, DEFAULT_FILE_PATH) != 0)
-	//	return -ENOENT;
+	paquete_t paqueteLectura;
+	mensaje1_t mensajeQuieroGetAttr;
 
-	//TODO: Verificar que el archivo exista
-	return 0;
+	mensajeQuieroGetAttr.tipoMensaje = GETATTR;
+	mensajeQuieroGetAttr.path = path;
+	mensajeQuieroGetAttr.tamanioPath = strlen(mensajeQuieroGetAttr.path) + 1;
+
+	crearPaquete((void*) &mensajeQuieroGetAttr, &paqueteLectura);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	// Recibir mensaje RESPUESTA
+	mensaje3_t mensajeGETATTR_RESPONSE;
+	mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
+
+	recibirMensaje(pokedex, &mensajeGETATTR_RESPONSE);
+	if(pokedex->error != NULL)
+		{
+		log_info(logger, pokedex->error);
+		eliminarSocket(pokedex);
+	}
+
+
+	if (mensajeGETATTR_RESPONSE.tipoArchivo == 2) {
+	    return 0;
+	}
+
+	if (mensajeGETATTR_RESPONSE.tipoArchivo == 1)  {
+	    return 0;
+	}
+
+	return -ENOENT;
 }
 
 static int fuse_read(const char *path, char *buf, size_t size, off_t offset, struct fuse_file_info *fi) {
@@ -340,6 +373,44 @@ static int fuse_mknod(const char *path, mode_t mode, dev_t rdev)
 	return 0;
 }
 
+static int fuse_create(const char *path, mode_t mode, dev_t rdev)
+{
+	int res;
+
+		// Enviar mensaje UNLINK
+		paquete_t paqueteLectura;
+		mensaje1_t mensajeQuieroMKNOD;
+
+		mensajeQuieroMKNOD.tipoMensaje = MKNOD;
+		mensajeQuieroMKNOD.path = path;
+		mensajeQuieroMKNOD.tamanioPath = strlen(mensajeQuieroMKNOD.path) + 1;
+
+
+		crearPaquete((void*) &mensajeQuieroMKNOD, &paqueteLectura);
+		log_info(logger, "MENSAJE MKNOD PATH: %s", mensajeQuieroMKNOD.path);
+		if(paqueteLectura.tamanioPaquete == 0) {
+			pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, pokedex->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+			exit(EXIT_FAILURE);
+		}
+
+		enviarMensaje(pokedex, paqueteLectura);
+
+		// Recibir mensaje RESPUESTA
+		mensaje7_t mensajeMKNOD_RESPONSE;
+		mensajeMKNOD_RESPONSE.tipoMensaje = MKNOD_RESPONSE;
+
+		recibirMensaje(pokedex, &mensajeMKNOD_RESPONSE);
+
+		log_info(logger, "MENSAJE MKNOD RES: %d", mensajeMKNOD_RESPONSE.res);
+		res = mensajeMKNOD_RESPONSE.res;
+		if(res == -1)
+			return -errno;
+
+		return 0;
+}
+
 static int fuse_write(const char *path, const char *buf, size_t size, off_t offset) {
 	// Enviar mensaje WRITE
 		paquete_t paqueteLectura;
@@ -403,9 +474,9 @@ static struct fuse_operations fuse_oper = {
 		.mknod = fuse_mknod,
 		.write = fuse_write,
 		.flush = fuse_flush,
+		.create = fuse_create,
 
 		//NO SON NECESARIAS
-		//.create = fuse_create,
 		//.release = fuse_release,
 };
 

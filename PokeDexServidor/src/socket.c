@@ -562,7 +562,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 	tamanioBuffer = sizeof(tipoMensaje);
 	buffer = malloc(tamanioBuffer);
 
-	bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+	bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 	if(bytesRecibidos == 0)
 	{
 		socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -586,7 +586,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -606,7 +606,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje1_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -630,7 +630,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -650,7 +650,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje1_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -675,7 +675,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje2_t*) mensaje)->tamanioMensaje);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -695,7 +695,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje2_t*) mensaje)->tamanioMensaje;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -719,7 +719,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje3_t*) mensaje)->tipoArchivo);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -739,7 +739,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje3_t*) mensaje)->tamanioArchivo);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -764,7 +764,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje4_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -784,7 +784,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje4_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -805,7 +805,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje4_t*) mensaje)->tamanioBuffer);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -826,7 +826,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje4_t*) mensaje)->offset);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -850,7 +850,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje5_t*) mensaje)->tamanioBuffer);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -870,7 +870,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje5_t*) mensaje)->tamanioBuffer;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -894,7 +894,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -914,7 +914,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje6_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -935,7 +935,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje6_t*) mensaje)->modo);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -959,7 +959,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -981,7 +981,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1001,7 +1001,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje1_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1025,7 +1025,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1047,7 +1047,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1067,7 +1067,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje1_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1091,7 +1091,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1113,7 +1113,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje1_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1133,7 +1133,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje1_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1157,7 +1157,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1179,7 +1179,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->tamanioPath);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1199,7 +1199,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje8_t*) mensaje)->tamanioPath;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1220,7 +1220,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->tamanioBuffer);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1241,7 +1241,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = ((mensaje8_t*) mensaje)->tamanioBuffer;
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1262,7 +1262,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje8_t*) mensaje)->offset);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
@@ -1286,7 +1286,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
 			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
 			if(bytesRecibidos == 0)
 			{
 				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");

@@ -475,7 +475,9 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	while (sum<tamanioBuffer) {
 		if (tamanioBuffer - sum > OSADA_BLOCK_SIZE) {
 			pthread_mutex_lock(&mutex);
-			memcpy(&pmapFS[((inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE)], buffer + sum, OSADA_BLOCK_SIZE);
+			memcpy(&pmapFS[((inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE)], buffer + (sum / sizeof(int)), OSADA_BLOCK_SIZE * sizeof(int));
+			//memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
+
 			sum = sum + OSADA_BLOCK_SIZE;
 			pthread_mutex_unlock(&mutex);
 			printf("\n Escribio %d", OSADA_BLOCK_SIZE);
@@ -492,7 +494,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 
 
 		//Actualizo bitarray
-		bitarray_set_bit(bitarray,bloque);
+		bitarray_set_bit(bitarray,bloque + inicioBloqueDatos);
 		printf("\n Escribiendo bloque %d", bloque);
 		printf("\n Cantidad Bytes restantes %d", (tamanioBuffer - sum));
 
@@ -502,6 +504,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 		if (sum<tamanioBuffer) {
 			if (tablaAsignaciones[bloqueAnterior] != -1) {
 				bloque = tablaAsignaciones[bloqueAnterior];
+				printf("\n Siguiente bloque %d", bloque);
 			} else { //Busco un nuevo bloque
 				bloque = getFirstBit() - inicioBloqueDatos;
 				tablaAsignaciones[bloqueAnterior] = bloque;

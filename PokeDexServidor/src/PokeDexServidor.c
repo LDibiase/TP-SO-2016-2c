@@ -452,6 +452,8 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	//Asigno nuevo tamaño
 	tablaArchivos[archivoID].file_size = tamanioBuffer + offset;
 
+	//TODO:Si el tamaño es menor, liberar bloques
+
 	int sum = 0;
 	int sumOffset = 0;
 	int bloque = primerBloque;
@@ -475,15 +477,14 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	while (sum<tamanioBuffer) {
 		if (tamanioBuffer - sum > OSADA_BLOCK_SIZE) {
 			pthread_mutex_lock(&mutex);
-			memcpy(&pmapFS[((inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE)], buffer + (sum / sizeof(int)), OSADA_BLOCK_SIZE * sizeof(int));
-			//memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], OSADA_BLOCK_SIZE * sizeof(char));
 
 			sum = sum + OSADA_BLOCK_SIZE;
 			pthread_mutex_unlock(&mutex);
 			printf("\n Escribio %d", OSADA_BLOCK_SIZE);
 		} else {
 			pthread_mutex_lock(&mutex);
-			memcpy(&pmapFS[((inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE)], buffer + sum, tamanioBuffer - sum);
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], (tamanioBuffer - sum) * sizeof(char));
 			printf("\n ------Copia Parcial ------ %d", bloque);
 			printf("\n Escribio %d", (tamanioBuffer - sum));
 			sum = sum + (tamanioBuffer - sum);
@@ -505,7 +506,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 			if (tablaAsignaciones[bloqueAnterior] != -1) {
 				bloque = tablaAsignaciones[bloqueAnterior];
 				printf("\n Siguiente bloque %d", bloque);
-			} else { //Busco un nuevo bloque
+			} else { //Busco un nuevo bloque si corresponde
 				bloque = getFirstBit() - inicioBloqueDatos;
 				tablaAsignaciones[bloqueAnterior] = bloque;
 				printf("\n Siguiente bloque %d", bloque);

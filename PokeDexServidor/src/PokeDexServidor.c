@@ -299,7 +299,6 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteREAD);
-				log_info(logger, "ENVIE EL MENSAJE VACIO: Cantidad de bytes: %d \n", mensajeREAD_RESPONSE.tamanioBuffer);
 				break;
 			case MKDIR:
 				log_info(logger, "Solicito MKDIR del path: %s", ((mensaje6_t*) mensajeRespuesta)->path);

@@ -868,25 +868,28 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			free(buffer);
 			tamanioBuffer = ((mensaje5_t*) mensaje)->tamanioBuffer;
-			buffer = malloc(tamanioBuffer);
 
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
-				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
+			if (tamanioBuffer>0) {
+				buffer = malloc(tamanioBuffer);
 
-			((mensaje5_t*) mensaje)->buffer = malloc(tamanioBuffer);
-			memcpy(((mensaje5_t*) mensaje)->buffer, buffer, tamanioBuffer);
-			free(buffer);
+				bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
+				if(bytesRecibidos == 0)
+				{
+					socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+					free(buffer);
+					return;
+				}
+				else if(bytesRecibidos == -1)
+				{
+					socket->error = strerror(errno);
+					free(buffer);
+					return;
+				}
+
+				((mensaje5_t*) mensaje)->buffer = malloc(tamanioBuffer);
+				memcpy(((mensaje5_t*) mensaje)->buffer, buffer, tamanioBuffer);
+				free(buffer);
+			}
 
 			break;
 		case MKDIR:

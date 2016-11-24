@@ -297,6 +297,10 @@ static int fuse_flush(const char* path, struct fuse_file_info* fi)
     return 0;
 }
 
+static int fuse_release(const char* path, struct fuse_file_info* fi)
+{
+    return 0;
+}
 
 static int fuse_unlink(const char *path)
 {
@@ -445,9 +449,8 @@ static int fuse_write(const char *path, const char *buf, size_t size, off_t offs
 			if(res == -1)
 				return -errno;
 
-			return 0;
+			return size;
 }
-
 
 
 static struct fuse_opt fuse_options[] = {
@@ -475,9 +478,7 @@ static struct fuse_operations fuse_oper = {
 		.write = fuse_write,
 		.flush = fuse_flush,
 		.create = fuse_create,
-
-		//NO SON NECESARIAS
-		//.release = fuse_release,
+		.release = fuse_release,
 };
 
 int main(int argc, char *argv[]) {

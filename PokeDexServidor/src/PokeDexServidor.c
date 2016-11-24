@@ -35,8 +35,8 @@
 #define LOG_FILE_PATH "PokeDexServidor.log"
 
 struct socket** clientes;
-char* rutaFS = "/home/utnso/workspace/tp-2016-2c-CodeTogether/challenge.bin";
-char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
+char* rutaFS = "/home/utnso/workspace/testOsada/test.bin";
+//char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
 
 osada_file tablaArchivos[2048];		// TABLA DE ARCHIVOS
 unsigned int * tablaAsignaciones;	// TABLA DE ASIGNACIONES
@@ -299,7 +299,6 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteREAD);
-
 				break;
 			case MKDIR:
 				log_info(logger, "Solicito MKDIR del path: %s", ((mensaje6_t*) mensajeRespuesta)->path);
@@ -436,8 +435,8 @@ int main(void) {
 
 int getFirstBit() {
 	int j = bitarray_get_max_bit(bitarray);
-	int i = inicioBloqueDatos;
-	for (i = 0 ; i < j; i++) {
+	int i;
+	for (i = inicioBloqueDatos; i < j; i++) {
 		if (bitarray_test_bit(bitarray, i) == 0) {
 			return i;
 		}
@@ -451,6 +450,8 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 
 	//Asigno nuevo tamaño
 	tablaArchivos[archivoID].file_size = tamanioBuffer + offset;
+
+	//TODO:Si el tamaño es menor, liberar bloques
 
 	int sum = 0;
 	int sumOffset = 0;
@@ -467,6 +468,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 
 	//Si el archivo estaba vacio
 	if (bloque == -1) {
+		printf("\n firstbit: %d , iniciobloquedatos: %d",getFirstBit(),inicioBloqueDatos);
 		bloque = getFirstBit() - inicioBloqueDatos;
 		tablaArchivos[archivoID].first_block = bloque;
 		printf("\n primer bloque %d", tablaArchivos[archivoID].first_block);
@@ -475,15 +477,14 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	while (sum<tamanioBuffer) {
 		if (tamanioBuffer - sum > OSADA_BLOCK_SIZE) {
 			pthread_mutex_lock(&mutex);
-			memcpy(&pmapFS[((inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE)], buffer + (sum / sizeof(int)), OSADA_BLOCK_SIZE * sizeof(int));
-			//memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], OSADA_BLOCK_SIZE * sizeof(char));
 
 			sum = sum + OSADA_BLOCK_SIZE;
 			pthread_mutex_unlock(&mutex);
 			printf("\n Escribio %d", OSADA_BLOCK_SIZE);
 		} else {
 			pthread_mutex_lock(&mutex);
-			memcpy(&pmapFS[((inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE)], buffer + sum, tamanioBuffer - sum);
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], (tamanioBuffer - sum) * sizeof(char));
 			printf("\n ------Copia Parcial ------ %d", bloque);
 			printf("\n Escribio %d", (tamanioBuffer - sum));
 			sum = sum + (tamanioBuffer - sum);
@@ -505,7 +506,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 			if (tablaAsignaciones[bloqueAnterior] != -1) {
 				bloque = tablaAsignaciones[bloqueAnterior];
 				printf("\n Siguiente bloque %d", bloque);
-			} else { //Busco un nuevo bloque
+			} else { //Busco un nuevo bloque si corresponde
 				bloque = getFirstBit() - inicioBloqueDatos;
 				tablaAsignaciones[bloqueAnterior] = bloque;
 				printf("\n Siguiente bloque %d", bloque);
@@ -780,7 +781,7 @@ int buscarTablaAchivos(int dirPadre, char* fname) {
 	}
 	return res;
 }
-
+/*
 void escribirEstructura(int dirPadre, char* ruta) {
 	int i;
 
@@ -863,7 +864,7 @@ void leerArchivo(int archivoID, char* ruta){
 	fclose(pFile);
 	free(block);
 	block=NULL;
-}
+}*/
 
 
 void aceptarConexiones() {

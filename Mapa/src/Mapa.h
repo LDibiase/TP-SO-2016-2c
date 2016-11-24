@@ -8,6 +8,8 @@
 #ifndef MAPA_H_
 #define MAPA_H_
 #include "socket.h"
+#include <pkmn/battle.h>
+#include <pkmn/factory.h>
 
 /* Definición de estructuras */
 
@@ -50,6 +52,7 @@ typedef struct pokemonEntrenador{
 	int poder;
 	int nivel;
 	char idEntrenador;
+	t_pokemon* pokemon;
 }t_pokemonEntrenador;
 
 /* Constantes */

@@ -936,12 +936,23 @@ void chequearDeadlock()
 			*pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
 
 			//CREO EL POKEMON DE LA "CLASE" DE LA BIBLIOTECA
-			//t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
-
+			t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
+			pokemonConEntrenador->pokemon = pokemon;
+			
 			list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
 		}
+		
+		//YA TENGO TODOS LOS POKEMON DE CADA ENTRENADOR, AHORA A PELEAR
+		obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
 
 	}
+}
+
+t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear)
+{
+	t_pokemonEntrenador entrenadorYPokemon;
+	
+	return entrenadorYPokemon;
 }
 
 t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador)

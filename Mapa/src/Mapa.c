@@ -943,8 +943,11 @@ void chequearDeadlock()
 		}
 		
 		//YA TENGO TODOS LOS POKEMON DE CADA ENTRENADOR, AHORA A PELEAR
-		obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
+		t_pokemonEntrenador* entrenadorAEliminar;
+		entrenadorAEliminar = malloc(sizeof(t_pokemonEntrenador));
+		*entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
 
+		//LLAMAR FUNCION PARA LIBERAR RECURSOS
 	}
 }
 

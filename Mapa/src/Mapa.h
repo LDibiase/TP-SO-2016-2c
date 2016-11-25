@@ -82,5 +82,6 @@ void aceptarConexiones();
 void eliminarEntrenador(t_entrenador* entrenador);
 void chequearDeadlock();
 t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador);
+t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear);
 
 #endif /* MAPA_H_ */

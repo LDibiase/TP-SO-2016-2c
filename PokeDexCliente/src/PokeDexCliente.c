@@ -201,7 +201,7 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 		mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
 
 		recibirMensaje(pokedex, &mensajeREAD_RESPONSE);
-		log_info(logger, "MENSAJE READ_RESPONSE TAMAÑO BUFFER %d , BUFFER: %c", mensajeREAD_RESPONSE.tamanioBuffer, mensajeREAD_RESPONSE.buffer);
+		log_info(logger, "MENSAJE READ_RESPONSE TAMAÑO BUFFER %d", mensajeREAD_RESPONSE.tamanioBuffer);
 
 		//TODO: verificar si el archivo existe
 			//size = mensajeREAD_RESPONSE.buffer;
@@ -241,6 +241,7 @@ static int fuse_mkdir(const char *path, mode_t mode)
 	mensajeMKDIR_RESPONSE.tipoMensaje = MKDIR_RESPONSE;
 
 	recibirMensaje(pokedex, &mensajeMKDIR_RESPONSE);
+	log_info(logger, "MENSAJE MKDIR_RESPONSE: %d", mensajeMKDIR_RESPONSE.res);
 
     res = mensajeMKDIR_RESPONSE.res;
     if(res == -1)

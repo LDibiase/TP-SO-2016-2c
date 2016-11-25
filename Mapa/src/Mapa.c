@@ -953,9 +953,33 @@ void chequearDeadlock()
 
 t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear)
 {
-	t_pokemonEntrenador entrenadorYPokemon;
+	t_pokemonEntrenador entrenadorPerdedor;
+	bool noHayEntrenadorAEliminar = true;
+
+	while(noHayEntrenadorAEliminar)
+	{
+		if(list_size(entrenadoresConPokemonesAPelear) >= 2)
+		{
+			t_pokemonEntrenador* entrenador1;
+			t_pokemonEntrenador* entrenador2;
+
+			entrenador1 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+			entrenador2 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+
+			//HACER PELEAR A LOS ENTRENADORES
+		}
+		else
+		{
+			t_pokemonEntrenador* entrenadorRestante;
+			entrenadorRestante = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+
+			//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR. Y ASÍ SABER QUIEN ES EL MAS LOOSER
+
+			noHayEntrenadorAEliminar = false;
+		}
+	}
 	
-	return entrenadorYPokemon;
+	return entrenadorPerdedor;
 }
 
 t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador)

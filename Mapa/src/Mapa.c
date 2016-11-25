@@ -525,13 +525,19 @@ t_list* cargarPokenests() {
 
 		if (S_ISDIR(st.st_mode)){
 			char* str = string_new();
+			int cantidadDeRecursos = 0;
 
 			string_append(&str, "PokeNests/");
 			string_append(&str, dent->d_name);
+
+			//OBTENGO CUANTOS POKEMONES IGUALES HAY
+			cantidadDeRecursos = obtenerCantidadRecursos(dent->d_name, str);
+
 			string_append(&str, "/metadata");
 
 	        pokenestLeida = leerPokenest(str);
-	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, 10);
+
+	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, cantidadDeRecursos);
 	    	recursoTotales = malloc(sizeof(pokenestLeida));
 	    	recursoDisponibles = malloc(sizeof(pokenestLeida));
 	        *recursoTotales = pokenestLeida;
@@ -543,10 +549,58 @@ t_list* cargarPokenests() {
 	    	free(str);
 		}
 	}
-
 	closedir(srcdir);
-
 	return newlist;
+}
+
+int obtenerCantidadRecursos(char nombrePokemon, char* metadata)
+{
+	int cantidad = 0;
+	t_config* config;
+
+	char* numeroPokemon = "001";
+	char* nombreArchivoPokemon = nombrePokemon;
+	string_append(&nombreArchivoPokemon, numeroPokemon);
+	string_append(&nombreArchivoPokemon, ".dat");
+
+	while(1)
+	{
+		config = config_create(nombreArchivoPokemon);
+
+		if(config_has_property(config, "Nivel"))
+		{
+			cantidad++;
+		}
+		else
+		{
+			config_destroy(config);
+			break;
+		}
+
+		char* cantidadToString = string_itoa(cantidad);
+
+		if(cantidad <= 9)
+		{
+			numeroPokemon = "00";
+		}
+
+		if(cantidad > 9)
+		{
+			numeroPokemon = "0";
+		}
+
+		if(cantidad > 99)
+		{
+			numeroPokemon = "";
+		}
+
+		string_append(&numeroPokemon, cantidadToString);
+		nombreArchivoPokemon = nombrePokemon;
+		string_append(&nombreArchivoPokemon, numeroPokemon);
+		string_append(&nombreArchivoPokemon, ".dat");
+	}
+
+	return cantidad;
 }
 
 t_mapa_pokenest leerPokenest(char* metadata)

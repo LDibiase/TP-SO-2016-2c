@@ -83,5 +83,6 @@ void eliminarEntrenador(t_entrenador* entrenador);
 void chequearDeadlock();
 t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador);
 t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear);
+int obtenerCantidadRecursos(char nombrePokemon, char* metadata);
 
 #endif /* MAPA_H_ */

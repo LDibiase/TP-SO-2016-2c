@@ -122,13 +122,6 @@ int main(void) {
 	printf("Pos %d = %d\n", 11551, bitarray_test_bit(bitarray, 11551));
 	printf("Pos %d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
 
-	/*
-	// Imprime todos los bits
-	j = bitarray_get_max_bit(bitarray);
-	for (i = 0; i < j; i++)
-		printf("%d = %d\n", i, bitarray_test_bit(bitarray, i));
-	 */
-
 	// Lee tabla de archivos
 	memcpy(&tablaArchivos, &pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], 1024 * OSADA_BLOCK_SIZE);
 
@@ -181,32 +174,6 @@ int main(void) {
 	printf("\n	TABLA DE ASIGNACIONES	\n");
 	printf("---------------------------\n");
 	printf("Tamano T.Asig: %d (bloques)\n\n", bloquesTablaAsignaciones);
-
-
-	//Imprime tabla de asignaciones
-	/*for (i = 19650; i <  19750 ;i++)
-		{
-			if (tablaAsignaciones[i] != 0)
-			{
-				printf("|    %d    	", i);
-				printf("|    %d    	", tablaAsignaciones[i]);
-				printf("\n");
-			}
-		}*/
-
-	//int bit = getFirstBit();
-	//printf("BIT: %d", bit);
-
-	//char* ruta = "/";
-	//escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
-
-	//getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
-	//readdir_callback("/Pallet Town/Pokemons");
-
-	//mkdir_callback("/Pokemons/DirTest");
-
-	//mknod_callback("/test.txt");
-
 
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
@@ -859,91 +826,6 @@ int buscarTablaAchivos(int dirPadre, char* fname) {
 	}
 	return res;
 }
-/*
-void escribirEstructura(int dirPadre, char* ruta) {
-	int i;
-
-	for (i = 0; i < TABLA_ARCHIVOS; i++) {
-		if (tablaArchivos[i].state != 0) {
-			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
-				char *str = string_new();
-				string_append(&str, rutaOsadaDir);
-				string_append(&str, ruta);
-				string_append(&str, tablaArchivos[i].fname);
-				mkdir(str, 0700);
-				//printf("\nCreando DIRECTORIO %s \n", str);
-
-				char *str2 = string_new();
-				string_append(&str2, ruta);
-				string_append(&str2, tablaArchivos[i].fname);
-				string_append(&str2, "/");
-
-				escribirEstructura(i,str2); //Recursividad
-
-			} else {
-				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-					leerArchivo(i,ruta);
-				}
-			}
-		}
-	}
-}
-
-void leerArchivo(int archivoID, char* ruta){
-	char* archivoNombre = tablaArchivos[archivoID].fname;
-	int primerBloque = tablaArchivos[archivoID].first_block;
-	int tamanioArchivo = tablaArchivos[archivoID].file_size;
-	//printf("\nLeyendo el archivo %s \n", archivoNombre);
-
-	//Obtengo el bloque de datos correspondiente
-	int *block;
-	block =(int *)malloc(tamanioArchivo * sizeof(int));
-	//printf("\nTamaño del archivo %d \n", tamanioArchivo);
-
-	int sum = 0;
-	int i= 0;
-	int bloque = primerBloque;
-	//printf("\nPrimer bloque %d \n", bloque);
-
-	while (bloque != -1) {
-		if (tablaAsignaciones[bloque] != -1) {
-			pthread_mutex_lock(&mutex);
-			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
-			sum = sum + OSADA_BLOCK_SIZE;
-			pthread_mutex_unlock(&mutex);
-			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
-		} else {
-			pthread_mutex_lock(&mutex);
-			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (tamanioArchivo - sum) * sizeof(int));
-			//printf("\n ------Copia Parcial ------ %d", bloque);
-			//printf("\n Escribio %d", (tamanioArchivo - sum));
-			sum = sum + (tamanioArchivo - sum);
-			pthread_mutex_unlock(&mutex);
-		}
-
-		//printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
-		//printf("\n Cantidad Bytes restantes %d", (tamanioArchivo - sum));
-		//printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
-		pthread_mutex_lock(&mutex);
-		bloque = tablaAsignaciones[bloque];
-		pthread_mutex_unlock(&mutex);
-	}
-
-	//Escribo el archivo obtenido
-	FILE* pFile;
-	char *str = string_new();
-	string_append(&str, rutaOsadaDir);
-	string_append(&str, ruta);
-	string_append(&str, archivoNombre);
-
-	pFile = fopen(str,"wb");
-	fwrite(block, tamanioArchivo, 1, pFile);
-	//printf("Creando archivo %s \n", str);
-	fclose(pFile);
-	free(block);
-	block=NULL;
-}*/
-
 
 void aceptarConexiones() {
 	struct socket* mi_socket_s;

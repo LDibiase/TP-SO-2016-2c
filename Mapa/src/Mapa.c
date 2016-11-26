@@ -1399,6 +1399,7 @@ t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesA
 				entrenadorPerdedor = entrenadorRestante;
 			}
 
+
 			noHayEntrenadorAEliminar = false;
 		}
 	}

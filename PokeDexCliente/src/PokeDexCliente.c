@@ -22,7 +22,6 @@
 //#include "protocoloPokedexClienteServidor.h"
 
 
-
 #define LOG_FILE_PATH "PokeDexCliente.log"
 #define TAMANIO_MAXIMO_MENSAJE 50
 
@@ -463,10 +462,45 @@ static int fuse_write(const char *path, const char *buf, size_t size, off_t offs
 			return size;
 }
 
+static int fuse_rename(const char* from, const char* to) {
+	// Enviar mensaje RENAME
+		paquete_t paqueteLectura;
+		mensaje9_t mensajeQuieroRENAME;
+
+		mensajeQuieroRENAME.tipoMensaje = RENAME;
+		mensajeQuieroRENAME.pathFrom = from;
+		mensajeQuieroRENAME.tamanioPathFrom = strlen(mensajeQuieroRENAME.pathFrom) + 1;
+		mensajeQuieroRENAME.pathTo = to;
+		mensajeQuieroRENAME.tamanioPathTo = strlen(mensajeQuieroRENAME.pathTo) + 1;
+
+
+		crearPaquete((void*) &mensajeQuieroRENAME, &paqueteLectura);
+		log_info(logger, "MENSAJE RENAME FROM: %s TO: %s", mensajeQuieroRENAME.pathFrom, mensajeQuieroRENAME.pathTo);
+		if(paqueteLectura.tamanioPaquete == 0) {
+			pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, pokedex->error);
+			log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+			exit(EXIT_FAILURE);
+		}
+
+		enviarMensaje(pokedex, paqueteLectura);
+
+		// Recibir mensaje RESPUESTA
+			mensaje7_t mensajeRENAME_RESPONSE;
+			mensajeRENAME_RESPONSE.tipoMensaje = RENAME_RESPONSE;
+
+			recibirMensaje(pokedex, &mensajeRENAME_RESPONSE);
+			log_info(logger, "MENSAJE RENAME_RESPONSE: %d", mensajeRENAME_RESPONSE.res);
+
+			if(mensajeRENAME_RESPONSE.res == -2)
+			return -ENAMETOOLONG;
+
+			return 0;
+}
 
 static struct fuse_opt fuse_options[] = {
 		// Este es un parametro definido por nosotros
-		CUSTOM_FUSE_OPT_KEY("--welcome-msg %s", welcome_msg, 0),
+		//CUSTOM_FUSE_OPT_KEY("--welcome-msg %s", welcome_msg, 0),
 
 		// Estos son parametros por defecto que ya tiene FUSE
 		//FUSE_OPT_KEY("-V", KEY_VERSION),
@@ -490,7 +524,7 @@ static struct fuse_operations fuse_oper = {
 		.flush = fuse_flush,
 		.create = fuse_create,
 		.release = fuse_release,
-		//rename(const char* from, const char* to)
+		.rename = fuse_rename,
 		//utimens(const char* path, const struct timespec ts[2]
 };
 
@@ -503,6 +537,7 @@ int main(int argc, char *argv[]) {
 	// Limpio la estructura que va a contener los parametros
 	memset(&runtime_options, 0, sizeof(struct t_runtime_options));
 
+
 	// Esta funcion de FUSE lee los parametros recibidos y los intepreta
 	if (fuse_opt_parse(&args, &runtime_options, fuse_options, NULL) == -1){
 		/** error parsing options */
@@ -510,14 +545,16 @@ int main(int argc, char *argv[]) {
 		return EXIT_FAILURE;
 	}
 
-	// Si se paso el parametro --welcome-msg
-	// el campo welcome_msg deberia tener el
-	// valor pasado
-	if( runtime_options.welcome_msg != NULL ){
-		printf("%s\n", runtime_options.welcome_msg);
-	}
+	//Ejecuto en modo single Thread
+	fuse_opt_add_arg(&args, "-s");
 
-	pokedex = conectarAPokedexServidor("127.0.0.1", "8080");
+	const char* osadaIP = getenv("osadaIP");
+	const char* osadaPuerto = getenv("osadaPuerto");
+
+	//export osadaIP=127.0.0.1
+	//export osadaPuerto=8080
+
+	pokedex = conectarAPokedexServidor(osadaIP, osadaPuerto);
 
 	// Esta es la funcion principal de FUSE, es la que se encarga
 	// de realizar el montaje, comuniscarse con el kernel, delegar todo

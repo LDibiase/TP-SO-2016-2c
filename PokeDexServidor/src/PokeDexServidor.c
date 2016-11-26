@@ -28,14 +28,13 @@
 
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 #define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje
-#define IP_SERVIDOR "127.0.0.1"
-#define PUERTO "8080"
+#define IP_SERVIDOR "0.0.0.0"
+#define PUERTO "6543"
 #define CANTIDAD_MAXIMA_CONEXIONES 1000
 #define TABLA_ARCHIVOS 2048
 #define LOG_FILE_PATH "PokeDexServidor.log"
 
 struct socket** clientes;
-char* rutaFS = "/home/utnso/workspace/testOsada/test.bin";
 //char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
 
 osada_file tablaArchivos[2048];		// TABLA DE ARCHIVOS
@@ -63,6 +62,8 @@ int main(void) {
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 
+	//Carga variable de entorno del archivo .bin
+	const char* rutaFS = getenv("osadaFile");
 
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_SERVIDOR", true, LOG_LEVEL_INFO);
 

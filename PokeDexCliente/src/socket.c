@@ -541,6 +541,51 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 		offset = offset + tamanioOperando;
 
 		break;
+	case RENAME:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje9_t*) mensaje)->tamanioPathFrom) + ((mensaje9_t*) mensaje)->tamanioPathFrom + sizeof(((mensaje9_t*) mensaje)->tamanioPathTo) + ((mensaje9_t*) mensaje)->tamanioPathTo;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje9_t*) mensaje)->tamanioPathFrom);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje9_t*) mensaje)->tamanioPathFrom), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje9_t*) mensaje)->tamanioPathFrom;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje9_t*) mensaje)->pathFrom, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = sizeof(((mensaje9_t*) mensaje)->tamanioPathTo);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje9_t*) mensaje)->tamanioPathTo), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje9_t*) mensaje)->tamanioPathTo;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje9_t*) mensaje)->pathTo, tamanioOperando);
+		offset = offset + tamanioOperando;
+		break;
+	case RENAME_RESPONSE:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje7_t*) mensaje)->res);
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje7_t*) mensaje)->res);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje7_t*) mensaje)->res), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		break;
 	}
 }
 
@@ -1285,6 +1330,112 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			break;
 		case WRITE_RESPONSE:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			memcpy(&(((mensaje7_t*) mensaje)->res), buffer, tamanioBuffer);
+
+			break;
+		case RENAME:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje9_t*) mensaje)->tamanioPathFrom);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			memcpy(&(((mensaje9_t*) mensaje)->tamanioPathFrom), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje9_t*) mensaje)->tamanioPathFrom;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje9_t*) mensaje)->pathFrom = malloc(tamanioBuffer);
+			memcpy(((mensaje9_t*) mensaje)->pathFrom, buffer, tamanioBuffer);
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje9_t*) mensaje)->tamanioPathTo);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			memcpy(&(((mensaje9_t*) mensaje)->tamanioPathTo), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje9_t*) mensaje)->tamanioPathTo;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, MSG_WAITALL);
+			if(bytesRecibidos == 0)
+			{
+				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
+				free(buffer);
+				return;
+			}
+			else if(bytesRecibidos == -1)
+			{
+				socket->error = strerror(errno);
+				free(buffer);
+				return;
+			}
+
+			((mensaje9_t*) mensaje)->pathTo = malloc(tamanioBuffer);
+			memcpy(((mensaje9_t*) mensaje)->pathTo, buffer, tamanioBuffer);
+			free(buffer);
+
+			break;
+		case RENAME_RESPONSE:
 			free(buffer);
 			tamanioBuffer = sizeof(((mensaje7_t*) mensaje)->res);
 			buffer = malloc(tamanioBuffer);

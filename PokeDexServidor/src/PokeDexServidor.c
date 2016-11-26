@@ -414,6 +414,29 @@ int main(void) {
 				enviarMensaje(socketPokedex, paqueteWRITE);
 
 				break;
+			case RENAME:
+				log_info(logger, "Solicito RENAME FROM: %s TO: %s", ((mensaje9_t*) mensajeRespuesta)->pathFrom, ((mensaje9_t*) mensajeRespuesta)->pathTo);
+
+				// Enviar mensaje RENAME
+				paquete_t paqueteRENAME;
+				mensaje7_t mensajeRENAME_RESPONSE;
+
+
+				mensajeRENAME_RESPONSE.tipoMensaje = RENAME_RESPONSE;
+				mensajeRENAME_RESPONSE.res = rename_callback(((mensaje9_t*) mensajeRespuesta)->pathFrom,((mensaje9_t*) mensajeRespuesta)->pathTo);
+
+				log_info(logger, "RENAMERESPONSE: %d \n", mensajeRENAME_RESPONSE.res);
+
+				crearPaquete((void*) &mensajeRENAME_RESPONSE, &paqueteRENAME);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteRENAME);
+				break;
 			}
 		}
 	}
@@ -442,6 +465,37 @@ int getFirstBit() {
 		}
 	}
 	return -1;
+}
+
+int rename_callback(const char *from, const char *to) {
+	char** array;
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	if (!(string_equals_ignore_case(to, "/"))) {
+		array = string_split(to, "/");
+		while (array[i+1]) {
+			char* fname = array[i];
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			dirPadre = res;
+			i++;
+		}
+	} else {
+		res = dirPadre;
+	}
+
+	int archivoID = getDirPadre(from);
+
+	int n = string_length(array[i]);
+		if (n > 17) {
+			return -2; }
+
+	if (archivoID != -1) {
+		tablaArchivos[archivoID].parent_directory=res;
+		strcpy(tablaArchivos[archivoID].fname, array[i]);
+	}
+
+	return archivoID;
 }
 
 int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer){

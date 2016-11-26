@@ -582,17 +582,20 @@ int mkdir_callback(const char *path) {
 	int id = get_firstEntry();
 
 	if (id == -1) {
-		return -1;
-	} else {
-		osada_file newDir;
-		strcpy(newDir.fname, array[i]);
-		newDir.state = 2;
-		newDir.parent_directory = res;
-		newDir.file_size = 0;
-		newDir.first_block = -1;
-		newDir.lastmod = 1475075773;
-		tablaArchivos[id] = newDir;
-	}
+		return -1; }
+
+	int n = string_length(array[i]);
+	printf("Size of name: %d", n);
+	if (n > 17) {
+		return -2; }
+	osada_file newDir;
+	strcpy(newDir.fname, array[i]);
+	newDir.state = 2;
+	newDir.parent_directory = res;
+	newDir.file_size = 0;
+	newDir.first_block = -1;
+	newDir.lastmod = 1475075773;
+	tablaArchivos[id] = newDir;
 
 	return id;
 }
@@ -622,17 +625,21 @@ int mknod_callback(const char *path) {
 
 	int id = get_firstEntry();
 	if (id == -1) {
-		return -1;
-	} else {
-		osada_file newDir;
-		strcpy(newDir.fname, array[i]);
-		newDir.state = 1;
-		newDir.parent_directory = res;
-		newDir.file_size = 0;
-		newDir.first_block = -1;
-		newDir.lastmod = 1475075773;
-		tablaArchivos[id] = newDir;
-	}
+		return -1; }
+
+	int n = string_length(array[i]);
+	printf("Size of name: %d", n);
+	if (n > 17) {
+		return -2; }
+
+	osada_file newDir;
+	strcpy(newDir.fname, array[i]);
+	newDir.state = 1;
+	newDir.parent_directory = res;
+	newDir.file_size = 0;
+	newDir.first_block = -1;
+	newDir.lastmod = 1475075773;
+	tablaArchivos[id] = newDir;
 	return id;
 }
 

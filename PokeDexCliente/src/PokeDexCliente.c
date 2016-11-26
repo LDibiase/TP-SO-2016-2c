@@ -244,8 +244,11 @@ static int fuse_mkdir(const char *path, mode_t mode)
 	log_info(logger, "MENSAJE MKDIR_RESPONSE: %d", mensajeMKDIR_RESPONSE.res);
 
     res = mensajeMKDIR_RESPONSE.res;
-    if(res == -1)
-        return -errno;
+	if(res == -1)
+		return -EDQUOT;
+
+	if(res == -2)
+	return -ENAMETOOLONG;
 
     return 0;
 }
@@ -373,7 +376,10 @@ static int fuse_mknod(const char *path, mode_t mode, dev_t rdev)
 	log_info(logger, "MENSAJE MKNOD RES: %d", mensajeMKNOD_RESPONSE.res);
 	res = mensajeMKNOD_RESPONSE.res;
 	if(res == -1)
-		return -errno;
+		return -EDQUOT;
+
+	if(res == -2)
+	return -ENAMETOOLONG;
 
 	return 0;
 }
@@ -410,8 +416,12 @@ static int fuse_create(const char *path, mode_t mode, dev_t rdev)
 
 		log_info(logger, "MENSAJE MKNOD RES: %d", mensajeMKNOD_RESPONSE.res);
 		res = mensajeMKNOD_RESPONSE.res;
+
 		if(res == -1)
-			return -errno;
+			return -EDQUOT;
+
+		if(res == -2)
+		return -ENAMETOOLONG;
 
 		return 0;
 }
@@ -480,6 +490,8 @@ static struct fuse_operations fuse_oper = {
 		.flush = fuse_flush,
 		.create = fuse_create,
 		.release = fuse_release,
+		//rename(const char* from, const char* to)
+		//utimens(const char* path, const struct timespec ts[2]
 };
 
 int main(int argc, char *argv[]) {

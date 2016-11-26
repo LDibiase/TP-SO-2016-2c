@@ -8,6 +8,8 @@
 #ifndef MAPA_H_
 #define MAPA_H_
 #include "socket.h"
+#include <pkmn/battle.h>
+#include <pkmn/factory.h>
 
 /* Definición de estructuras */
 
@@ -36,12 +38,28 @@ typedef struct pokenest {
 	t_ubicacion ubicacion;
 	char id;
 	int cantidad;
+	t_list* metadatasPokemones;
 } t_mapa_pokenest;
 
 typedef struct recursosEntrenador {
 	char id;
 	t_list* recursos;
 } t_recursosEntrenador;
+
+typedef struct pokemonEntrenador{
+	char id;
+	char* nombre;
+	char* tipo;
+	int poder;
+	int nivel;
+	char idEntrenador;
+	t_pokemon* pokemon;
+}t_pokemonEntrenador;
+
+typedef struct metadataPokemon{
+	char* rutaArchivo;
+	int nivel;
+}t_metadataPokemon;
 
 /* Constantes */
 
@@ -74,5 +92,9 @@ void liberarMemoriaAlocada();
 void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar);
 void signal_handler();
 void signal_termination_handler(int signum);
+void chequearDeadlock();
+t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador);
+t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear);
+int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* metadatasPokemones);
 
 #endif /* MAPA_H_ */

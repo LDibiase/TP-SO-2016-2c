@@ -35,8 +35,8 @@
 #define LOG_FILE_PATH "PokeDexServidor.log"
 
 struct socket** clientes;
-char* rutaFS = "/home/utnso/workspace/tp-2016-2c-CodeTogether/challenge.bin";
-char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
+char* rutaFS = "/home/utnso/workspace/testOsada/test.bin";
+//char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
 
 osada_file tablaArchivos[2048];		// TABLA DE ARCHIVOS
 unsigned int * tablaAsignaciones;	// TABLA DE ASIGNACIONES
@@ -183,7 +183,7 @@ int main(void) {
 
 
 	//Imprime tabla de asignaciones
-	/*for (i = 0; i <  50 ;i++)
+	/*for (i = 19650; i <  19750 ;i++)
 		{
 			if (tablaAsignaciones[i] != 0)
 			{
@@ -193,13 +193,18 @@ int main(void) {
 			}
 		}*/
 
+	//int bit = getFirstBit();
+	//printf("BIT: %d", bit);
+
 	//char* ruta = "/";
 	//escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
 
 	//getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
 	//readdir_callback("/Pallet Town/Pokemons");
 
+	//mkdir_callback("/Pokemons/DirTest");
 
+	//mknod_callback("/test.txt");
 
 
 	// CREACIÓN DEL HILO EN ESCUCHA
@@ -227,62 +232,63 @@ int main(void) {
 			case READDIR:
 				log_info(logger, "Solicito READDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
 				char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
-				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
 				// Enviar mensaje READ
-					paquete_t paqueteLectura;
-					mensaje2_t mensajeREADDIR_RESPONSE;
+				paquete_t paqueteLectura;
+				mensaje2_t mensajeREADDIR_RESPONSE;
 
-					mensajeREADDIR_RESPONSE.tipoMensaje = READDIR_RESPONSE;
-					mensajeREADDIR_RESPONSE.tamanioMensaje = strlen(cadenaMensaje) + 1;
-					mensajeREADDIR_RESPONSE.mensaje = cadenaMensaje;
+				mensajeREADDIR_RESPONSE.tipoMensaje = READDIR_RESPONSE;
+				mensajeREADDIR_RESPONSE.tamanioMensaje = strlen(cadenaMensaje) + 1;
+				mensajeREADDIR_RESPONSE.mensaje = cadenaMensaje;
 
-					crearPaquete((void*) &mensajeREADDIR_RESPONSE, &paqueteLectura);
-					if(paqueteLectura.tamanioPaquete == 0) {
-						socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-						log_info(logger, socketPokedex->error);
-						log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
-						exit(EXIT_FAILURE);
-					}
+				crearPaquete((void*) &mensajeREADDIR_RESPONSE, &paqueteLectura);
+				if(paqueteLectura.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
 
-					enviarMensaje(socketPokedex, paqueteLectura);
+				enviarMensaje(socketPokedex, paqueteLectura);
 				break;
 			case GETATTR: ;
-					log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
-					t_getattr getattr = getattr_callback(((mensaje1_t*) mensajeRespuesta)->path);
+			log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+			t_getattr getattr = getattr_callback(((mensaje1_t*) mensajeRespuesta)->path);
 
-					// Enviar mensaje GETATTR
-					paquete_t paqueteGetAttr;
-					mensaje3_t mensajeGETATTR_RESPONSE;
+			// Enviar mensaje GETATTR
+			paquete_t paqueteGetAttr;
+			mensaje3_t mensajeGETATTR_RESPONSE;
 
-					mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
-					mensajeGETATTR_RESPONSE.tipoArchivo = getattr.tipoArchivo;
-					mensajeGETATTR_RESPONSE.tamanioArchivo = getattr.tamanioArchivo;
+			mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
+			mensajeGETATTR_RESPONSE.tipoArchivo = getattr.tipoArchivo;
+			mensajeGETATTR_RESPONSE.tamanioArchivo = getattr.tamanioArchivo;
 
 
-					crearPaquete((void*) &mensajeGETATTR_RESPONSE, &paqueteGetAttr);
-					if(paqueteGetAttr.tamanioPaquete == 0) {
-						socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-						log_info(logger, socketPokedex->error);
-						log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
-						exit(EXIT_FAILURE);
-					}
+			crearPaquete((void*) &mensajeGETATTR_RESPONSE, &paqueteGetAttr);
+			if(paqueteGetAttr.tamanioPaquete == 0) {
+				socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, socketPokedex->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+				exit(EXIT_FAILURE);
+			}
 
-					enviarMensaje(socketPokedex, paqueteGetAttr);
-				break;
+			enviarMensaje(socketPokedex, paqueteGetAttr);
+			break;
 			case READ:
 				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
-				//char* cadenaMensaje = readdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
-				//printf("CADENA RESPUESTA: %s /n", cadenaMensaje);
 
 				// Enviar mensaje READ
-
 				paquete_t paqueteREAD;
 				mensaje5_t mensajeREAD_RESPONSE;
+				t_block READ_RES;
+
+				READ_RES = read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer);
 
 				mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
-				mensajeREAD_RESPONSE.buffer = read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer);
-				mensajeREAD_RESPONSE.tamanioBuffer = strlen(mensajeREAD_RESPONSE.buffer) + 1;
+				mensajeREAD_RESPONSE.buffer = READ_RES.block;
+				mensajeREAD_RESPONSE.tamanioBuffer = READ_RES.size;
+
+				log_info(logger, "READRESPONSE: Cantidad de bytes: %d \n", mensajeREAD_RESPONSE.tamanioBuffer);
 
 				crearPaquete((void*) &mensajeREAD_RESPONSE, &paqueteREAD);
 				if(paqueteGetAttr.tamanioPaquete == 0) {
@@ -293,7 +299,143 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteREAD);
+				break;
+			case MKDIR:
+				log_info(logger, "Solicito MKDIR del path: %s", ((mensaje6_t*) mensajeRespuesta)->path);
 
+				// Enviar mensaje MKDIR
+
+				paquete_t paqueteMKDIR;
+				mensaje7_t mensajeMKDIR_RESPONSE;
+
+				mensajeMKDIR_RESPONSE.tipoMensaje = MKDIR_RESPONSE;
+				mensajeMKDIR_RESPONSE.res = mkdir_callback(((mensaje6_t*) mensajeRespuesta)->path);
+
+				crearPaquete((void*) &mensajeMKDIR_RESPONSE, &paqueteMKDIR);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteMKDIR);
+
+				break;
+			case RMDIR:
+				log_info(logger, "Solicito RMDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+
+				// Enviar mensaje RMDIR
+
+				paquete_t paqueteRMDIR;
+				mensaje7_t mensajeRMDIR_RESPONSE;
+
+				mensajeRMDIR_RESPONSE.tipoMensaje = RMDIR_RESPONSE;
+				mensajeRMDIR_RESPONSE.res = rmdir_callback(((mensaje1_t*) mensajeRespuesta)->path);
+
+				crearPaquete((void*) &mensajeRMDIR_RESPONSE, &paqueteRMDIR);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteRMDIR);
+
+				break;
+			case UNLINK:
+				log_info(logger, "Solicito UNLINK del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+
+				// Enviar mensaje RMDIR
+
+				paquete_t paqueteUNLINK;
+				mensaje7_t mensajeUNLINK_RESPONSE;
+
+				mensajeUNLINK_RESPONSE.tipoMensaje = UNLINK_RESPONSE;
+				mensajeUNLINK_RESPONSE.res = unlink_callback(((mensaje1_t*) mensajeRespuesta)->path);
+
+				crearPaquete((void*) &mensajeUNLINK_RESPONSE, &paqueteUNLINK);
+				if(paqueteUNLINK.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteUNLINK);
+
+				break;
+			case MKNOD:
+				log_info(logger, "Solicito MKNOD del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
+
+				// Enviar mensaje MKNOD
+
+				paquete_t paqueteMKNOD;
+				mensaje7_t mensajeMKNOD_RESPONSE;
+
+				mensajeMKNOD_RESPONSE.tipoMensaje = MKNOD_RESPONSE;
+				mensajeMKNOD_RESPONSE.res = mknod_callback(((mensaje1_t*) mensajeRespuesta)->path);
+
+				log_info(logger, "MKNOD res: %d", mensajeMKNOD_RESPONSE.res);
+
+				crearPaquete((void*) &mensajeMKNOD_RESPONSE, &paqueteMKNOD);
+				if(paqueteMKNOD.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteMKNOD);
+
+				break;
+			case WRITE:
+				log_info(logger, "Solicito WRITE del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje8_t*) mensajeRespuesta)->offset);
+
+				// Enviar mensaje respuesta
+
+				paquete_t paqueteWRITE;
+				mensaje7_t mensajeWRITE_RESPONSE;
+
+				int res = write_callback(((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->offset, ((mensaje8_t*) mensajeRespuesta)->buffer, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer);
+				mensajeWRITE_RESPONSE.tipoMensaje = WRITE_RESPONSE;
+				mensajeWRITE_RESPONSE.res = res;
+
+
+				crearPaquete((void*) &mensajeWRITE_RESPONSE, &paqueteWRITE);
+				if(paqueteWRITE.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteWRITE);
+
+				break;
+			case RENAME:
+				log_info(logger, "Solicito RENAME FROM: %s TO: %s", ((mensaje9_t*) mensajeRespuesta)->pathFrom, ((mensaje9_t*) mensajeRespuesta)->pathTo);
+
+				// Enviar mensaje RENAME
+				paquete_t paqueteRENAME;
+				mensaje7_t mensajeRENAME_RESPONSE;
+
+
+				mensajeRENAME_RESPONSE.tipoMensaje = RENAME_RESPONSE;
+				mensajeRENAME_RESPONSE.res = rename_callback(((mensaje9_t*) mensajeRespuesta)->pathFrom,((mensaje9_t*) mensajeRespuesta)->pathTo);
+
+				log_info(logger, "RENAMERESPONSE: %d \n", mensajeRENAME_RESPONSE.res);
+
+				crearPaquete((void*) &mensajeRENAME_RESPONSE, &paqueteRENAME);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteRENAME);
 				break;
 			}
 		}
@@ -301,11 +443,6 @@ int main(void) {
 
 	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
 	close(fileFS); //Cierro el archivo
-
-	//Test de escritura en OSADA
-	//FILE *fp;
-	//fp = fopen("test.txt", "w+");
-	//fread(buffer,)
 
 
 	////////////////////
@@ -319,6 +456,140 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
+int getFirstBit() {
+	int j = bitarray_get_max_bit(bitarray);
+	int i;
+	for (i = inicioBloqueDatos; i < j; i++) {
+		if (bitarray_test_bit(bitarray, i) == 0) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int rename_callback(const char *from, const char *to) {
+	char** array;
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	if (!(string_equals_ignore_case(to, "/"))) {
+		array = string_split(to, "/");
+		while (array[i+1]) {
+			char* fname = array[i];
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			dirPadre = res;
+			i++;
+		}
+	} else {
+		res = dirPadre;
+	}
+
+	int archivoID = getDirPadre(from);
+
+	int n = string_length(array[i]);
+		if (n > 17) {
+			return -2; }
+
+	if (archivoID != -1) {
+		tablaArchivos[archivoID].parent_directory=res;
+		strcpy(tablaArchivos[archivoID].fname, array[i]);
+	}
+
+	return archivoID;
+}
+
+int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer){
+	int archivoID = getDirPadre(path);
+	int primerBloque = tablaArchivos[archivoID].first_block;
+
+	//Asigno nuevo tamaño
+
+	//printf("\nwrite file size: %d", tablaArchivos[archivoID].file_size);
+	tablaArchivos[archivoID].file_size = tamanioBuffer + offset;
+
+	//TODO:Si el tamaño es menor, liberar bloques
+
+	int sum = 0;
+	int sumOffset = 0;
+	int bloque = primerBloque;
+	int bloqueAnterior;
+
+	//Movimientos hasta el offset
+	while (sumOffset<offset) {
+		bloqueAnterior = bloque;
+		bloque = tablaAsignaciones[bloque];
+		sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+		//printf("\nwrite sumoffset: %d", sumOffset);
+		//printf("\nwrite bloque: %d", bloque);
+		//log_info(logger, "Bloque offset: %d sum: %d", bloque, sumOffset);
+	}
+
+	//printf("\n sumOffset %d", sumOffset);
+	//printf("\n tamanioBuffer %d", tamanioBuffer);
+
+	//Si estamos en el final del archivo
+
+	//Si es un archivo vacio
+	if (bloque == -1) {
+		//printf("\n firstbit: %d , iniciobloquedatos: %d",getFirstBit(),inicioBloqueDatos);
+		bloque = getFirstBit() - inicioBloqueDatos;
+		if (tablaArchivos[archivoID].first_block == -1) {
+			tablaArchivos[archivoID].first_block = bloque;
+		} else {
+			tablaAsignaciones[bloqueAnterior] = bloque;
+			//log_info(logger, "Bloqueoffset anterior: %d nuevo: %d", bloqueAnterior, bloque);
+		}
+
+		//printf("\n primer bloque %d", tablaArchivos[archivoID].first_block);
+	}
+
+	while (sum<tamanioBuffer) {
+		if (tamanioBuffer - sum > OSADA_BLOCK_SIZE) {
+			pthread_mutex_lock(&mutex);
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], OSADA_BLOCK_SIZE * sizeof(char));
+
+			sum = sum + OSADA_BLOCK_SIZE;
+			pthread_mutex_unlock(&mutex);
+			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
+		} else {
+			pthread_mutex_lock(&mutex);
+			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], (tamanioBuffer - sum) * sizeof(char));
+			//printf("\n ------Copia Parcial ------ %d", bloque);
+			//printf("\n Escribio %d", (tamanioBuffer - sum));
+			sum = sum + (tamanioBuffer - sum);
+			pthread_mutex_unlock(&mutex);
+		}
+
+
+		//Actualizo bitarray
+		bitarray_set_bit(bitarray,bloque + inicioBloqueDatos);
+		//printf("\n Escribiendo bloque %d", bloque);
+		//printf("\n Cantidad Bytes restantes %d", (tamanioBuffer - sum));
+
+		int bloqueAnterior = bloque;
+
+		//Actualizo tabla de asignaciones si corresponde
+		if (sum<tamanioBuffer) {
+			if (tablaAsignaciones[bloqueAnterior] != -1) {
+				bloque = tablaAsignaciones[bloqueAnterior];
+				//printf("\n Siguiente bloque reutilizado %d", bloque);
+			} else { //Busco un nuevo bloque si corresponde
+				bloque = getFirstBit() - inicioBloqueDatos;
+				tablaAsignaciones[bloqueAnterior] = bloque;
+				tablaAsignaciones[bloque] = -1;
+				//printf("\n Siguiente bloque nuevo %d", bloque);
+				//log_info(logger, "Bloques anterior: %d nuevo: %d", bloqueAnterior, bloque);
+			}
+		} else { //Finalizo la escritura
+			tablaAsignaciones[bloqueAnterior] = -1;
+		}
+	}
+
+	//printf("\n sum %d", sum);
+
+	return 1;
+}
+
 char* readdir_callback(const char *path) {
 	char *cadenaMensaje = string_new();
 	int i;
@@ -326,12 +597,10 @@ char* readdir_callback(const char *path) {
 	for (i = 0; i < TABLA_ARCHIVOS; i++) {
 		if (tablaArchivos[i].state != 0) {
 			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
-				//printf("DIRECTORIO: %s Tipo: %d  \n ", tablaArchivos[i].fname, tablaArchivos[i].state);
 				string_append(&cadenaMensaje, tablaArchivos[i].fname);
 				string_append(&cadenaMensaje, "/");
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-					//printf("ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[i].fname, tablaArchivos[i].state, tablaArchivos[i].file_size);
 					string_append(&cadenaMensaje, tablaArchivos[i].fname);
 					string_append(&cadenaMensaje, "/");
 				}
@@ -341,19 +610,16 @@ char* readdir_callback(const char *path) {
 	return cadenaMensaje;
 }
 
-int getDirPadre(const char *path) {
-	//printf("\nBuscando ruta: %s \n", path);
+int mkdir_callback(const char *path) {
 	char** array;
 	int i = 0;
 	int res = -1;
 	int dirPadre = 65535;
 	if (!(string_equals_ignore_case(path, "/"))) {
 		array = string_split(path, "/");
-		while (array[i]) {
+		while (array[i+1]) {
 			char* fname = array[i];
-			//printf("Buscando nombre: %s \n", array[i]);
 			res = buscarTablaAchivos(dirPadre,array[i]);
-			//printf("Encontrado id: %d \n", res);
 			dirPadre = res;
 			i++;
 		}
@@ -364,25 +630,151 @@ int getDirPadre(const char *path) {
 			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
 		}
 	} else {
+		res = dirPadre;
+	}
+
+	int id = get_firstEntry();
+
+	if (id == -1) {
+		return -1; }
+
+	int n = string_length(array[i]);
+	printf("Size of name: %d", n);
+	if (n > 17) {
+		return -2; }
+	osada_file newDir;
+	strcpy(newDir.fname, array[i]);
+	newDir.state = 2;
+	newDir.parent_directory = res;
+	newDir.file_size = 0;
+	newDir.first_block = -1;
+	newDir.lastmod = 1475075773;
+	tablaArchivos[id] = newDir;
+
+	return id;
+}
+
+int mknod_callback(const char *path) {
+	char** array;
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	if (!(string_equals_ignore_case(path, "/"))) {
+		array = string_split(path, "/");
+		while (array[i+1]) {
+			char* fname = array[i];
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			dirPadre = res;
+			i++;
+		}
+		if (tablaArchivos[res].state == 1) {
+			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
+		}
+		if (tablaArchivos[res].state == 2) {
+			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
+		}
+	} else {
+		res = dirPadre;
+	}
+
+	int id = get_firstEntry();
+	if (id == -1) {
+		return -1; }
+
+	int n = string_length(array[i]);
+	printf("Size of name: %d", n);
+	if (n > 17) {
+		return -2; }
+
+	osada_file newDir;
+	strcpy(newDir.fname, array[i]);
+	newDir.state = 1;
+	newDir.parent_directory = res;
+	newDir.file_size = 0;
+	newDir.first_block = -1;
+	newDir.lastmod = 1475075773;
+	tablaArchivos[id] = newDir;
+	return id;
+}
+
+int rmdir_callback(const char *path) {
+	int archivoID = getDirPadre(path);
+
+	if (archivoID != -1) {
+		tablaArchivos[archivoID].state = 0;
+	}
+
+	return archivoID;
+}
+
+int unlink_callback(const char *path) {
+
+	int archivoID = getDirPadre(path);
+
+	if (archivoID != -1) {
+		int primerBloque = tablaArchivos[archivoID].first_block;
+		int bloque = primerBloque;
+		int bloqueAnterior = bloque;
+
+		while (bloque != -1) {
+			//Limpio el bitmap
+			bitarray_set_bit(bitarray, bloque + inicioBloqueDatos);
+			//printf("\n Limpiando bitarray %d", bloque);
+
+			bloqueAnterior = bloque;
+			bloque = tablaAsignaciones[bloque];
+
+			//Limpio tabla de asignaciones
+			tablaAsignaciones[bloqueAnterior] = -1;
+		}
+
+		//Limpio tabla de archivos
+		tablaArchivos[archivoID].state = 0;
+	}
+
+	return archivoID;
+}
+
+int get_firstEntry() {
+	int i;
+	for (i = 0; i < TABLA_ARCHIVOS; i++) {
+		if ((tablaArchivos[i].state != 1)&&(tablaArchivos[i].state != 2)) {
+			return i;
+		}
+	}
+	return -1;
+}
+
+int getDirPadre(const char *path) {
+	char** array;
+	int i = 0;
+	int res = -1;
+	int dirPadre = 65535;
+	if (!(string_equals_ignore_case(path, "/"))) {
+		array = string_split(path, "/");
+		while (array[i]) {
+			char* fname = array[i];
+			res = buscarTablaAchivos(dirPadre,array[i]);
+			dirPadre = res;
+			i++;
+		}
+	} else {
 		res = dirPadre; //Estamos en el root
 	}
 	return res;
 }
 
 t_getattr getattr_callback(const char *path) {
-	//printf("\nBuscando ruta: %s \n", path);
 	t_getattr res;
 	res.tipoArchivo = 0;
 	res.tamanioArchivo = 0;
 	if (!(string_equals_ignore_case(path, "/"))) {
 		int id = getDirPadre(path);
 		if (tablaArchivos[id].state == 1) {
-			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[id].fname, tablaArchivos[id].state, tablaArchivos[id].file_size);
 			res.tipoArchivo = 1;
 			res.tamanioArchivo = tablaArchivos[id].file_size;
 		}
 		if (tablaArchivos[id].state == 2) {
-			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[id].fname, tablaArchivos[id].state);
 			res.tipoArchivo = 2;
 		}
 	} else {
@@ -391,23 +783,35 @@ t_getattr getattr_callback(const char *path) {
 	return res;
 }
 
-char* read_callback(const char *path, int offset, int tamanioBuffer){
+t_block read_callback(const char *path, int offset, int tamanioBuffer){
 	int archivoID = getDirPadre(path);
-	//char* archivoNombre = tablaArchivos[archivoID].fname;
 	int primerBloque = tablaArchivos[archivoID].first_block;
 	int tamanioArchivo = tablaArchivos[archivoID].file_size;
-
+	int limite;
+	t_block res;
 	//Obtengo el bloque de datos correspondiente
 	int *block;
-	block =(int *)malloc(tamanioArchivo * sizeof(int));
-	printf("\nTamaño del archivo %d \n", tamanioArchivo);
+	if (tamanioArchivo-offset<tamanioBuffer) {
+		limite = tamanioArchivo-offset;
+	} else {
+		limite = tamanioBuffer;
+	}
 
+	block =(int *)malloc(limite * sizeof(int));
 	int sum = 0;
-	//int i= 0;
+	int sumOffset = 0;
 	int bloque = primerBloque;
-	//printf("\nPrimer bloque %d \n", bloque);
 
-	while (bloque != -1) {
+	while (sumOffset<offset) {
+		bloque = tablaAsignaciones[bloque];
+		//printf("\n bloque offset %d", bloque);
+		sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+	}
+
+	//printf("\n sumOffset %d", sumOffset);
+	//printf("\n tamanioBuffer %d", tamanioBuffer);
+
+	while ((bloque != -1) && (sum<limite)) {
 		if (tablaAsignaciones[bloque] != -1) {
 			pthread_mutex_lock(&mutex);
 			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
@@ -416,24 +820,25 @@ char* read_callback(const char *path, int offset, int tamanioBuffer){
 			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
 		} else {
 			pthread_mutex_lock(&mutex);
-			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (tamanioArchivo - sum) * sizeof(int));
+			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (limite - sum) * sizeof(int));
 			//printf("\n ------Copia Parcial ------ %d", bloque);
-			//printf("\n Escribio %d", (tamanioArchivo - sum));
-			sum = sum + (tamanioArchivo - sum);
+			//printf("\n Escribio %d", (limite - sum));
+			sum = sum + (limite - sum);
 			pthread_mutex_unlock(&mutex);
 		}
 
-		//printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
-		//printf("\n Cantidad Bytes restantes %d", (tamanioArchivo - sum));
+		//printf("\n Escribiendo bloque %d", bloque);
+		//printf("\n Cantidad Bytes restantes %d", (limite - sum));
 		//printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
 		pthread_mutex_lock(&mutex);
 		bloque = tablaAsignaciones[bloque];
 		pthread_mutex_unlock(&mutex);
 	}
 
-	//free(block);
-	//block=NULL;
-	return block;
+	//printf("\n sum %d", sum);
+	res.block = block;
+	res.size = limite;
+	return res;
 }
 
 int buscarTablaAchivos(int dirPadre, char* fname) {
@@ -453,7 +858,7 @@ int buscarTablaAchivos(int dirPadre, char* fname) {
 	}
 	return res;
 }
-
+/*
 void escribirEstructura(int dirPadre, char* ruta) {
 	int i;
 
@@ -536,7 +941,7 @@ void leerArchivo(int archivoID, char* ruta){
 	fclose(pFile);
 	free(block);
 	block=NULL;
-}
+}*/
 
 
 void aceptarConexiones() {

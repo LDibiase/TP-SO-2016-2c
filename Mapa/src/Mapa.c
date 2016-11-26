@@ -26,6 +26,8 @@
 #include <commons/log.h>
 #include "Mapa.h"
 #include "nivel.h"
+#include <pkmn/battle.h>
+#include <pkmn/factory.h>
 
 #define BACKLOG 10 					// Cuántas conexiones pendientes se mantienen en cola
 #define TAMANIO_MAXIMO_MENSAJE 50	// Tamaño máximo de un mensaje
@@ -65,8 +67,15 @@ int main(void) {
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHiloEnEscucha;
 
+	// Variables para la creación del hilo verificador de deadlock
+	pthread_t hiloDeadlock;
+	pthread_attr_t atributosHiloDeadlock;
+
 	// Variables para la diagramación del mapa
 	int rows, cols;
+
+	// Flag de actividad
+	int activo;
 
 	//INICIALIZACIÓN DE LOS SEMÁFOROS
 	pthread_mutex_init(&mutexLog, NULL);
@@ -121,6 +130,11 @@ int main(void) {
 	pthread_attr_init(&atributosHiloSignalHandler);
 	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
 	pthread_attr_destroy(&atributosHiloSignalHandler);
+
+	//CREACIÓN DEL HILO VERIFICADOR DE DEADLOCK
+	pthread_attr_init(&atributosHiloDeadlock);
+	pthread_create(&hiloDeadlock, &atributosHiloDeadlock, (void*) chequearDeadlock, NULL);
+	pthread_attr_destroy(&atributosHiloDeadlock);
 
 	//CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHiloEnEscucha);
@@ -649,17 +663,30 @@ t_list* cargarPokenests() {
 
 		if (S_ISDIR(st.st_mode)){
 			char* str = string_new();
+			int cantidadDeRecursos = 0;
 
 			string_append(&str, "PokeNests/");
 			string_append(&str, dent->d_name);
+
+			//OBTENGO METADATAS DE PÓKEMONES EXISTENTES EN LA POKÉNEST
+			t_list* metadatasPokemones;
+			list_create(metadatasPokemones);
+
+			cantidadDeRecursos = obtenerCantidadRecursos(dent->d_name, str, metadatasPokemones);
+
 			string_append(&str, "/metadata");
 
 	        pokenestLeida = leerPokenest(str);
-	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, 10);
+
+	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, cantidadDeRecursos);
 	    	recursoTotales = malloc(sizeof(pokenestLeida));
 	    	recursoDisponibles = malloc(sizeof(pokenestLeida));
+
 	        *recursoTotales = pokenestLeida;
+	        recursoTotales->metadatasPokemones = metadatasPokemones;
+
 	        *recursoDisponibles = pokenestLeida;
+
 	        list_add(recursosTotales, recursoTotales);
 	        list_add(recursosDisponibles, recursoDisponibles);
 
@@ -667,10 +694,63 @@ t_list* cargarPokenests() {
 	    	free(str);
 		}
 	}
-
 	closedir(srcdir);
-
 	return newlist;
+}
+
+int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* metadatasPokemones) {
+	int cantidad = 0;
+	t_config* config;
+
+	char* numeroPokemon = "001";
+	char* nombreArchivoPokemon = rutaPokenest;
+	string_append(&nombreArchivoPokemon, nombrePokemon);
+	string_append(&nombreArchivoPokemon, numeroPokemon);
+	string_append(&nombreArchivoPokemon, ".dat");
+
+	while(1) {
+		config = config_create(nombreArchivoPokemon);
+
+		if(config_has_property(config, "Nivel"))
+		{
+			t_metadataPokemon* metadataPokemon = malloc(sizeof(t_metadataPokemon));
+			metadataPokemon->nivel = config_get_int_value(config, "Nivel");
+			metadataPokemon->rutaArchivo = nombreArchivoPokemon;
+
+			list_add(metadatasPokemones, metadataPokemon);
+
+			cantidad++;
+		}
+		else
+		{
+			config_destroy(config);
+			break;
+		}
+
+		char* cantidadToString = string_itoa(cantidad);
+
+		if(cantidad <= 9)
+		{
+			numeroPokemon = "00";
+		}
+
+		if(cantidad > 9)
+		{
+			numeroPokemon = "0";
+		}
+
+		if(cantidad > 99)
+		{
+			numeroPokemon = "";
+		}
+
+		string_append(&numeroPokemon, cantidadToString);
+		nombreArchivoPokemon = nombrePokemon;
+		string_append(&nombreArchivoPokemon, numeroPokemon);
+		string_append(&nombreArchivoPokemon, ".dat");
+	}
+
+	return cantidad;
 }
 
 t_mapa_pokenest leerPokenest(char* metadata) {
@@ -1049,13 +1129,23 @@ void eliminarEntrenador(t_entrenador* entrenador) {
 	free(entrenador);
 }
 
-bool algoritmoDeteccion()
-{
-	//LISTA AUXILIAR PARA EL CHEQUEO
+bool algoritmoDeteccion() {
+	//LISTA AUXILIAR DE ENTRENADORES
 	t_list* entrenadoresAux;
 	entrenadoresAux = list_create();
-	list_add_all(entrenadoresAux, entrenadores);
+	list_add_all(entrenadoresAux, colaBlocked->elements);
 
+	//LISTA AUXILIAR SOLICITUDES
+	t_list* solicitudesAux;
+	solicitudesAux = list_create();
+	list_add_all(solicitudesAux, recursosSolicitados);
+
+	//LISTA AUXILIAR DE DISPONIBLES
+	t_list* disponiblesAux;
+	disponiblesAux = list_create();
+	list_add_all(disponiblesAux, recursosDisponibles);
+
+	//VERIFICO QUE CADA ENTRENADOR TENGA ALGO ASIGNADO
 	void _verificarAsignaciones(t_entrenador* entrenador)
 	{
 		bool _esEntrenadorBuscado(t_entrenador* entrenadorABuscar) {
@@ -1064,16 +1154,70 @@ bool algoritmoDeteccion()
 
 		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _esEntrenadorBuscado);
 
-		//LOS QUE NO TIENEN NADA, LOS DESCARTO
+		//DESCARTO DE LA LISTA DE ENTRENADORES Y DE SOLICITUDES AQUELLOS ENTRENADORES QUE NO RETIENEN RECURSOS
 		if(entrenadorConRecursos == NULL)
 		{
 			list_remove_by_condition(entrenadoresAux, (void*) _esEntrenadorBuscado);
+			list_remove_by_condition(solicitudesAux, (void*) _esEntrenadorBuscado);
 		}
 	}
 
+	//VERIFICO QUE LAS SOLICITUDES SEAN POSIBLES
 	void _verificarSolicitudes(t_entrenador* entrenador)
 	{
-		//TODO IMPLEMENT
+		//ME FIJO QUE LA SOLICITUD SE PUEDA LLEVAR A CABO
+		bool _solicitudPosible(t_recursosEntrenador* entrenadorRecursos)
+		{
+			bool _cantidadSuficiente (t_mapa_pokenest* recurso)
+			{
+				bool _buscado(t_mapa_pokenest* recursoABuscar)
+				{
+					return recursoABuscar->id == recurso->id;
+				}
+
+				t_mapa_pokenest* recursoBuscado = list_find(entrenadorRecursos->recursos, (void*) _buscado);
+
+				return recurso->cantidad >= recursoBuscado->cantidad;
+			}
+
+			list_all_satisfy(disponiblesAux, (void*) _cantidadSuficiente);
+			return true;
+		}
+
+		//MIENTRAS HAYA ALGO EN LA LISTA DE SOLICITUDES
+		while(list_size(solicitudesAux) > 0)
+		{
+			//AGARRO EL PRIMER ENTRENADOR CON SU SOLICITUD
+			t_recursosEntrenador* entr = list_find(solicitudesAux, (void*) _solicitudPosible);
+			if(entr == NULL)
+				break;
+			else
+			{
+				//SI SE PUDO CUMPLIR CON LA SOLICITUD, DEVUELVO LOS RECURSOS Y SIGO CHEQUEANDO LOS OTROS ENTRENADORES
+				void _sumarRecurso(t_mapa_pokenest* recurso)
+				{
+					bool _buscado(t_mapa_pokenest* recursoABuscar)
+					{
+						return recursoABuscar->id == recurso->id;
+					}
+
+					t_mapa_pokenest* recursoAux = list_find(entr->recursos, (void*) _buscado);
+
+					recurso->cantidad = recurso->cantidad + recursoAux->cantidad;
+				}
+
+				list_iterate(disponiblesAux, (void*) _sumarRecurso);
+
+				bool _isTheOne(t_recursosEntrenador* entrenadorABuscar)
+				{
+					return entrenadorABuscar->id == entr->id;
+				}
+
+				//REMUEVO A DICHO ENTRENADOR DE LA LISTA, YA QUE NO SE ENCUENTRA EN INTERBLOQUEO
+				list_remove_by_condition(solicitudesAux, (void*) _isTheOne);
+				list_remove_by_condition(entrenadoresAux, (void*) _isTheOne);
+			}
+		}
 	}
 
 	//VERIFICO LOS ENTRENADORES QUE TIENEN ASIGNADO ALGO.
@@ -1171,4 +1315,77 @@ void signal_termination_handler(int signum) {
 
  	    return;
  	}
+}
+
+void chequearDeadlock() {
+	if(algoritmoDeteccion())
+	{
+		t_pkmn_factory* pokemon_factory = create_pkmn_factory();
+		t_list* entrenadoresConPokemonesAPelear;
+		entrenadoresConPokemonesAPelear = list_create();
+
+		//CREO UN POKEMON POR CADA ENTRENADOR BLOQUEADO
+		int i;
+		for(i=0; i < list_size(colaBlocked->elements); i++)
+		{
+			//OBTENGO POKMEON DE MAYOR NIVEL DEL ENTRENADOR PARA PELEAR
+			t_pokemonEntrenador* pokemonConEntrenador;
+			pokemonConEntrenador = malloc(sizeof(t_pokemonEntrenador));
+
+			t_entrenador* entrenadorAux = list_get(colaBlocked->elements, i);
+			*pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
+
+			//CREO EL POKEMON DE LA "CLASE" DE LA BIBLIOTECA
+			t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
+			pokemonConEntrenador->pokemon = pokemon;
+			
+			list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
+		}
+		
+		//YA TENGO TODOS LOS POKEMON DE CADA ENTRENADOR, AHORA A PELEAR
+		t_pokemonEntrenador* entrenadorAEliminar;
+		entrenadorAEliminar = malloc(sizeof(t_pokemonEntrenador));
+		*entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
+
+		//LLAMAR FUNCION PARA LIBERAR RECURSOS
+	}
+}
+
+t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador) {
+	t_pokemonEntrenador entrenadorYPokemon;
+
+	//ME GUARDO EL ID DEL ENTRENADOR DEL POKEMON, PARA SABER CUAL ES EL PERDEDOR
+	entrenadorYPokemon.idEntrenador = entrenador->id;
+
+	return entrenadorYPokemon;
+}
+
+t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear) {
+	t_pokemonEntrenador entrenadorPerdedor;
+	bool noHayEntrenadorAEliminar = true;
+
+	while(noHayEntrenadorAEliminar)
+	{
+		if(list_size(entrenadoresConPokemonesAPelear) >= 2)
+		{
+			t_pokemonEntrenador* entrenador1;
+			t_pokemonEntrenador* entrenador2;
+
+			entrenador1 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+			entrenador2 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+
+			//HACER PELEAR A LOS ENTRENADORES
+		}
+		else
+		{
+			t_pokemonEntrenador* entrenadorRestante;
+			entrenadorRestante = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+
+			//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR. Y ASÍ SABER QUIEN ES EL MAS LOOSER
+
+			noHayEntrenadorAEliminar = false;
+		}
+	}
+	
+	return entrenadorPerdedor;
 }

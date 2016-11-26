@@ -1375,13 +1375,29 @@ t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesA
 			entrenador2 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
 
 			//HACER PELEAR A LOS ENTRENADORES
+			t_pokemon * loser = pkmn_battle(entrenador1.pokemon, entrenador2.pokemon);
+
+			if(entrenador1->pokemon == loser)
+			{
+				entrenadorPerdedor = entrenador1;
+			}
+			else
+			{
+				entrenadorPerdedor = entrenador2;
+			}
 		}
 		else
 		{
 			t_pokemonEntrenador* entrenadorRestante;
 			entrenadorRestante = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
 
-			//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR. Y ASÍ SABER QUIEN ES EL MAS LOOSER
+			//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR. Y ASÍ SABER QUIEN ES EL MAS LOSER
+			t_pokemon * loser = pkmn_battle(entrenadorPerdedor.pokemon, entrenadorRestante.pokemon);
+
+			if(entrenadorRestante->pokemon == loser)
+			{
+				entrenadorPerdedor = entrenadorRestante;
+			}
 
 			noHayEntrenadorAEliminar = false;
 		}

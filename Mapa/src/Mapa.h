@@ -38,6 +38,7 @@ typedef struct pokenest {
 	t_ubicacion ubicacion;
 	char id;
 	int cantidad;
+	t_list* metadatasPokemones;
 } t_mapa_pokenest;
 
 typedef struct recursosEntrenador {
@@ -54,6 +55,11 @@ typedef struct pokemonEntrenador{
 	char idEntrenador;
 	t_pokemon* pokemon;
 }t_pokemonEntrenador;
+
+typedef struct metadataPokemon{
+	char* rutaArchivo;
+	int nivel;
+}t_metadataPokemon;
 
 /* Constantes */
 
@@ -83,6 +89,6 @@ void eliminarEntrenador(t_entrenador* entrenador);
 void chequearDeadlock();
 t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador);
 t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear);
-int obtenerCantidadRecursos(char nombrePokemon, char* metadata);
+int obtenerCantidadRecursos(char nombrePokemon, char* rutaPokenest, t_list* metadatasPokemones);
 
 #endif /* MAPA_H_ */

@@ -530,8 +530,11 @@ t_list* cargarPokenests() {
 			string_append(&str, "PokeNests/");
 			string_append(&str, dent->d_name);
 
-			//OBTENGO CUANTOS POKEMONES IGUALES HAY
-			cantidadDeRecursos = obtenerCantidadRecursos(dent->d_name, str);
+			//OBTENGO METADATAS DE PÓKEMONES EXISTENTES EN LA POKÉNEST
+			t_list* metadatasPokemones;
+			list_create(metadatasPokemones);
+
+			cantidadDeRecursos = obtenerCantidadRecursos(dent->d_name, str, metadatasPokemones);
 
 			string_append(&str, "/metadata");
 
@@ -540,8 +543,12 @@ t_list* cargarPokenests() {
 	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, cantidadDeRecursos);
 	    	recursoTotales = malloc(sizeof(pokenestLeida));
 	    	recursoDisponibles = malloc(sizeof(pokenestLeida));
+
 	        *recursoTotales = pokenestLeida;
+	        recursoTotales->metadatasPokemones = metadatasPokemones;
+
 	        *recursoDisponibles = pokenestLeida;
+
 	        list_add(recursosTotales, recursoTotales);
 	        list_add(recursosDisponibles, recursoDisponibles);
 
@@ -553,13 +560,14 @@ t_list* cargarPokenests() {
 	return newlist;
 }
 
-int obtenerCantidadRecursos(char nombrePokemon, char* metadata)
+int obtenerCantidadRecursos(char nombrePokemon, char* rutaPokenest, t_list* metadatasPokemones)
 {
 	int cantidad = 0;
 	t_config* config;
 
 	char* numeroPokemon = "001";
-	char* nombreArchivoPokemon = nombrePokemon;
+	char* nombreArchivoPokemon = rutaPokenest;
+	string_append(&nombreArchivoPokemon, nombrePokemon);
 	string_append(&nombreArchivoPokemon, numeroPokemon);
 	string_append(&nombreArchivoPokemon, ".dat");
 
@@ -569,6 +577,12 @@ int obtenerCantidadRecursos(char nombrePokemon, char* metadata)
 
 		if(config_has_property(config, "Nivel"))
 		{
+			t_metadataPokemon* metadataPokemon = malloc(sizeof(t_metadataPokemon));
+			metadataPokemon->nivel = config_get_int_value(config, "Nivel");
+			metadataPokemon->rutaArchivo = nombreArchivoPokemon;
+
+			list_add(metadatasPokemones, metadataPokemon);
+
 			cantidad++;
 		}
 		else

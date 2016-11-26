@@ -75,13 +75,18 @@ socket_t* nuevoSocket() {
 
 	socket_s = malloc(sizeof(socket_t));
 	socket_s->descriptor = 0;
+	socket_s->errorCode = NO_ERROR;
 	socket_s->error = NULL;
 
 	return socket_s;
 }
 
 void eliminarSocket(socket_t* socket_s) {
-	free(socket_s->error);
+	free(&(socket_s->errorCode));
+
+	if(socket_s->error != NULL)
+		free(socket_s->error);
+
 	close(socket_s->descriptor);
 }
 
@@ -99,6 +104,7 @@ socket_t* crearServidor(char* ip, char* puerto) {
 	socketInformation_s = crearSocket(ip, puerto);
 	if(socketInformation_s->descriptor == 0)
 	{
+		socket_s->errorCode = ERR_SERVER_CREATION;
 		socket_s->error = socketInformation_s->error;
 		free(socketInformation_s);
 		return socket_s;
@@ -111,13 +117,11 @@ socket_t* crearServidor(char* ip, char* puerto) {
 	returnValue = bind(socketInformation_s->descriptor, socketInformation_s->informacion->ai_addr, socketInformation_s->informacion->ai_addrlen);
 	if(returnValue == -1)
 	{
+		socket_s->errorCode = ERR_SERVER_CREATION;
 		socket_s->error = strdup(strerror(errno));
-		freeaddrinfo(socketInformation_s->informacion);
-		free(socketInformation_s);
-		return socket_s;
 	}
-
-	socket_s->descriptor = socketInformation_s->descriptor;
+	else
+		socket_s->descriptor = socketInformation_s->descriptor;
 
 	freeaddrinfo(socketInformation_s->informacion);
 	free(socketInformation_s);
@@ -149,10 +153,15 @@ socket_t* aceptarConexion(socket_t servidor) {
 	returnValue = accept(servidor.descriptor, (struct sockaddr*) &addr_cliente, &addr_cliente_size);
 	if(returnValue == -1)
 	{
+		if(errno == EINVAL)
+			cliente->errorCode = ERR_SERVER_DISCONNECTED;
+		else
+			cliente->errorCode = ERR_CLIENT_CANNOT_CONNECT;
+
 		cliente->error = strdup(strerror(errno));
-		return cliente;
 	}
-	cliente->descriptor = returnValue;
+	else
+		cliente->descriptor = returnValue;
 
 	return cliente;
 }
@@ -164,26 +173,29 @@ socket_t* conectarAServidor(char* ip, char* puerto) {
 
 	socket_s = nuevoSocket();
 
-	// Se obtiene el socket del servidor
+	// Se crea un socket para establecer conexión con el servidor
 	socketInformation_s = crearSocket(ip, puerto);
 	if(socketInformation_s->descriptor == 0)
 	{
+		socket_s->errorCode = ERR_CLIENT_CANNOT_CONNECT;
 		socket_s->error = socketInformation_s->error;
 		free(socketInformation_s);
 		return socket_s;
 	}
 
-	// Se conecta al cliente al socket del servidor
+	// Se establece conexión con el servidor mediante el socket creado
 	returnValue = connect(socketInformation_s->descriptor, socketInformation_s->informacion->ai_addr, socketInformation_s->informacion->ai_addrlen);
 	if(returnValue == -1)
 	{
-		socket_s->error = strdup(strerror(errno));
-		freeaddrinfo(socketInformation_s->informacion);
-		free(socketInformation_s);
-		return socket_s;
-	}
+		if(errno == ECONNREFUSED)
+			socket_s->errorCode = ERR_SERVER_DISCONNECTED;
+		else
+			socket_s->errorCode = ERR_CLIENT_CANNOT_CONNECT;
 
-	socket_s->descriptor = socketInformation_s->descriptor;
+		socket_s->error = strdup(strerror(errno));
+	}
+	else
+		socket_s->descriptor = socketInformation_s->descriptor;
 
 	freeaddrinfo(socketInformation_s->informacion);
 	free(socketInformation_s);
@@ -310,6 +322,27 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 		offset = offset + tamanioOperando;
 
 		break;
+	case CONFIRMA_CAPTURA:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata) + ((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje9_t*) mensaje)->nombreArchivoMetadata, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		break;
 	}
 }
 
@@ -318,7 +351,14 @@ void enviarMensaje(socket_t* socket, paquete_t paquete) {
 
 	bytesEnviados = send(socket->descriptor, paquete.paqueteSerializado, paquete.tamanioPaquete, 0);
 	if(bytesEnviados == -1)
+	{
+		if(errno == ECONNRESET)
+			socket->errorCode = ERR_PEER_DISCONNECTED;
+		else
+			socket->errorCode = ERR_MSG_CANNOT_BE_SENT;
+
 		socket->error = strerror(errno);
+	}
 }
 
 void recibirMensaje(socket_t* socket, void* mensaje) {
@@ -326,24 +366,34 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 	size_t tamanioBuffer;
 	char* buffer;
 
+	int _hayError(int valorRetornoRecv) {
+		int error = 0; // Flag de error
+
+		if(valorRetornoRecv == 0 || valorRetornoRecv == -1)
+		{
+			if(valorRetornoRecv == 0 || errno == ECONNREFUSED)
+				socket->errorCode = ERR_PEER_DISCONNECTED;
+			else
+				socket->errorCode = ERR_MSG_CANNOT_BE_RECEIVED;
+
+			socket->error = strerror(errno);
+
+			free(buffer);
+
+			error = 1;
+		}
+
+		return(error);
+	}
+
 	// Se recibe el tipo de mensaje
 	uint32_t tipoMensaje;
 	tamanioBuffer = sizeof(tipoMensaje);
 	buffer = malloc(tamanioBuffer);
 
 	bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-	if(bytesRecibidos == 0)
-	{
-		socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-		free(buffer);
+	if(_hayError(bytesRecibidos) == 1)
 		return;
-	}
-	else if(bytesRecibidos == -1)
-	{
-		socket->error = strerror(errno);
-		free(buffer);
-		return;
-	}
 
 	memcpy(&tipoMensaje, buffer, tamanioBuffer);
 
@@ -356,18 +406,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje1_t*) mensaje)->tamanioNombreEntrenador), buffer, tamanioBuffer);
 
@@ -376,18 +416,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			((mensaje1_t*) mensaje)->nombreEntrenador = malloc(tamanioBuffer);
 			memcpy(((mensaje1_t*) mensaje)->nombreEntrenador, buffer, tamanioBuffer);
@@ -397,18 +427,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje1_t*) mensaje)->simboloEntrenador), buffer, tamanioBuffer);
 
@@ -421,18 +441,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje4_t*) mensaje)->idPokeNest), buffer, tamanioBuffer);
 
@@ -445,18 +455,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje5_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
 
@@ -465,18 +465,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje5_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
 
@@ -489,18 +479,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje6_t*) mensaje)->direccion), buffer, tamanioBuffer);
 
@@ -513,18 +493,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje7_t*) mensaje)->ubicacionX), buffer, tamanioBuffer);
 
@@ -533,20 +503,35 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			buffer = malloc(tamanioBuffer);
 
 			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(bytesRecibidos == 0)
-			{
-				socket->error = strdup("El receptor a quien se desea enviar el mensaje se ha desconectado");
-				free(buffer);
+			if(_hayError(bytesRecibidos) == 1)
 				return;
-			}
-			else if(bytesRecibidos == -1)
-			{
-				socket->error = strerror(errno);
-				free(buffer);
-				return;
-			}
 
 			memcpy(&(((mensaje7_t*) mensaje)->ubicacionY), buffer, tamanioBuffer);
+
+			free(buffer);
+
+			break;
+		case CONFIRMA_CAPTURA:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			memcpy(&(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			((mensaje9_t*) mensaje)->nombreArchivoMetadata = malloc(tamanioBuffer);
+			memcpy(((mensaje9_t*) mensaje)->nombreArchivoMetadata, buffer, tamanioBuffer);
 
 			free(buffer);
 

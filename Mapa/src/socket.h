@@ -12,9 +12,21 @@
 
 /* Definición de estructuras */
 
+// Códigos de error
+typedef enum errorCode {
+	NO_ERROR,
+	ERR_SERVER_CREATION,
+	ERR_SERVER_DISCONNECTED,
+	ERR_CLIENT_CANNOT_CONNECT,
+	ERR_PEER_DISCONNECTED,
+	ERR_MSG_CANNOT_BE_SENT,
+	ERR_MSG_CANNOT_BE_RECEIVED
+} errorCode_t;
+
 // Estructura socket
 typedef struct socket {
 	int descriptor;
+	int errorCode;
 	char* error;
 } socket_t;
 

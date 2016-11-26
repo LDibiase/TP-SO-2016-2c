@@ -24,98 +24,151 @@
 #include "nivel.h"
 
 /* Variables globales */
-t_log* logger;
-t_entrenador_config configEntrenador;
+t_log* logger;							// Archivo de log
+t_entrenador_config configEntrenador;	// Datos de configuración
+int activo;							 	// Flag de actividad del entrenador
+
+socket_t* mapa_s;
+
+//SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
+pthread_mutex_t mutexLog;
 
 int main(void) {
-	socket_t* mapa_s;
 	t_ubicacion ubicacion;
 	char ejeAnterior;
+	int objetivosCompletados;
+	int victima;
 
 	void _obtenerObjetivo(char* objetivo) {
-		// Inicializar ubicación de la PokéNest a la que se desea llegar
-		t_ubicacion ubicacionPokeNest;
-
-		ubicacionPokeNest.x = 0;
-		ubicacionPokeNest.y = 0;
-
-		// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
-		while((ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y)) {
-			if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
-			{
-				// Determinar ubicación de la PokéNest a la que se desea llegar
-				solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
-				if(mapa_s->error != NULL)
-				{
-					eliminarSocket(mapa_s);
-					log_destroy(logger);
-					exit(EXIT_FAILURE);
-				}
-			}
-			else
-			{
-				// Desplazar entrenador
-				solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
-				if(mapa_s->error != NULL)
-				{
-					eliminarSocket(mapa_s);
-					log_destroy(logger);
-					exit(EXIT_FAILURE);
-				}
-			}
-		}
-
-		// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
-		solicitarCaptura(mapa_s);
-		if(mapa_s->error != NULL)
+		if(!victima)
 		{
-			eliminarSocket(mapa_s);
-			log_destroy(logger);
-			exit(EXIT_FAILURE);
+			// Inicializar ubicación de la PokéNest a la que se desea llegar
+			t_ubicacion ubicacionPokeNest;
+
+			ubicacionPokeNest.x = 0;
+			ubicacionPokeNest.y = 0;
+
+			// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
+			while((ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y) && activo) {
+				if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
+				{
+					// Determinar ubicación de la PokéNest a la que se desea llegar
+					solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
+					if(mapa_s->error != NULL)
+					{
+						eliminarSocket(mapa_s);
+						log_destroy(logger);
+						pthread_mutex_destroy(&mutexLog);
+						abort();
+					}
+				}
+				else
+				{
+					// Desplazar entrenador
+					solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
+					if(mapa_s->error != NULL)
+					{
+						eliminarSocket(mapa_s);
+						log_destroy(logger);
+						pthread_mutex_destroy(&mutexLog);
+						exit(EXIT_FAILURE);
+					}
+				}
+			}
+
+			if(activo == 0)
+			{
+				log_info(logger, "El jugador ha abandonado el juego");
+
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				pthread_mutex_destroy(&mutexLog);
+				exit(EXIT_FAILURE);
+			}
+
+			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
+			solicitarCaptura(mapa_s, &victima);
+			if(mapa_s->errorCode != NO_ERROR)
+			{
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				pthread_mutex_destroy(&mutexLog);
+				exit(EXIT_FAILURE);
+			}
 		}
 	}
 
 	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
-		// Conexión al mapa
-		mapa_s = conectarAMapa("127.0.0.1", "3490");
-		if(mapa_s->error != NULL)
-		{
-			eliminarSocket(mapa_s);
-			log_destroy(logger);
-			exit(EXIT_FAILURE);
+		objetivosCompletados = 0;
+
+		while(configEntrenador.Vidas > 0 && activo && !objetivosCompletados) {
+			// Conexión al mapa
+			mapa_s = conectarAMapa("127.0.0.1", "3490");
+			if(mapa_s->errorCode != NO_ERROR)
+			{
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				pthread_mutex_destroy(&mutexLog);
+				exit(EXIT_FAILURE);
+			}
+
+			// Determinar la ubicación inicial del entrenador en el mapa
+			ubicacion.x = 1;
+			ubicacion.y = 1;
+
+			// Determinar el eje de movimiento anterior arbitrariamente
+			ejeAnterior = 'x';
+
+			string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
+
+			if(victima == 0)
+			{
+				objetivosCompletados = 1;
+
+				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
+				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
+				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+				eliminarSocket(mapa_s);
+			}
 		}
 
-		pthread_t hiloSignal;
-		pthread_attr_t atributosHiloSignal;
+		if(configEntrenador.Vidas == 0)
+		{
+			log_info(logger, "¿Desea reiniciar el juego? (Y/N)");
 
-		//Lanzo hilo de señales
-		pthread_attr_init(&atributosHiloSignal);
-		pthread_create(&hiloSignal, &atributosHiloSignal, (void*) signal_handler, NULL);
-		pthread_attr_destroy(&atributosHiloSignal);
+			// TODO: A continuación se debería aguardar por la respuesta del usuario; en caso de que ésta sea negativa...
+			activo = 0;
+		}
 
-		// Determinar la ubicación inicial del entrenador en el mapa
-		ubicacion.x = 1;
-		ubicacion.y = 1;
+		if(activo == 0)
+		{
+			log_info(logger, "El jugador ha abandonado el juego");
 
-		// Determinar el eje de movimiento anterior arbitrariamente
-		ejeAnterior = 'x';
-
-		string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
-
-		// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
-		log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-		eliminarSocket(mapa_s);
+			eliminarSocket(mapa_s);
+			log_destroy(logger);
+			pthread_mutex_destroy(&mutexLog);
+			exit(EXIT_FAILURE);
+		}
 	}
 
-	/* Creación del log */
+	// Variables para la creación del hilo para el manejo de señales
+	pthread_t hiloSignalHandler;
+	pthread_attr_t atributosHiloSignalHandler;
+
+	//INICIALIZACIÓN DE LOS SEMÁFOROS
+	pthread_mutex_init(&mutexLog, NULL);
+
+	// Creación del archivo de log
 	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
-	/* Cargar configuración */
+	// Cargar configuración
 	log_info(logger, "Cargando archivo de configuración");
+
 	if (cargarConfiguracion(&configEntrenador) == 1)
 	{
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 		log_destroy(logger);
+		pthread_mutex_destroy(&mutexLog);
 		return EXIT_FAILURE;
 	}
 
@@ -123,14 +176,25 @@ int main(void) {
 	log_info(logger, "Símbolo: %s", configEntrenador.Simbolo);
 	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
+	// Se setea en 1 (on) el flag de actividad
+	activo = 1;
+
+	// Creación del hilo para el manejo de señales
+	pthread_attr_init(&atributosHiloSignalHandler);
+	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
+	pthread_attr_destroy(&atributosHiloSignalHandler);
+
+	// Obtención de los objetivos propios de cada mapa (ciudad) incluido en la Hoja de Viaje del entrenador
 	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _obtenerObjetivosCiudad);
 
+	log_info(logger, "La ejecución del proceso Entrenador ha finalizado correctamente");
+
 	log_destroy(logger);
+	pthread_mutex_destroy(&mutexLog);
 	return EXIT_SUCCESS;
 }
 
-int cargarConfiguracion(t_entrenador_config* structConfig)
-{
+int cargarConfiguracion(t_entrenador_config* structConfig) {
 	t_config* config;
 	config = config_create(CONFIG_FILE_PATH);
 
@@ -164,6 +228,7 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 
 		//SE BUSCAN LOS OBJETIVOS DE CADA CIUDAD
 		string_iterate_lines(hojaDeViaje, (void*) _auxIterate);
+
 		log_info(logger, "El archivo de configuración se cargó correctamente");
 		config_destroy(config);
 		return 0;
@@ -177,17 +242,26 @@ int cargarConfiguracion(t_entrenador_config* structConfig)
 }
 
 socket_t* conectarAMapa(char* ip, char* puerto) {
-	socket_t* mapa_s;
-
 	mapa_s = conectarAServidor(ip, puerto);
-	if(mapa_s->descriptor == 0)
+	if(mapa_s->errorCode != 0)
 	{
-		log_info(logger, "Conexión fallida");
+		switch(mapa_s->errorCode) {
+		case ERR_SERVER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_CLIENT_CANNOT_CONNECT:
+			log_info(logger, "No ha sido posible establecer conexión con el servidor");
+
+			break;
+		}
+
 		log_info(logger, mapa_s->error);
+
 		return mapa_s;
 	}
 
-	log_info(logger, "Conexión exitosa");
+	log_info(logger, "El proceso Entrenador se ha conectado de manera exitosa al proceso Mapa");
 
 	///////////////////////
 	////// HANDSHAKE //////
@@ -199,45 +273,76 @@ socket_t* conectarAMapa(char* ip, char* puerto) {
 
 	mensajeConexionEntrenador.tipoMensaje = CONEXION_ENTRENADOR;
 	mensajeConexionEntrenador.tamanioNombreEntrenador = strlen(configEntrenador.Nombre) + 1;
-	mensajeConexionEntrenador.nombreEntrenador = configEntrenador.Nombre;
+	mensajeConexionEntrenador.nombreEntrenador = strdup(configEntrenador.Nombre);
 	mensajeConexionEntrenador.simboloEntrenador = *configEntrenador.Simbolo;
 
 	crearPaquete((void*) &mensajeConexionEntrenador, &paquete);
+
+	free(mensajeConexionEntrenador.nombreEntrenador);
+
 	if(paquete.tamanioPaquete == 0)
 	{
-		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		mapa_s->errorCode = ERR_MSG_CANNOT_BE_SENT;
+		log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return mapa_s;
 	}
 
 	enviarMensaje(mapa_s, paquete);
-	if(mapa_s->error != NULL)
-	{
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-		return mapa_s;
-	}
 
 	free(paquete.paqueteSerializado);
+
+	if(mapa_s->errorCode != NO_ERROR)
+	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_SENT:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
+		log_info(logger, mapa_s->error);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+		return mapa_s;
+	}
 
 	// Recibir mensaje ACEPTA_CONEXION
 	mensaje_t mensajeAceptaConexion;
 
 	mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
 	recibirMensaje(mapa_s, &mensajeAceptaConexion);
-	if(mapa_s->error != NULL)
+	if(mapa_s->errorCode != NO_ERROR)
 	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_RECEIVED:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
 		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return mapa_s;
 	}
 
 	switch(mensajeAceptaConexion.tipoMensaje) {
 	case RECHAZA_CONEXION:
-		mapa_s->error = string_from_format("Socket %d: su conexión ha sido rechazada", mapa_s->descriptor);
+		mapa_s->errorCode = RECHAZA_CONEXION;
+
+		log_info(logger, "Socket %d: su conexión ha sido rechazada", mapa_s->descriptor);
 		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 
 		break;
 	case ACEPTA_CONEXION:
@@ -260,21 +365,35 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 	crearPaquete((void*) &mensajeSolicitaUbicacion, &paquete);
 	if(paquete.tamanioPaquete == 0)
 	{
-		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		mapa_s->errorCode = ERR_MSG_CANNOT_BE_SENT;
+		log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return;
 	}
 
 	enviarMensaje(mapa_s, paquete);
-	if(mapa_s->error != NULL)
-	{
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-		return;
-	}
 
 	free(paquete.paqueteSerializado);
+
+	if(mapa_s->errorCode != NO_ERROR)
+	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_SENT:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
+		log_info(logger, mapa_s->error);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+		return;
+	}
 
 	log_info(logger, "Se solicita la ubicación de la PokéNest %c", idPokeNest);
 
@@ -283,10 +402,22 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 
 	mensajeBrindaUbicacion.tipoMensaje = BRINDA_UBICACION;
 	recibirMensaje(mapa_s, &mensajeBrindaUbicacion);
-	if(mapa_s->error != NULL)
+	if(mapa_s->errorCode != NO_ERROR)
 	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_RECEIVED:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
 		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return;
 	}
 
@@ -297,8 +428,8 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 
 		log_info(logger, "Socket %d: la ubicación de la PokéNest %c es (%d,%d)", mapa_s->descriptor, idPokeNest, ubicacionPokeNest->x, ubicacionPokeNest->y);
 	}
-
-	// TODO Analizar otros posibles casos
+	else
+		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);
 }
 
 direccion_t calcularMovimiento(t_ubicacion ubicacionEntrenador, t_ubicacion ubicacionPokeNest, char* ejeAnterior) {
@@ -355,21 +486,35 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	crearPaquete((void*) &mensajeSolicitaDesplazamiento, &paquete);
 	if(paquete.tamanioPaquete == 0)
 	{
-		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		mapa_s->errorCode = ERR_MSG_CANNOT_BE_SENT;
+		log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return;
 	}
 
 	enviarMensaje(mapa_s, paquete);
-	if(mapa_s->error != NULL)
-	{
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-	    return;
-	}
 
 	free(paquete.paqueteSerializado);
+
+	if(mapa_s->errorCode != NO_ERROR)
+	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_SENT:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
+		log_info(logger, mapa_s->error);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+		return;
+	}
 
 	log_info(logger, "Se solicita desplazamiento");
 
@@ -378,10 +523,22 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 	mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
 	recibirMensaje(mapa_s, &mensajeConfirmaDesplazamiento);
-	if(mapa_s->error != NULL)
+	if(mapa_s->errorCode != NO_ERROR)
 	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_RECEIVED:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
 		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return;
 	}
 
@@ -394,9 +551,11 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 		log_info(logger, "Socket %d: su ubicación actual es (%d,%d)", mapa_s->descriptor, ubicacion->x, ubicacion->y);
 	}
+	else
+		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);
 }
 
- void solicitarCaptura(socket_t* mapa_s) {
+ void solicitarCaptura(socket_t* mapa_s, int* victima) {
 	// Enviar mensaje SOLICITA_CAPTURA
 	paquete_t paquete;
 	mensaje_t mensajeSolicitaCaptura;
@@ -405,33 +564,59 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	crearPaquete((void*) &mensajeSolicitaCaptura, &paquete);
 	if(paquete.tamanioPaquete == 0)
 	{
-		mapa_s->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		mapa_s->errorCode = ERR_MSG_CANNOT_BE_SENT;
+		log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return;
 	}
 
 	enviarMensaje(mapa_s, paquete);
-	if(mapa_s->error != NULL)
-	{
-		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-	    return;
-	}
 
 	free(paquete.paqueteSerializado);
 
-	log_info(logger, "Se solicita capturar un Pokémon", mapa_s->descriptor);
+	if(mapa_s->errorCode != NO_ERROR)
+	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_SENT:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
+		log_info(logger, mapa_s->error);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+		return;
+	}
+
+	log_info(logger, "Se solicita capturar un Pokémon");
 
 	// Recibir mensaje CONFIRMA_CAPTURA
 	mensaje_t mensajeConfirmaCaptura;
 
 	mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
 	recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
-	if(mapa_s->error != NULL)
+	if(mapa_s->errorCode != NO_ERROR)
 	{
+		switch(mapa_s->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			log_info(logger, "El socket del servidor se encuentra desconectado");
+
+			break;
+		case ERR_MSG_CANNOT_BE_RECEIVED:
+			log_info(logger, "No se ha podido enviar un mensaje");
+
+			break;
+		}
+
 		log_info(logger, mapa_s->error);
-		log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
 		return;
 	}
 
@@ -441,48 +626,71 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 		// TODO Agregar lógica para obtener metadata del pokémon que hemos atrapado (determinar si el mapa nos la provee o si la debemos recuperar del FS)
 	}
- }
+	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
+	{
+		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
+
+		// Se activa el flag Víctima
+		*victima = 1;
+
+		// TODO Agregar lógica para borrar archivos de metadata de los pokémones que hemos atrapado
+	}
+	else
+		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);
+}
 
 void signal_handler() {
  	 struct sigaction sa;
- 	 // Print PID so that we can send signals from other shells
- 	 printf("Mi PID es: %d\n", getpid());
+
+ 	 // Print PID
+ 	 log_info(logger, "PID del proceso entrenador: %d\n", getpid());
 
  	 // Setup the sighub handler
  	 sa.sa_handler = &signal_termination_handler;
 
- 	 // Restart the system call, if at all possible
+ 	 // Restart the system call
  	 sa.sa_flags = SA_RESTART;
 
- 	 // Block every signal during the handler
+ 	 // Block every signal received during the handler execution
  	 sigfillset(&sa.sa_mask);
 
- 	 if (sigaction(SIGUSR1, &sa, NULL) == -1) {
- 	    perror("Error: no se puede manejar la señal SIGUSR1"); // Should not happen
- 	 }
+ 	 if (sigaction(SIGUSR1, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGUSR1"); // Should not happen
 
+ 	 if (sigaction(SIGTERM, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
 
- 	 if (sigaction(SIGTERM, &sa, NULL) == -1) {
- 	    perror("Error: no se puede manejar la señal SIGTERM"); // Should not happen
- 	 }
+ 	 if (sigaction(SIGKILL, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGKILL"); // Should not happen
+
+ 	 if (sigaction(SIGINT, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
 }
 
 void signal_termination_handler(int signum) {
  	switch (signum) {
- 	case SIGTERM:
- 		configEntrenador.Vidas--;
- 	    log_info(logger, "SIGTERM: Se ha perdido una vida");
- 	    printf("Vidas restantes: %d", configEntrenador.Vidas);
-
- 	    break;
  	 case SIGUSR1:
  	   	configEntrenador.Vidas++;
  	   	log_info(logger, "SIGUSR1: Se ha obtenido una vida");
- 	   	printf("Vidas restantes: %d", configEntrenador.Vidas);
+ 	   	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
  	   	break;
+  	case SIGTERM:
+  		configEntrenador.Vidas--;
+  	    log_info(logger, "SIGTERM: Se ha perdido una vida");
+  	    log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
+
+  	    break;
+ 	 case SIGKILL:
+ 		 activo = 0;
+
+ 		 break;
+ 	 case SIGINT:
+ 		activo = 0;
+
+ 		 break;
  	 default:
- 	    fprintf(stderr, "Código inválido: %d", signum);
+ 	    log_info(logger, "Código inválido: %d", signum);
 
  	    return;
  	}

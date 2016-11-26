@@ -37,7 +37,7 @@
  *	-->	mensaje_t
  *
  *	Mensaje 9: Informa al entrenador que el mapa ha confirmado la captura del Pokémon solicitado
- *	-->	mensaje_t
+ *	-->	mensaje9_t
  */
 
 
@@ -55,7 +55,8 @@ typedef enum tipoMensaje {
 	SOLICITA_DESPLAZAMIENTO,
 	CONFIRMA_DESPLAZAMIENTO,
 	SOLICITA_CAPTURA,
-	CONFIRMA_CAPTURA
+	CONFIRMA_CAPTURA,
+	INFORMA_MUERTE
 } tipoMensaje_t;
 
 // Mensaje genérico (sin operandos)
@@ -96,6 +97,13 @@ typedef struct mensaje7 {
 	uint32_t ubicacionX;
 	uint32_t ubicacionY;
 } mensaje7_t;
+
+// Mensaje 9
+typedef struct mensaje9 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioNombreArchivoMetadata;
+	char* nombreArchivoMetadata;
+} mensaje9_t;
 
 // Direcciones de movimiento
 typedef enum direccion {IZQUIERDA, DERECHA, ARRIBA, ABAJO} direccion_t;

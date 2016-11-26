@@ -40,7 +40,7 @@ socket_t* conectarAMapa(char* ip, char* puerto);
 void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* ubicacionPokeNest);
 direccion_t calcularMovimiento(t_ubicacion ubicacionEntrenador, t_ubicacion ubicacionPokeNest, char* ejeAnterior);
 void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicacion ubicacionPokeNest, char* ejeAnterior);
-void solicitarCaptura(socket_t* mapa_s);
+void solicitarCaptura(socket_t* mapa_s, int* victima);
 void signal_handler();
 void signal_termination_handler(int signum);
 

@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <tad_items.h>
 #include <curses.h>
+#include <signal.h>
 #include <string.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -30,6 +31,8 @@
 #define TAMANIO_MAXIMO_MENSAJE 50	// Tamaño máximo de un mensaje
 
 /* Variables globales */
+socket_t* mi_socket_s;
+
 t_log* logger;			  		// Archivo de log
 t_mapa_config configMapa; 		// Datos de configuración
 t_list* entrenadores;	  		// Entrenadores conectados al mapa
@@ -39,6 +42,7 @@ t_list* recursosDisponibles;	// Recursos disponibles en el mapa (Pokémones)
 t_list* recursosAsignados;		// Recursos asignados (Pokémones)
 t_list* recursosSolicitados;	// Recursos solicitados (Pokémones)
 int activo;						// Flag de actividad del mapa
+int configuracionActualizada;   // Flag de actualización de la configuración
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos
@@ -53,9 +57,13 @@ pthread_mutex_t mutexReady;
 pthread_mutex_t mutexBlocked;
 
 int main(void) {
+	// Variables para la creación del hilo para el manejo de señales
+	pthread_t hiloSignalHandler;
+	pthread_attr_t atributosHiloSignalHandler;
+
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
-	pthread_attr_t atributosHilo;
+	pthread_attr_t atributosHiloEnEscucha;
 
 	// Variables para la diagramación del mapa
 	int rows, cols;
@@ -86,7 +94,7 @@ int main(void) {
 
 	if (cargarConfiguracion(&configMapa) == 1)
 	{
-		log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+		log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
 		liberarMemoriaAlocada();
 		return EXIT_FAILURE;
 	}
@@ -101,7 +109,7 @@ int main(void) {
 	pthread_mutex_unlock(&mutexLog);
 
 	//INICIALIZACIÓN DEL MAPA
-	items = cargarPokenests(); //Carga de las Pokénest del mapa
+	items = cargarPokenests(); //Carga de las Pokénest del mapal
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
 	nivel_gui_dibujar(items, "CodeTogether");
@@ -109,16 +117,21 @@ int main(void) {
 	// Se setea en 1 (on) el flag de actividad
 	activo = 1;
 
+	//CREACIÓN DEL HILO PARA EL MANEJO DE SEÑALES
+	pthread_attr_init(&atributosHiloSignalHandler);
+	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
+	pthread_attr_destroy(&atributosHiloSignalHandler);
+
 	//CREACIÓN DEL HILO EN ESCUCHA
-	pthread_attr_init(&atributosHilo);
-	pthread_create(&hiloEnEscucha, &atributosHilo, (void*) aceptarConexiones, NULL);
-	pthread_attr_destroy(&atributosHilo);
+	pthread_attr_init(&atributosHiloEnEscucha);
+	pthread_create(&hiloEnEscucha, &atributosHiloEnEscucha, (void*) aceptarConexiones, NULL);
+	pthread_attr_destroy(&atributosHiloEnEscucha);
 
 	while(activo) {
 		if(list_size(colaReady->elements) > 0)
 		{
 			pthread_mutex_lock(&mutexReady);
-			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady);
+			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady); // TODO: Primero atender a los jugadores que desconozcan la posición de la Pokénest que buscan
 			pthread_mutex_unlock(&mutexReady);
 
 			//MENSAJES A UTILIZAR
@@ -128,36 +141,75 @@ int main(void) {
 
 			//SE ATIENDEN LAS SOLICITUDES DEL PRIMER ENTRENADOR EN LA COLA DE LISTOS
 			int solicitoCaptura = 0;
+			int solicitoUbicacion = 0;
 			entrenadorAEjecutar->utEjecutadas = 0;
 
-			while((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum && !solicitoCaptura) ||
-					(string_equals_ignore_case(configMapa.Algoritmo, "SRDF") && !solicitoCaptura))
-			{
-				void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
-				((mensaje_t*) mensajeRespuesta)->tipoMensaje = INDEFINIDO;
+			if(!activo)
+				continue;
 
-				recibirMensaje(entrenadorAEjecutar->socket, mensajeRespuesta);
-				if(entrenadorAEjecutar->socket->error != NULL)
+			while(((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum)
+				 || string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
+				 && !solicitoCaptura && !solicitoUbicacion && entrenadorAEjecutar != NULL && activo)
+			{
+				void* mensajeSolicitud = malloc(TAMANIO_MAXIMO_MENSAJE);
+				((mensaje_t*) mensajeSolicitud)->tipoMensaje = INDEFINIDO;
+
+				recibirMensaje(entrenadorAEjecutar->socket, mensajeSolicitud);
+				if(entrenadorAEjecutar->socket->errorCode != NO_ERROR)
 				{
-					free(mensajeRespuesta);
-					pthread_mutex_lock(&mutexLog);
-					log_info(logger, entrenadorAEjecutar->socket->error);
-					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-					log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
-					liberarMemoriaAlocada();
-					return EXIT_FAILURE;
+					free(mensajeSolicitud);
+
+					switch(entrenadorAEjecutar->socket->errorCode) {
+					case ERR_PEER_DISCONNECTED:
+						pthread_mutex_lock(&mutexLog);
+						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+						log_info(logger, entrenadorAEjecutar->socket->error);
+						pthread_mutex_unlock(&mutexLog);
+
+						// TODO: Liberar recursos
+
+						eliminarEntrenadorMapa(entrenadorAEjecutar);
+						BorrarItem(items, entrenadorAEjecutar->id);
+						eliminarEntrenador(entrenadorAEjecutar);
+						entrenadorAEjecutar = NULL;
+
+						continue;
+					case ERR_MSG_CANNOT_BE_RECEIVED:
+						activo = 0;
+						eliminarSocket(mi_socket_s);
+
+						pthread_mutex_lock(&mutexLog);
+						log_info(logger, "No se ha podido recibir un mensaje");
+						log_info(logger, entrenadorAEjecutar->socket->error);
+						log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+						pthread_mutex_unlock(&mutexLog);
+
+						eliminarEntrenador(entrenadorAEjecutar);
+						liberarMemoriaAlocada();
+						nivel_gui_terminar();
+
+						return EXIT_FAILURE;
+					}
+				}
+
+				if(!activo)
+				{
+					eliminarEntrenador(entrenadorAEjecutar);
+					free(mensajeSolicitud);
+					continue;
 				}
 
 				//HAGO UN SWITCH PARA DETERMINAR QUÉ ACCIÓN DESEA REALIZAR EL ENTRENADOR
 				t_ubicacion pokeNestSolicitada;
-				switch(((mensaje_t*) mensajeRespuesta)->tipoMensaje) {
+				switch(((mensaje_t*) mensajeSolicitud)->tipoMensaje) {
 				case SOLICITA_UBICACION:
-					log_info(logger, "Socket %d: solicito ubicación de la PokéNest", entrenadorAEjecutar->socket->descriptor, ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
+					log_info(logger, "Socket %d: solicito ubicación de la PokéNest %c", entrenadorAEjecutar->socket->descriptor, ((mensaje4_t*) mensajeSolicitud)->idPokeNest);
 
-					pokeNestSolicitada = buscarPokenest(items, ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
-					entrenadorAEjecutar->idPokenestActual = ((mensaje4_t*) mensajeRespuesta)->idPokeNest;
+					//BUSCO LA POKÉNEST SOLICITADA
+					pokeNestSolicitada = buscarPokenest(items, ((mensaje4_t*) mensajeSolicitud)->idPokeNest);
+					entrenadorAEjecutar->idPokenestActual = ((mensaje4_t*) mensajeSolicitud)->idPokeNest;
 
+					//LE ENVÍO AL ENTRENADOR LA UBICACIÓN
 					mensajeBrindaUbicacion.tipoMensaje = BRINDA_UBICACION;
 					mensajeBrindaUbicacion.ubicacionX = pokeNestSolicitada.x;
 					mensajeBrindaUbicacion.ubicacionY = pokeNestSolicitada.y;
@@ -166,75 +218,95 @@ int main(void) {
 					crearPaquete((void*) &mensajeBrindaUbicacion, &paquetePokenest);
 					if(paquetePokenest.tamanioPaquete == 0)
 					{
-						free(mensajeRespuesta);
-						queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-						queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-						list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
+						activo = 0;
+						eliminarSocket(mi_socket_s);
+
+						free(mensajeSolicitud);
 						pthread_mutex_lock(&mutexLog);
 						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-						log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+						log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
 						pthread_mutex_unlock(&mutexLog);
-						log_destroy(logger);
-						pthread_mutex_destroy(&mutexEntrenadores);
-						pthread_mutex_destroy(&mutexReady);
-						pthread_mutex_destroy(&mutexBlocked);
-						pthread_mutex_destroy(&mutexLog);
+
+						eliminarEntrenador(entrenadorAEjecutar);
+						liberarMemoriaAlocada();
+						nivel_gui_terminar();
+
 						return EXIT_FAILURE;
 					}
 
 					enviarMensaje(entrenadorAEjecutar->socket, paquetePokenest);
-					if(entrenadorAEjecutar->socket->error != NULL)
-					{
-						free(paquetePokenest.paqueteSerializado);
-						free(mensajeRespuesta);
-						log_info(logger, entrenadorAEjecutar->socket->error);
-						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-						//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-						eliminarSocket(entrenadorAEjecutar->socket);
-						exit(-1);
-					}
 
 					free(paquetePokenest.paqueteSerializado);
-					log_info(logger, "Se envía ubicación de la PokéNest %c al entrenador", ((mensaje4_t*) mensajeRespuesta)->idPokeNest);
-					free(mensajeRespuesta);
 
-					//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
-					//TODO IMPLEMENTAR SIGNAL PARA RECARGAR CONFIGURACIÓN
-					log_info(logger, "Cargando archivo de configuración");
-					if (cargarConfiguracion(&configMapa) == 1)
-						return EXIT_FAILURE;
+					if(entrenadorAEjecutar->socket->errorCode != NO_ERROR)
+					{
+						free(mensajeSolicitud);
 
-					entrenadorAEjecutar->utEjecutadas++;
+						switch(entrenadorAEjecutar->socket->errorCode) {
+						case ERR_PEER_DISCONNECTED:
+							pthread_mutex_lock(&mutexLog);
+							log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+							log_info(logger, entrenadorAEjecutar->socket->error);
+							pthread_mutex_unlock(&mutexLog);
+
+							eliminarEntrenadorMapa(entrenadorAEjecutar);
+							BorrarItem(items, entrenadorAEjecutar->id);
+							eliminarEntrenador(entrenadorAEjecutar);
+							entrenadorAEjecutar = NULL;
+
+							continue;
+						case ERR_MSG_CANNOT_BE_SENT:
+							activo = 0;
+							eliminarSocket(mi_socket_s);
+
+							pthread_mutex_lock(&mutexLog);
+							log_info(logger, "No se ha podido enviar un mensaje");
+							log_info(logger, entrenadorAEjecutar->socket->error);
+							log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+							pthread_mutex_unlock(&mutexLog);
+
+							eliminarEntrenador(entrenadorAEjecutar);
+							liberarMemoriaAlocada();
+							nivel_gui_terminar();
+
+							return EXIT_FAILURE;
+						}
+					}
+
+					log_info(logger, "Se envía ubicación de la PokéNest %c al entrenador", ((mensaje4_t*) mensajeSolicitud)->idPokeNest);
+					free(mensajeSolicitud);
+
+					if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
+						solicitoUbicacion = 1;
+					else if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
+						entrenadorAEjecutar->utEjecutadas++;
 
 					break;
 				case SOLICITA_DESPLAZAMIENTO:
-					mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
-
 					//MODIFICO LA UBICACIÓN DEL ENTRENADOR DE ACUERDO A LA DIRECCIÓN DE DESPLAZAMIENTO SOLICITADA
-					switch(((mensaje6_t*) mensajeRespuesta)->direccion)
-					{
+					switch(((mensaje6_t*) mensajeSolicitud)->direccion) {
 					case ARRIBA:
 						log_info(logger, "Socket %d: solicito desplazamiento hacia arriba", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.y)--;
+						entrenadorAEjecutar->ubicacion.y--;
 						break;
 					case ABAJO:
 						log_info(logger, "Socket %d: solicito desplazamiento hacia abajo", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.y)++;
+						entrenadorAEjecutar->ubicacion.y++;
 						break;
 					case IZQUIERDA:
 						log_info(logger, "Socket %d: solicito desplazamiento hacia la izquierda", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.x)--;
+						entrenadorAEjecutar->ubicacion.x--;
 						break;
 					case DERECHA:
 						log_info(logger, "Socket %d: solicito desplazamiento hacia la derecha", entrenadorAEjecutar->socket->descriptor);
-						(entrenadorAEjecutar->ubicacion.x)++;
+						entrenadorAEjecutar->ubicacion.x++;
 						break;
 					}
 
 					realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
 
 					//LE ENVÍO AL ENTRENADOR SU NUEVA UBICACIÓN
+					mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
 					mensajeConfirmaDesplazamiento.ubicacionX = entrenadorAEjecutar->ubicacion.x;
 					mensajeConfirmaDesplazamiento.ubicacionY = entrenadorAEjecutar->ubicacion.y;
 
@@ -242,52 +314,130 @@ int main(void) {
 					crearPaquete((void*) &mensajeConfirmaDesplazamiento, &paqueteDesplazamiento);
 					if(paqueteDesplazamiento.tamanioPaquete == 0)
 					{
-						free(mensajeRespuesta);
+						activo = 0;
+						eliminarSocket(mi_socket_s);
+
+						free(mensajeSolicitud);
+						pthread_mutex_lock(&mutexLog);
 						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-						//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-						eliminarSocket(entrenadorAEjecutar->socket);
-						exit(-1);
+						log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+						pthread_mutex_unlock(&mutexLog);
+
+						eliminarEntrenador(entrenadorAEjecutar);
+						liberarMemoriaAlocada();
+						nivel_gui_terminar();
+
+						return EXIT_FAILURE;
 					}
 
 					enviarMensaje(entrenadorAEjecutar->socket, paqueteDesplazamiento);
-					if(entrenadorAEjecutar->socket->error != NULL)
-					{
-						free(paqueteDesplazamiento.paqueteSerializado);
-						free(mensajeRespuesta);
-						queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-						queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-						list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-						pthread_mutex_lock(&mutexLog);
-						log_info(logger, entrenadorAEjecutar->socket->error);
-						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-						log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-						pthread_mutex_unlock(&mutexLog);
-						log_destroy(logger);
-						pthread_mutex_destroy(&mutexEntrenadores);
-						pthread_mutex_destroy(&mutexReady);
-						pthread_mutex_destroy(&mutexBlocked);
-						pthread_mutex_destroy(&mutexLog);
-						return EXIT_FAILURE;
-					}
 
 					free(paqueteDesplazamiento.paqueteSerializado);
-					free(mensajeRespuesta);
+
+					if(entrenadorAEjecutar->socket->errorCode != NO_ERROR)
+					{
+						free(mensajeSolicitud);
+
+						switch(entrenadorAEjecutar->socket->errorCode) {
+						case ERR_PEER_DISCONNECTED:
+							pthread_mutex_lock(&mutexLog);
+							log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+							log_info(logger, entrenadorAEjecutar->socket->error);
+							pthread_mutex_unlock(&mutexLog);
+
+							eliminarEntrenadorMapa(entrenadorAEjecutar);
+							BorrarItem(items, entrenadorAEjecutar->id);
+							eliminarEntrenador(entrenadorAEjecutar);
+							entrenadorAEjecutar = NULL;
+
+							continue;
+						case ERR_MSG_CANNOT_BE_SENT:
+							activo = 0;
+							eliminarSocket(mi_socket_s);
+
+							pthread_mutex_lock(&mutexLog);
+							log_info(logger, "No se ha podido enviar un mensaje");
+							log_info(logger, entrenadorAEjecutar->socket->error);
+							log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+							pthread_mutex_unlock(&mutexLog);
+
+							eliminarEntrenador(entrenadorAEjecutar);
+							liberarMemoriaAlocada();
+							nivel_gui_terminar();
+
+							return EXIT_FAILURE;
+						}
+					}
+
 					log_info(logger, "Se le informa al entrenador su nueva posición: (%d,%d)", entrenadorAEjecutar->ubicacion.x, entrenadorAEjecutar->ubicacion.y);
+					free(mensajeSolicitud);
 
-					//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
-					//TODO IMPLEMENTAR SIGNAL PARA RECARGAR CONFIGURACIÓN
-					log_info(logger, "Cargando archivo de configuración");
-					if (cargarConfiguracion(&configMapa) == 1)
-						return EXIT_FAILURE;
-
-					entrenadorAEjecutar->utEjecutadas++;
+					if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
+						entrenadorAEjecutar->utEjecutadas++;
 
 					break;
-					case SOLICITA_CAPTURA:
-						log_info(logger, "Socket %d: solicito capturar Pokémon", entrenadorAEjecutar->socket->descriptor);
+				case SOLICITA_CAPTURA:
+					log_info(logger, "Socket %d: solicito capturar Pokémon", entrenadorAEjecutar->socket->descriptor);
 
-						solicitoCaptura = 1;
+					solicitoCaptura = 1;
+					insertarAlFinal(entrenadorAEjecutar, colaBlocked, &mutexBlocked);
+
+					free(mensajeSolicitud);
+
+					break;
+				}
+			}
+
+			if(!activo)
+			{
+				if(entrenadorAEjecutar != NULL && !solicitoCaptura)
+					eliminarEntrenador(entrenadorAEjecutar);
+				continue;
+			}
+
+			if(configuracionActualizada)
+			{
+				//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA
+				log_info(logger, "Cargando archivo de configuración");
+
+				if (cargarConfiguracion(&configMapa) == 1)
+				{
+					if(entrenadorAEjecutar != NULL)
+						eliminarEntrenador(entrenadorAEjecutar);
+
+					eliminarSocket(mi_socket_s);
+					liberarMemoriaAlocada();
+					nivel_gui_terminar();
+
+					return EXIT_FAILURE;
+				}
+
+				configuracionActualizada = 0;
+			}
+
+			if(!activo)
+			{
+				if(entrenadorAEjecutar != NULL && !solicitoCaptura)
+					eliminarEntrenador(entrenadorAEjecutar);
+				continue;
+			}
+
+			if(entrenadorAEjecutar != NULL)
+			{
+				if(solicitoCaptura)
+				{
+					//TODO LÓGICA DE ASIGNACIÓN DE POKÉMON AL ENTRENADOR
+					bool _esRecursoBuscado(t_mapa_pokenest* recursoBuscado) {
+						return recursoBuscado->id == entrenadorAEjecutar->idPokenestActual;
+					}
+
+					t_mapa_pokenest* recurso;
+					recurso = list_find(recursosDisponibles, (void*) _esRecursoBuscado);
+
+					if(recurso->cantidad >= 1)
+					{
+						recurso->cantidad--;
+						restarRecurso(items, entrenadorAEjecutar->idPokenestActual);
 
 						mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
 
@@ -295,84 +445,82 @@ int main(void) {
 						crearPaquete((void*) &mensajeConfirmaCaptura, &paqueteCaptura);
 						if(paqueteCaptura.tamanioPaquete == 0)
 						{
-							free(mensajeRespuesta);
-							queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-							queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-							list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
+							activo = 0;
+							eliminarSocket(mi_socket_s);
+
 							pthread_mutex_lock(&mutexLog);
 							log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-							log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+							log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
 							pthread_mutex_unlock(&mutexLog);
-							log_destroy(logger);
-							pthread_mutex_destroy(&mutexEntrenadores);
-							pthread_mutex_destroy(&mutexReady);
-							pthread_mutex_destroy(&mutexBlocked);
-							pthread_mutex_destroy(&mutexLog);
+
+							eliminarEntrenador(entrenadorAEjecutar);
+							liberarMemoriaAlocada();
+							nivel_gui_terminar();
+
 							return EXIT_FAILURE;
 						}
-
-						//TODO LÓGICA DE ASIGNACIÓN DE POKÉMON AL ENTRENADOR
-						restarRecurso(items, entrenadorAEjecutar->idPokenestActual);
 
 						enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
-						if(entrenadorAEjecutar->socket->error != NULL)
-						{
-							free(paqueteCaptura.paqueteSerializado);
-							free(mensajeRespuesta);
-							log_info(logger, entrenadorAEjecutar->socket->error);
-							log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-							//TODO VERIFICAR SI ES CORRECTO BORRAR EL SOCKET
-							eliminarSocket(entrenadorAEjecutar->socket);
-							exit(-1);
-						}
 
 						free(paqueteCaptura.paqueteSerializado);
-						free(mensajeRespuesta);
+
+						if(entrenadorAEjecutar->socket->errorCode != NO_ERROR)
+						{
+							switch(entrenadorAEjecutar->socket->errorCode) {
+							case ERR_PEER_DISCONNECTED:
+								pthread_mutex_lock(&mutexLog);
+								log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
+								log_info(logger, entrenadorAEjecutar->socket->error);
+								pthread_mutex_unlock(&mutexLog);
+
+								eliminarEntrenadorMapa(entrenadorAEjecutar);
+								BorrarItem(items, entrenadorAEjecutar->id);
+								eliminarEntrenador(entrenadorAEjecutar);
+								entrenadorAEjecutar = NULL;
+
+								continue;
+							case ERR_MSG_CANNOT_BE_SENT:
+								activo = 0;
+								eliminarSocket(mi_socket_s);
+
+								pthread_mutex_lock(&mutexLog);
+								log_info(logger, "No se ha podido enviar un mensaje");
+								log_info(logger, entrenadorAEjecutar->socket->error);
+								log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+								pthread_mutex_unlock(&mutexLog);
+
+								eliminarEntrenador(entrenadorAEjecutar);
+								liberarMemoriaAlocada();
+								nivel_gui_terminar();
+
+								return EXIT_FAILURE;
+							}
+						}
+
 						log_info(logger, "Se le confirma al entrenador la captura del Pokémon solicitado (%c)", entrenadorAEjecutar->idPokenestActual);
-
-						//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
-						//TODO IMPLEMENTAR SIGNAL PARA RECARGAR CONFIGURACIÓN
-						log_info(logger, "Cargando archivo de configuración");
-						if (cargarConfiguracion(&configMapa) == 1)
-							return EXIT_FAILURE;
-
-						entrenadorAEjecutar->utEjecutadas++;
 
 						//VUELVO A ENCOLAR AL ENTRENADOR
 						reencolarEntrenador(entrenadorAEjecutar);
+					}
 				}
+				else
+					//VUELVO A ENCOLAR AL ENTRENADOR
+					reencolarEntrenador(entrenadorAEjecutar);
 			}
 		}
 	}
 
+
+
+	eliminarSocket(mi_socket_s);
+
+	log_info(logger, "La ejecución del proceso Mapa ha finalizado correctamente");
+
+	liberarMemoriaAlocada();
 	nivel_gui_terminar();
-	// TODO Cerrar la conexión del servidor
-	queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
-	queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
-	list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
-	log_destroy(logger);
-	pthread_mutex_destroy(&mutexEntrenadores);
-	pthread_mutex_destroy(&mutexReady);
-	pthread_mutex_destroy(&mutexBlocked);
-	pthread_mutex_destroy(&mutexLog);
+
 	return EXIT_SUCCESS;
 }
-
-/*
-log_info(logger, "Socket %d: he completado todos mis objetivos", entrenadorAEjecutar->socket->descriptor);
-
-//TODO LÓGICA DE LIBERACIÓN DE RECURSOS
-BorrarItem(items, entrenadorAEjecutar->id);
-
-free(mensajeRespuesta);
-log_info(logger, "El entrenador %s (%c) ha completado todos sus objetivos dentro del mapa", entrenadorAEjecutar->nombre, entrenadorAEjecutar->id);
-
-//CARGO NUEVAMENTE LA CONFIGURACIÓN DEL MAPA POR SI FUE MODIFICADA EXTERNAMENTE
-log_info(logger, "Cargando archivo de configuración");
-if (cargarConfiguracion(&configMapa) == 1)
-	return EXIT_FAILURE;
- */
 
 //FUNCIONES PLANIFICADOR
 void encolarEntrenador(t_entrenador* entrenador) {
@@ -408,8 +556,7 @@ void reencolarEntrenador(t_entrenador* entrenador) {
 	log_info(logger, "Se encola al entrenador");
 }
 
-void calcularFaltante(t_entrenador entrenador)
-{
+void calcularFaltante(t_entrenador entrenador) {
 	t_ubicacion pokenest = buscarPokenest(items, entrenador.idPokenestActual);
 
 	entrenador.faltaEjecutar = abs(pokenest.x - entrenador.ubicacion.x) + abs(pokenest.y - entrenador.ubicacion.y);
@@ -526,8 +673,7 @@ t_list* cargarPokenests() {
 	return newlist;
 }
 
-t_mapa_pokenest leerPokenest(char* metadata)
-{
+t_mapa_pokenest leerPokenest(char* metadata) {
 	t_config* config;
 	t_mapa_pokenest structPokenest;
 
@@ -553,8 +699,7 @@ t_mapa_pokenest leerPokenest(char* metadata)
 	return structPokenest;
 }
 
-int cargarConfiguracion(t_mapa_config* structConfig)
-{
+int cargarConfiguracion(t_mapa_config* structConfig) {
 	t_config* config;
 	config = config_create(CONFIG_FILE_PATH);
 
@@ -587,37 +732,45 @@ int cargarConfiguracion(t_mapa_config* structConfig)
 }
 
 void aceptarConexiones() {
-	struct socket* mi_socket_s;
-
 	int returnValue;
 
 	mi_socket_s = crearServidor(configMapa.IP, configMapa.Puerto);
-	if(mi_socket_s->descriptor == 0)
+	if(mi_socket_s->errorCode == ERR_SERVER_CREATION)
 	{
+		activo = 0;
+
 		pthread_mutex_lock(&mutexLog);
-		log_info(logger, "La creación del servidor ha resultado fallida");
+		log_info(logger, "La creación del servidor ha fallado");
 		log_info(logger, mi_socket_s->error);
-		log_info(logger, "La ejecución del proceso finaliza de manera errónea");
+		log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
 		pthread_mutex_unlock(&mutexLog);
+
 		liberarMemoriaAlocada();
+		nivel_gui_terminar();
+
 		abort();
 	}
 
 	returnValue = escucharConexiones(*mi_socket_s, BACKLOG);
 	if(returnValue != 0)
 	{
-		pthread_mutex_lock(&mutexLog);
-		log_info(logger, "No ha sido posible iniciar la escucha de conexiones");
-		log_info(logger, strerror(returnValue));
-		log_info(logger, "La ejecución del proceso finaliza de manera errónea");
-		pthread_mutex_unlock(&mutexLog);
+		activo = 0;
 		eliminarSocket(mi_socket_s);
+
+		pthread_mutex_lock(&mutexLog);
+		log_info(logger, "No se ha podido iniciar la escucha de conexiones");
+		log_info(logger, strerror(returnValue));
+		log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+		pthread_mutex_unlock(&mutexLog);
+
 		liberarMemoriaAlocada();
+		nivel_gui_terminar();
+
 		abort();
 	}
 
 	while(activo) {
-		struct socket* cli_socket_s;
+		socket_t* cli_socket_s;
 		t_entrenador* entrenador;
 
 		entrenador = malloc(sizeof(t_entrenador));
@@ -625,14 +778,37 @@ void aceptarConexiones() {
 		log_info(logger, "Escuchando conexiones");
 
 		cli_socket_s = aceptarConexion(*mi_socket_s);
-		if(cli_socket_s->descriptor == -1)
+		if(cli_socket_s->errorCode != NO_ERROR)
 		{
-			pthread_mutex_lock(&mutexLog);
-			log_info(logger, "Se rechaza una conexión");
-			log_info(logger, cli_socket_s->error);
-			pthread_mutex_unlock(&mutexLog);
-			free(entrenador);
-			continue;
+			switch(cli_socket_s->errorCode) {
+			case ERR_CLIENT_CANNOT_CONNECT:
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "Un cliente ha intentado establecer conexión con el servidor sin éxito");
+				log_info(logger, cli_socket_s->error);
+				pthread_mutex_unlock(&mutexLog);
+
+				free(entrenador);
+				free(cli_socket_s->error);
+
+				continue;
+			case ERR_SERVER_DISCONNECTED:
+				activo = 0;
+				eliminarSocket(mi_socket_s);
+
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "El socket del servidor se encuentra desconectado");
+				log_info(logger, cli_socket_s->error);
+				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+				pthread_mutex_unlock(&mutexLog);
+
+				free(entrenador);
+				free(cli_socket_s->error);
+
+				liberarMemoriaAlocada();
+				nivel_gui_terminar();
+
+				abort();
+			}
 		}
 
 		///////////////////////
@@ -644,45 +820,106 @@ void aceptarConexiones() {
 
 		mensajeConexionEntrenador.tipoMensaje = CONEXION_ENTRENADOR;
 		recibirMensaje(cli_socket_s, &mensajeConexionEntrenador);
-		if(cli_socket_s->error != NULL)
+		if(cli_socket_s->errorCode != NO_ERROR)
 		{
-			log_info(logger, cli_socket_s->error);
-			eliminarSocket(cli_socket_s);
+			switch(cli_socket_s->errorCode) {
+			case ERR_PEER_DISCONNECTED:
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "El socket %d se encuentra desconectado", cli_socket_s->descriptor);
+				log_info(logger, cli_socket_s->error);
+				pthread_mutex_unlock(&mutexLog);
+
+				free(entrenador);
+				free(cli_socket_s->error);
+
+				continue;
+			case ERR_MSG_CANNOT_BE_RECEIVED:
+				activo = 0;
+				eliminarSocket(mi_socket_s);
+
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "No se ha podido recibir un mensaje");
+				log_info(logger, cli_socket_s->error);
+				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+				pthread_mutex_unlock(&mutexLog);
+
+				free(entrenador);
+				free(cli_socket_s->error);
+
+				liberarMemoriaAlocada();
+				nivel_gui_terminar();
+
+				abort();
+			}
 		}
 
 		if(mensajeConexionEntrenador.tipoMensaje != CONEXION_ENTRENADOR)
 		{
+			free(entrenador);
+
 			// Enviar mensaje RECHAZA_CONEXION
 			paquete_t paquete;
 			mensaje_t mensajeRechazaConexion;
 
 			mensajeRechazaConexion.tipoMensaje = RECHAZA_CONEXION;
+
 			crearPaquete((void*) &mensajeRechazaConexion, &paquete);
 			if(paquete.tamanioPaquete == 0)
 			{
-				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-				log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
-				eliminarSocket(cli_socket_s);
-				conectado = 0;
+				activo = 0;
 				eliminarSocket(mi_socket_s);
+
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+				pthread_mutex_unlock(&mutexLog);
+
+				free(cli_socket_s->error);
+
+				liberarMemoriaAlocada();
+				nivel_gui_terminar();
+
 				abort();
 			}
 
 			enviarMensaje(cli_socket_s, paquete);
-			if(cli_socket_s->error != NULL)
-			{
-				log_info(logger, cli_socket_s->error);
-				log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
-				eliminarSocket(cli_socket_s);
-				conectado = 0;
-				eliminarSocket(mi_socket_s);
-				abort();
-			}
 
 			free(paquete.paqueteSerializado);
 
-			log_info(logger, "Conexión mediante socket %d finalizada", cli_socket_s->descriptor);
-			eliminarSocket(cli_socket_s);
+			if(cli_socket_s->errorCode != NO_ERROR)
+			{
+				switch(cli_socket_s->errorCode) {
+				case ERR_PEER_DISCONNECTED:
+					pthread_mutex_lock(&mutexLog);
+					log_info(logger, "El socket %d se encuentra desconectado", cli_socket_s->descriptor);
+					log_info(logger, cli_socket_s->error);
+					pthread_mutex_unlock(&mutexLog);
+
+					free(cli_socket_s->error);
+
+					continue;
+				case ERR_MSG_CANNOT_BE_SENT:
+					activo = 0;
+					eliminarSocket(mi_socket_s);
+
+					pthread_mutex_lock(&mutexLog);
+					log_info(logger, "No se ha podido enviar un mensaje");
+					log_info(logger, cli_socket_s->error);
+					log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+					pthread_mutex_unlock(&mutexLog);
+
+					free(cli_socket_s->error);
+
+					liberarMemoriaAlocada();
+					nivel_gui_terminar();
+
+					abort();
+				}
+			}
+
+			log_info(logger, "Conexión mediante socket %d rechazada", cli_socket_s->descriptor);
+
+			continue;
 		}
 
 		log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", cli_socket_s->descriptor, mensajeConexionEntrenador.nombreEntrenador, mensajeConexionEntrenador.simboloEntrenador);
@@ -698,29 +935,63 @@ void aceptarConexiones() {
 		mensaje_t mensajeAceptaConexion;
 
 		mensajeAceptaConexion.tipoMensaje = ACEPTA_CONEXION;
+
 		crearPaquete((void*) &mensajeAceptaConexion, &paquete);
 		if(paquete.tamanioPaquete == 0)
 		{
-			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-			log_info(logger, "Conexión mediante socket %d finalizada", entrenador->socket->descriptor);
-			eliminarSocket(entrenador->socket);
-			conectado = 0;
+			activo = 0;
 			eliminarSocket(mi_socket_s);
+
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+			pthread_mutex_unlock(&mutexLog);
+
+			free(entrenador);
+			free(cli_socket_s->error);
+
+			liberarMemoriaAlocada();
+			nivel_gui_terminar();
+
 			abort();
 		}
 
 		enviarMensaje(entrenador->socket, paquete);
-		if(entrenador->socket->error != NULL)
-		{
-			log_info(logger, entrenador->socket->error);
-			log_info(logger, "Conexión mediante socket %d finalizada", entrenador->socket->descriptor);
-			eliminarSocket(entrenador->socket);
-			conectado = 0;
-			eliminarSocket(mi_socket_s);
-			abort();
-		}
 
 		free(paquete.paqueteSerializado);
+
+		if(entrenador->socket->errorCode != NO_ERROR)
+		{
+			switch(cli_socket_s->errorCode) {
+			case ERR_PEER_DISCONNECTED:
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "El socket %d se encuentra desconectado", cli_socket_s->descriptor);
+				log_info(logger, cli_socket_s->error);
+				pthread_mutex_unlock(&mutexLog);
+
+				free(entrenador);
+				free(cli_socket_s->error);
+
+				continue;
+			case ERR_MSG_CANNOT_BE_SENT:
+				activo = 0;
+				eliminarSocket(mi_socket_s);
+
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "No se ha podido enviar un mensaje");
+				log_info(logger, cli_socket_s->error);
+				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+				pthread_mutex_unlock(&mutexLog);
+
+				free(entrenador);
+				free(cli_socket_s->error);
+
+				liberarMemoriaAlocada();
+				nivel_gui_terminar();
+
+				abort();
+			}
+		}
 
 		//Se agrega al entrenador a la lista de entrenadores conectados
 		list_add(entrenadores, entrenador);
@@ -735,6 +1006,7 @@ void aceptarConexiones() {
 
 		encolarEntrenador(entrenadorPlanificado);
 
+		//SE ADAPTAN LAS MATRICES DE RECURSOS
 		t_recursosEntrenador* recursosAsignadosEntrenador;
 		t_recursosEntrenador* recursosSolicitadosEntrenador;
 
@@ -786,16 +1058,16 @@ bool algoritmoDeteccion()
 
 	void _verificarAsignaciones(t_entrenador* entrenador)
 	{
-		bool _isTheOne(t_entrenador* entrenadorABuscar) {
+		bool _esEntrenadorBuscado(t_entrenador* entrenadorABuscar) {
 			return entrenadorABuscar->id == entrenador->id;
 		}
 
-		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _isTheOne);
+		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _esEntrenadorBuscado);
 
-		//LOS QUE NO TIENEN NADA, LOS DESCARTO.
+		//LOS QUE NO TIENEN NADA, LOS DESCARTO
 		if(entrenadorConRecursos == NULL)
 		{
-			list_remove_by_condition(entrenadoresAux, (void*) _isTheOne);
+			list_remove_by_condition(entrenadoresAux, (void*) _esEntrenadorBuscado);
 		}
 	}
 
@@ -832,4 +1104,71 @@ void liberarMemoriaAlocada() {
 	pthread_mutex_destroy(&mutexReady);
 	pthread_mutex_destroy(&mutexBlocked);
 	pthread_mutex_destroy(&mutexLog);
+}
+
+void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar) {
+	bool _esEntrenadorBuscado(t_entrenador* entrenador) {
+		return entrenador->id == entrenadorAEliminar->id;
+	}
+
+	list_remove_and_destroy_by_condition(entrenadores, (void*) _esEntrenadorBuscado, (void*) eliminarEntrenador);
+
+//	TODO: Liberar recursos
+//	recursosTotales;  		// Recursos existentes en el mapa (Pokémones)
+//	recursosDisponibles;	// Recursos disponibles en el mapa (Pokémones)
+//	recursosAsignados;		// Recursos asignados (Pokémones)
+//	recursosSolicitados;	// Recursos solicitados (Pokémones)
+}
+
+void signal_handler() {
+ 	 struct sigaction sa;
+
+ 	 // Print PID
+ 	 log_info(logger, "PID del proceso Mapa: %d\n", getpid());
+
+ 	 // Setup the sighub handler
+ 	 sa.sa_handler = &signal_termination_handler;
+
+ 	 // Restart the system call
+ 	 sa.sa_flags = SA_RESTART;
+
+ 	 // Block every signal received during the handler execution
+ 	 sigfillset(&sa.sa_mask);
+
+ 	 if (sigaction(SIGUSR2, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGUSR2"); // Should not happen
+
+ 	 if (sigaction(SIGTERM, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
+
+ 	 if (sigaction(SIGKILL, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGKILL"); // Should not happen
+
+ 	 if (sigaction(SIGINT, &sa, NULL) == -1)
+ 	    log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
+}
+
+void signal_termination_handler(int signum) {
+ 	switch (signum) {
+ 	case SIGUSR2:
+ 		configuracionActualizada = 1;
+
+ 	   	break;
+ 	case SIGTERM:
+	      activo = 0;
+
+	      break;
+ 	case SIGKILL:
+ 		  activo = 0;
+
+ 		  break;
+ 	case SIGINT:
+ 		  activo = 0;
+
+ 		  break;
+ 	 default:
+ 	    log_info(logger, "Código inválido: %d", signum);
+
+ 	    return;
+ 	}
 }

@@ -429,16 +429,39 @@ int main(void) {
 				enviarMensaje(socketPokedex, paqueteTRUNCATE);
 				break;
 			}
+
+			//Luego de cada operaciones sinconizo los datos a disco
+			// Copio el BITMAP a memoria
+			memcpy(&pmapFS[1 * OSADA_BLOCK_SIZE], bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+			// Copio tabla de archivos a memoria
+			memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], &tablaArchivos, 1024 * OSADA_BLOCK_SIZE);
+			// Copio tabla de ASIGNACIONES a memoria
+			memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks + 1024) * OSADA_BLOCK_SIZE], tablaAsignaciones, bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
+			msync(pmapFS, statFS.st_size, 2); //Sincronizo la memoria a disco
+
 		}
 	}
-
-	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
-	close(fileFS); //Cierro el archivo
 
 
 	////////////////////
 	///// SHUTDOWN /////
 	////////////////////
+
+	// Copio el BITMAP a memoria
+	memcpy(&pmapFS[1 * OSADA_BLOCK_SIZE], bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Copio tabla de archivos a memoria
+	memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], &tablaArchivos, 1024 * OSADA_BLOCK_SIZE);
+
+	// Copio tabla de ASIGNACIONES a memoria
+	memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks + 1024) * OSADA_BLOCK_SIZE], tablaAsignaciones, bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
+
+	msync(pmapFS, statFS.st_size, 2); //Sincronizo el la memoria a disco
+
+	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
+
+	close(fileFS); //Cierro el archivo
+
 	free(bitmapS);
 	free(tablaAsignaciones);
 	bitmapS=NULL;
@@ -455,6 +478,7 @@ int getFirstBit() {
 			return i;
 		}
 	}
+	log_info(logger, "Disco lleno");
 	return -1;
 }
 
@@ -533,10 +557,6 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	int archivoID = getDirPadre(path);
 	int primerBloque = tablaArchivos[archivoID].first_block;
 
-	//Asigno nuevo tamaño
-	tablaArchivos[archivoID].file_size = tamanioBuffer + offset;
-
-
 	int sum = 0;
 	int sumOffset = 0;
 	int bloque = primerBloque;
@@ -602,9 +622,15 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 				bloque = tablaAsignaciones[bloqueAnterior];
 				//printf("\n Siguiente bloque reutilizado %d", bloque);
 			} else { //Busco un nuevo bloque si corresponde
-				bloque = getFirstBit() - inicioBloqueDatos;
-				tablaAsignaciones[bloqueAnterior] = bloque;
-				tablaAsignaciones[bloque] = -1;
+				int nuevoBloque = getFirstBit();
+				if (nuevoBloque == -1) { //Disco lleno
+					tablaArchivos[archivoID].file_size = sum + offset;
+					return -1;
+				} else {
+					bloque = nuevoBloque - inicioBloqueDatos;
+					tablaAsignaciones[bloqueAnterior] = bloque;
+					tablaAsignaciones[bloque] = -1;
+				}
 				//printf("\n Siguiente bloque nuevo %d", bloque);
 				//log_info(logger, "Bloques anterior: %d nuevo: %d", bloqueAnterior, bloque);
 			}
@@ -613,8 +639,8 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 		}
 	}
 
-	//printf("\n sum %d", sum);
-
+	//Asigno nuevo tamaño
+	tablaArchivos[archivoID].file_size = sum + offset;
 	return 1;
 }
 

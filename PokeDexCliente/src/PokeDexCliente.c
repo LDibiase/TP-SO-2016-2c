@@ -443,7 +443,7 @@ static int fuse_write(const char *path, const char *buf, size_t size, off_t offs
 			int res = mensajeWRITE_RESPONSE.res;
 			log_info(logger, "MENSAJE mensajeWRITE_RESPONSE %d", mensajeWRITE_RESPONSE.res);
 			if(res == -1)
-				return -errno;
+				return -EFBIG;
 
 			return size;
 }

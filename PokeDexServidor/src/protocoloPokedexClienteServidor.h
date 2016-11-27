@@ -42,7 +42,9 @@ typedef enum tipoMensaje {
 	WRITE,
 	WRITE_RESPONSE,
 	RENAME,
-	RENAME_RESPONSE
+	RENAME_RESPONSE,
+	TRUNCATE,
+	TRUNCATE_RESPONSE
 } tipoMensaje_t;
 
 
@@ -115,5 +117,12 @@ typedef struct mensaje9 {
 	uint32_t tamanioPathTo;
 	char* pathTo;
 } mensaje9_t;
+
+typedef struct mensaje10 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioPath;
+	char* path;
+	int size;
+} mensaje10_t;
 
 #endif /* UTILITY_LIBRARY_PROTOCOLOPOKEDEXCLIENTESERVIDOR_H_ */

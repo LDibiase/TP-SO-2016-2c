@@ -290,20 +290,6 @@ static int fuse_rmdir(const char *path)
 	    return 0;
 }
 
-static int fuse_truncate(const char *path, off_t size)
-{
-    return 0;
-}
-
-static int fuse_flush(const char* path, struct fuse_file_info* fi)
-{
-    return 0;
-}
-
-static int fuse_release(const char* path, struct fuse_file_info* fi)
-{
-    return 0;
-}
 
 static int fuse_unlink(const char *path)
 {
@@ -496,6 +482,53 @@ static int fuse_rename(const char* from, const char* to) {
 			return -ENAMETOOLONG;
 
 			return 0;
+}
+
+static int fuse_truncate(const char *path, off_t size)
+{
+	// Enviar mensaje WRITE
+			paquete_t paqueteLectura;
+			mensaje10_t mensajeQuieroTRUNCATE;
+
+			mensajeQuieroTRUNCATE.tipoMensaje = TRUNCATE;
+			mensajeQuieroTRUNCATE.path = path;
+			mensajeQuieroTRUNCATE.tamanioPath = strlen(mensajeQuieroTRUNCATE.path) + 1;
+			mensajeQuieroTRUNCATE.size = size;
+
+			crearPaquete((void*) &mensajeQuieroTRUNCATE, &paqueteLectura);
+			log_info(logger, "MENSAJE TRUNCATE PATH: %s SIZE: %d ", mensajeQuieroTRUNCATE.path, mensajeQuieroTRUNCATE.size);
+			if(paqueteLectura.tamanioPaquete == 0) {
+				pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+				log_info(logger, pokedex->error);
+				log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+				exit(EXIT_FAILURE);
+			}
+
+			enviarMensaje(pokedex, paqueteLectura);
+
+			// Recibir mensaje RESPUESTA
+				mensaje7_t mensajeTRUNCATE_RESPONSE;
+				mensajeTRUNCATE_RESPONSE.tipoMensaje = TRUNCATE_RESPONSE;
+
+				recibirMensaje(pokedex, &mensajeTRUNCATE_RESPONSE);
+
+				int res = mensajeTRUNCATE_RESPONSE.res;
+				log_info(logger, "MENSAJE mensajeTRUNCATE_RESPONSE %d", mensajeTRUNCATE_RESPONSE.res);
+
+				if(res == -1)
+					return -errno;
+
+				return 0;
+}
+
+static int fuse_flush(const char* path, struct fuse_file_info* fi)
+{
+    return 0;
+}
+
+static int fuse_release(const char* path, struct fuse_file_info* fi)
+{
+    return 0;
 }
 
 static struct fuse_opt fuse_options[] = {

@@ -405,6 +405,29 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteRENAME);
 				break;
+			case TRUNCATE:
+				log_info(logger, "Solicito TRUNCATE PATH: %s SIZE: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
+
+				// Enviar mensaje TRUNCATE
+				paquete_t paqueteTRUNCATE;
+				mensaje7_t mensajeTRUNCATE_RESPONSE;
+
+
+				mensajeTRUNCATE_RESPONSE.tipoMensaje = TRUNCATE_RESPONSE;
+				mensajeTRUNCATE_RESPONSE.res = truncate_callback(((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
+
+				log_info(logger, "TRUNCATE_RESPONSE: %d \n", mensajeTRUNCATE_RESPONSE.res);
+
+				crearPaquete((void*) &mensajeTRUNCATE_RESPONSE, &paqueteTRUNCATE);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteTRUNCATE);
+				break;
 			}
 		}
 	}
@@ -433,6 +456,46 @@ int getFirstBit() {
 		}
 	}
 	return -1;
+}
+
+int truncate_callback(const char *path, int size) {
+
+	int archivoID = getDirPadre(path);
+
+	if (archivoID != -1) {
+		int primerBloque = tablaArchivos[archivoID].first_block;
+
+		int sumOffset = 0;
+		int bloque = primerBloque;
+		int bloqueAnterior = bloque;
+
+		//Movimientos hasta el size
+		while (sumOffset<size) {
+			bloqueAnterior = bloque;
+			bloque = tablaAsignaciones[bloque];
+			sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+		}
+
+		while (bloque != -1) {
+			//Limpio el bitmap
+			bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
+			//printf("\n Limpiando bitarray %d", bloque);
+
+			bloqueAnterior = bloque;
+			bloque = tablaAsignaciones[bloque];
+
+			//Limpio tabla de asignaciones
+			tablaAsignaciones[bloqueAnterior] = -1;
+			//printf("Limpiando bloque: %d /n", bloqueAnterior);
+		}
+
+		tablaArchivos[archivoID].file_size = size;
+		if (size==0) {
+			tablaArchivos[archivoID].first_block = -1;
+		}
+	}
+
+	return archivoID;
 }
 
 int rename_callback(const char *from, const char *to) {
@@ -471,11 +534,8 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	int primerBloque = tablaArchivos[archivoID].first_block;
 
 	//Asigno nuevo tamaño
-
-	//printf("\nwrite file size: %d", tablaArchivos[archivoID].file_size);
 	tablaArchivos[archivoID].file_size = tamanioBuffer + offset;
 
-	//TODO:Si el tamaño es menor, liberar bloques
 
 	int sum = 0;
 	int sumOffset = 0;
@@ -686,7 +746,7 @@ int unlink_callback(const char *path) {
 
 		while (bloque != -1) {
 			//Limpio el bitmap
-			bitarray_set_bit(bitarray, bloque + inicioBloqueDatos);
+			bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
 			//printf("\n Limpiando bitarray %d", bloque);
 
 			bloqueAnterior = bloque;

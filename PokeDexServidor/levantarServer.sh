@@ -1,3 +1,3 @@
 #!/bin/bash
-export osadaFile="/home/utnso/workspace/testOsada/Discos Prueba/01-base.bin"
-./Debug/PokeDexServidor
+export osadaFile="/home/utnso/osada/discos/02-completa.bin"
+./PokeDexServidor

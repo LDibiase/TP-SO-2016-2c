@@ -662,6 +662,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 	char* nombreArchivoPokemonAux = strdup(rutaPokenest);
 	string_append(&nombreArchivoPokemonAux, "/");
 	string_append(&nombreArchivoPokemonAux, nombrePokemon);
+	string_append(&nombreArchivoPokemonAux, "/");
 
 	char* numeroPokemon = strdup("001");
 	char* nombreArchivoPokemon = strdup(nombreArchivoPokemonAux);

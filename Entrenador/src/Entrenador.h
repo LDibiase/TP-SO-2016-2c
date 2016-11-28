@@ -43,5 +43,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 void solicitarCaptura(socket_t* mapa_s, int* victima);
 void signal_handler();
 void signal_termination_handler(int signum);
+void obtenerDatosConexion(char* nombreCiudad, char* ip, char* puerto);
 
 #endif /* ENTRENADOR_H_ */

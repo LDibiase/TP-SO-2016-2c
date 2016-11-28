@@ -99,11 +99,17 @@ int main(void) {
 	}
 
 	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
+//		char* ip;
+//		char* puerto;
+
 		objetivosCompletados = 0;
 
 		while(configEntrenador.Vidas > 0 && activo && !objetivosCompletados) {
+			// Obtener datos de conexión del mapa
+//			obtenerDatosConexion(ciudad->Nombre, ip, puerto);
+
 			// Conexión al mapa
-			mapa_s = conectarAMapa("127.0.0.1", "3490");
+			mapa_s = conectarAMapa("127.0.0.1", "3490"); //conectarAMapa(ip, puerto);
 			if(mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
@@ -700,4 +706,36 @@ void signal_termination_handler(int signum) {
 
  	    return;
  	}
+}
+
+void obtenerDatosConexion(char* nombreCiudad, char* ip, char* puerto) {
+	t_config* metadata;
+
+	char* rutaMetadataMapa = string_new(); //strdup(puntoMontajeOsada);
+	string_append(&rutaMetadataMapa, "Mapas/");
+
+	metadata = config_create(rutaMetadataMapa);
+	if(metadata != NULL)
+	{
+		if(config_has_property(metadata, "TiempoChequeoDeadlock")
+				&& config_has_property(metadata, "Batalla")
+				&& config_has_property(metadata, "algoritmo")
+				&& config_has_property(metadata, "quantum")
+				&& config_has_property(metadata, "retardo")
+				&& config_has_property(metadata, "IP")
+				&& config_has_property(metadata, "Puerto"))
+		{
+			ip = strdup(config_get_string_value(metadata, "IP"));
+			puerto = strdup(config_get_string_value(metadata, "Puerto"));
+
+			config_destroy(metadata);
+		}
+		else
+		{
+			log_error(logger, "El archivo de metadata del mapa tiene un formato inválido");
+			config_destroy(metadata);
+		}
+	}
+	else
+		log_error(logger, "La ruta de archivo de configuración indicada no existe");
 }

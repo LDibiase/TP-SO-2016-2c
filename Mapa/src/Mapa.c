@@ -45,8 +45,8 @@ t_list* recursosAsignados;		// Recursos asignados (Pokémones)
 t_list* recursosSolicitados;	// Recursos solicitados (Pokémones)
 int activo;						// Flag de actividad del mapa
 int configuracionActualizada;   // Flag de actualización de la configuración
-char* puntoMontajeOsada;         // Ruta del FS
-char* rutaMetadataMapa;               // Nombre del mapa
+char* puntoMontajeOsada;        // Ruta del FS
+char* rutaDirectorioMapa;		// Nombre del mapa
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos
@@ -67,10 +67,10 @@ int main(int argc, char **argv) {
 
 	//DANDOLE FORMA A LOS PARAMETROS RECIBIDOS
 	puntoMontajeOsada = strdup(argv[1]);
-	rutaMetadataMapa = strdup(argv[1]);
-	string_append(&rutaMetadataMapa, "/Mapas/");
-	string_append(&rutaMetadataMapa, argv[2]);
-	string_append(&rutaMetadataMapa, "/");
+	rutaDirectorioMapa = strdup(argv[1]);
+	string_append(&rutaDirectorioMapa, "/Mapas/");
+	string_append(&rutaDirectorioMapa, argv[2]);
+	string_append(&rutaDirectorioMapa, "/");
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -594,14 +594,14 @@ t_list* cargarPokenests() {
 	t_mapa_pokenest* recursoTotales;
 	t_mapa_pokenest* recursoDisponibles;
 	t_list* newlist = list_create();
-	char* puntoDeMontajeAux;
+	char* rutaDirectorioPokenests;
 
 	struct dirent* dent;
 
-	puntoDeMontajeAux = strdup(puntoMontajeOsada);
-	string_append(&puntoDeMontajeAux, "PokeNests/");
+	rutaDirectorioPokenests = strdup(rutaDirectorioMapa);
+	string_append(&rutaDirectorioPokenests, "PokeNests/");
 
-	DIR* srcdir = opendir(puntoDeMontajeAux);
+	DIR* srcdir = opendir(rutaDirectorioPokenests);
 	if (srcdir == NULL)
 		perror("opendir");
 
@@ -617,11 +617,10 @@ t_list* cargarPokenests() {
 		}
 
 		if (S_ISDIR(st.st_mode)){
-			char* str = strdup(puntoMontajeOsada);
-			//str = puntoMontajeOsada;
+			char* str;
 			int cantidadDeRecursos = 0;
 
-			string_append(&str, "PokeNests/");
+			str = strdup(rutaDirectorioPokenests);
 			string_append(&str, dent->d_name);
 
 			//OBTENGO METADATAS DE PÓKEMONES EXISTENTES EN LA POKÉNEST
@@ -650,6 +649,8 @@ t_list* cargarPokenests() {
 	    	free(str);
 		}
 	}
+
+	free(rutaDirectorioPokenests);
 	closedir(srcdir);
 	return newlist;
 }
@@ -755,9 +756,10 @@ t_mapa_pokenest leerPokenest(char* metadata) {
 
 int cargarConfiguracion(t_mapa_config* structConfig) {
 	t_config* config;
-	char* puntoMontajeAux = strdup(rutaMetadataMapa);
-	string_append(&puntoMontajeAux, CONFIG_FILE_PATH);
-	config = config_create(puntoMontajeAux);
+	char* rutaMetadataMapa = strdup(rutaDirectorioMapa);
+	string_append(&rutaMetadataMapa, "metadata");
+
+	config = config_create(rutaMetadataMapa);
 
 	if(config != NULL)
 	{

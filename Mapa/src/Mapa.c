@@ -46,6 +46,7 @@ t_list* recursosSolicitados;	// Recursos solicitados (Pokémones)
 int activo;						// Flag de actividad del mapa
 int configuracionActualizada;   // Flag de actualización de la configuración
 char* puntoMontajeOsada;         // Ruta del FS
+char* nombreMapa;               // Nombre del mapa
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos
@@ -59,12 +60,13 @@ pthread_mutex_t mutexEntrenadores;
 pthread_mutex_t mutexReady;
 pthread_mutex_t mutexBlocked;
 
-int main(char* puntoDeMontaje) {
+int main(int argc, char **argv) {
 	// Variables para la creación del hilo para el manejo de señales
 //	pthread_t hiloSignalHandler;
 //	pthread_attr_t atributosHiloSignalHandler;
 
-	puntoMontajeOsada = puntoDeMontaje;
+	puntoMontajeOsada = strdup(argv[1]);
+	//nombreMapa = strdup(argv[2]);
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -96,6 +98,7 @@ int main(char* puntoDeMontaje) {
 
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
+	log_info(logger, "El punto de montaje recibido es: %s", puntoMontajeOsada);
 
 	//CONFIGURACIÓN DEL MAPA
 //	pthread_mutex_lock(&mutexLog);
@@ -675,7 +678,7 @@ t_list* cargarPokenests() {
 
 	struct dirent* dent;
 
-	puntoDeMontajeAux = puntoMontajeOsada;
+	puntoDeMontajeAux = strdup(puntoMontajeOsada);
 	string_append(&puntoDeMontajeAux, "PokeNests/");
 
 	DIR* srcdir = opendir(puntoDeMontajeAux);
@@ -694,8 +697,8 @@ t_list* cargarPokenests() {
 		}
 
 		if (S_ISDIR(st.st_mode)){
-			char* str = string_new();
-			str = puntoMontajeOsada;
+			char* str = strdup(puntoMontajeOsada);
+			//str = puntoMontajeOsada;
 			int cantidadDeRecursos = 0;
 
 			string_append(&str, "PokeNests/");
@@ -832,7 +835,9 @@ t_mapa_pokenest leerPokenest(char* metadata) {
 
 int cargarConfiguracion(t_mapa_config* structConfig) {
 	t_config* config;
-	config = config_create(puntoMontajeOsada);
+	char* puntoMontajeAux = strdup(puntoMontajeOsada);
+	string_append(&puntoMontajeAux, CONFIG_FILE_PATH);
+	config = config_create(puntoMontajeAux);
 
 	if(config != NULL)
 	{
@@ -866,7 +871,6 @@ int cargarConfiguracion(t_mapa_config* structConfig) {
 	else
 	{
 		log_error(logger, "La ruta de archivo de configuración indicada no existe");
-		config_destroy(config);
 		return 1;
 	}
 }

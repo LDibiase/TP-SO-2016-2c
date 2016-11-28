@@ -660,16 +660,27 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	{
 		log_info(logger, "Socket %d: ha capturado el Pokémon solicitado", mapa_s->descriptor);
 
-		// TODO Agregar lógica para obtener metadata del pokémon que hemos atrapado (determinar si el mapa nos la provee o si la debemos recuperar del FS)
+		char* rutaPokemon = strdup(puntoMontajeOsada);
+		string_append(&rutaPokemon, mensajeConfirmaCaptura.nombreArchivoMetadata);
+
+		char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
+		string_append(&rutaEntrenador, "/");
+		string_append(&rutaEntrenador, "Dir de Bill/");
+
+		execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador);
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
 
+		char* rutaBorrado = strdup("rm -rf /");
+		string_append(&rutaBorrado, rutaDirectorioEntrenador);
+		string_append(&rutaBorrado, "/");
+		string_append(&rutaBorrado, "Dir de Bill/*");
+
+		system(rutaBorrado);
 		// Se activa el flag Víctima
 		*victima = 1;
-
-		// TODO Agregar lógica para borrar archivos de metadata de los pokémones que hemos atrapado
 	}
 	else
 		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);

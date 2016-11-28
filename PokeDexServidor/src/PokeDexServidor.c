@@ -36,7 +36,6 @@
 #define LOG_FILE_PATH "PokeDexServidor.log"
 
 struct socket** clientes;
-//char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
 
 osada_file tablaArchivos[2048];		// TABLA DE ARCHIVOS
 unsigned int * tablaAsignaciones;	// TABLA DE ASIGNACIONES
@@ -54,7 +53,7 @@ int main(void) {
 	int fileFS;
 	struct stat statFS;
 	osada_header cabeceraFS;		// HEADER
-	char * bitmapS;		// BITMAP
+	char * bitmapS;					// BITMAP
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
 	int i;
 	pthread_mutex_init(&mutex, NULL);
@@ -70,40 +69,34 @@ int main(void) {
 
 
 	// CARGA DE FS EN MEMORIA CON MMAP
-	printf("\n---------------------------");
-	printf("\n	MMAP	\n");
-	printf("---------------------------\n");
-
 	fileFS = open(rutaFS,O_RDWR);
 	stat(rutaFS,&statFS);
 	pmapFS = (char*)mmap(0, statFS.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileFS, 0); //puntero al primer byte del FS (array de bytes)
-	printf("El tamaño del FS es %d \n", (int)statFS.st_size);
+	log_info(logger,"MMAP: Tamaño del FS es %d ", (int)statFS.st_size);
 
 	memcpy(&cabeceraFS, &pmapFS[0], sizeof(cabeceraFS));
 	// Valida que sea un FS OSADA
 	if (memcmp(cabeceraFS.magic_number, "OsadaFS", 7) != 0)	{
-		printf("NO es un FS Osada\n");
+		log_info(logger,"NO es un FS Osada");
 		return EXIT_FAILURE;
 	}
 
 
 	// INFORMACION HEADER
-	printf("\n---------------------------");
-	printf("\n	HEADER	\n");
-	printf("---------------------------\n");
-	printf("Identificador: %s\n", cabeceraFS.magic_number);
-	printf("Version:       %d\n", cabeceraFS.version);
-	printf("Tamano FS:     %d (bloques)\n", cabeceraFS.fs_blocks);
-	printf("Tamano Bitmap: %d (bloques)\n", cabeceraFS.bitmap_blocks);
-	printf("Inicio T.Asig: %d (bloque)\n", cabeceraFS.allocations_table_offset);
-	printf("Tamano Datos:  %d (bloques)\n", cabeceraFS.data_blocks);
-	printf("Relleno: %s\n", cabeceraFS.padding);
+	log_info(logger,"-----	HEADER	-----");
+	log_info(logger,"Identificador: %s", cabeceraFS.magic_number);
+	log_info(logger,"Version:       %d", cabeceraFS.version);
+	log_info(logger,"Tamano FS:     %d (bloques)", cabeceraFS.fs_blocks);
+	log_info(logger,"Tamano Bitmap: %d (bloques)", cabeceraFS.bitmap_blocks);
+	log_info(logger,"Inicio T.Asig: %d (bloque)", cabeceraFS.allocations_table_offset);
+	log_info(logger,"Tamano Datos:  %d (bloques)", cabeceraFS.data_blocks);
+	log_info(logger,"Relleno: %s", cabeceraFS.padding);
 
 
 	// Aloca el espacio en memoria para el Bitmap
 	bitmapS=malloc(cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
 	if (bitmapS== NULL)	{
-		printf("No se dispone de memoria para alocar el Bitmap\n");
+		log_info(logger,"No se dispone de memoria para alocar el Bitmap");
 		return EXIT_FAILURE;
 	}
 
@@ -112,57 +105,59 @@ int main(void) {
 
 	// Crea el array de bits
 	bitarray = bitarray_create(bitmapS,cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+	log_info(logger,"Cargando Bitmap");
 
 	// INFORMACION BITMAP
-	printf("\n---------------------------");
-	printf("\n	BITMAP	\n");
-	printf("---------------------------\n");
-	printf("Pos %d = %d\n", 0, bitarray_test_bit(bitarray, 0));
-	printf("Pos %d = %d\n", 11501, bitarray_test_bit(bitarray, 11501));
-	printf("Pos %d = %d\n", 11502, bitarray_test_bit(bitarray, 11502));
-	printf("Pos %d = %d\n", 11551, bitarray_test_bit(bitarray, 11551));
-	printf("Pos %d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
+	/*log_info(logger,"---------------------------");
+	log_info(logger,"	BITMAP	");
+	log_info(logger,"---------------------------");
+	log_info(logger,"Pos %d = %d", 0, bitarray_test_bit(bitarray, 0));
+	log_info(logger,"Pos %d = %d", 11501, bitarray_test_bit(bitarray, 11501));
+	log_info(logger,"Pos %d = %d", 11502, bitarray_test_bit(bitarray, 11502));
+	log_info(logger,"Pos %d = %d", 11551, bitarray_test_bit(bitarray, 11551));
+	log_info(logger,"Pos %d = %d", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));*/
 
 	// Lee tabla de archivos
 	memcpy(&tablaArchivos, &pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], 1024 * OSADA_BLOCK_SIZE);
 
-	printf("\n---------------------------");
-	printf("\n	TABLA DE ARCHIVOS	\n");
-	printf("---------------------------\n");
-	printf("%s\n", "|    Pos    	|    State    	|    File Name    	|    Parent Dir |    Size    	|    lastModif    	|    First Block");
-	printf("%s\n", "--------------------------------------------------------------------------------------------------------");
+	log_info(logger,"Cargando Tabla de Archivos");
+
+	/*log_info(logger,"---------------------------");
+	log_info(logger,"	TABLA DE ARCHIVOS	");
+	log_info(logger,"---------------------------");
+	log_info(logger,"%s", "|    Pos    	|    State    	|    File Name    	|    Parent Dir |    Size    	|    lastModif    	|    First Block");
+	log_info(logger,"%s", "--------------------------------------------------------------------------------------------------------");
 	for (i = 0; i < TABLA_ARCHIVOS; i++)
 	{
 		if (tablaArchivos[i].state != 0)
 		{
-			printf("|    %d    	", i);
-			printf("|    %d    	", tablaArchivos[i].state);
-			printf("|    %s    	", tablaArchivos[i].fname);
-			printf("|    %d    	", tablaArchivos[i].parent_directory);
-			printf("|    %d    	", tablaArchivos[i].file_size);
-			printf("|    %d    	", tablaArchivos[i].lastmod);
-			printf("|    %d    	", tablaArchivos[i].first_block);
-			printf("\n");
+			log_info(logger,"|    %d    	", i);
+			log_info(logger,"|    %d    	", tablaArchivos[i].state);
+			log_info(logger,"|    %s    	", tablaArchivos[i].fname);
+			log_info(logger,"|    %d    	", tablaArchivos[i].parent_directory);
+			log_info(logger,"|    %d    	", tablaArchivos[i].file_size);
+			log_info(logger,"|    %d    	", tablaArchivos[i].lastmod);
+			log_info(logger,"|    %d    	", tablaArchivos[i].first_block);
+			log_info(logger,"");
 		}
-	}
+	}*/
 
 
 	// BLOQUE DE DATOS
-	printf("\n---------------------------");
-	printf("\n	BLOQUE DE DATOS	\n");
-	printf("---------------------------\n");
+	/*log_info(logger,"---------------------------");
+	log_info(logger,"	BLOQUE DE DATOS	");
+	log_info(logger,"---------------------------");*/
 	inicioBloqueDatos = cabeceraFS.fs_blocks - cabeceraFS.data_blocks;
-	printf("Inicio Datos: %d (bloque)\n", inicioBloqueDatos);
+	log_info(logger,"Inicio bloques de datos: %d (bloque)", inicioBloqueDatos);
 
 
 	// Calculo bloques
 	bloquesTablaAsignaciones = cabeceraFS.fs_blocks - 1 - cabeceraFS.bitmap_blocks - 1024 - cabeceraFS.data_blocks;
-	printf("Leido Tabla de Archivos %d\n", bloquesTablaAsignaciones); // POSICION
 
 	//Reserva espacio tabla de asignaciones
 	tablaAsignaciones=malloc(bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
 	if (tablaAsignaciones== NULL) {
-		printf("No se dispone de memoria para alocar la Tabla de Asignaciones\n");
+		log_info(logger,"No se dispone de memoria para alocar la Tabla de Asignaciones");
 		return EXIT_FAILURE;
 	}
 
@@ -171,10 +166,10 @@ int main(void) {
 
 
 	// INFORMACION TABLA DE ASIGNACIONES
-	printf("\n---------------------------");
-	printf("\n	TABLA DE ASIGNACIONES	\n");
-	printf("---------------------------\n");
-	printf("Tamano T.Asig: %d (bloques)\n\n", bloquesTablaAsignaciones);
+	/*log_info(logger,"---------------------------");
+	log_info(logger,"	TABLA DE ASIGNACIONES	");
+	log_info(logger,"---------------------------");*/
+	log_info(logger,"Tamano Tabla de Asignaciones: %d (bloques)", bloquesTablaAsignaciones);
 
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
@@ -244,7 +239,7 @@ int main(void) {
 			enviarMensaje(socketPokedex, paqueteGetAttr);
 			break;
 			case READ:
-				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
+				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
 
 				// Enviar mensaje READ
 				paquete_t paqueteREAD;
@@ -257,7 +252,7 @@ int main(void) {
 				mensajeREAD_RESPONSE.buffer = READ_RES.block;
 				mensajeREAD_RESPONSE.tamanioBuffer = READ_RES.size;
 
-				log_info(logger, "READRESPONSE: Cantidad de bytes: %d \n", mensajeREAD_RESPONSE.tamanioBuffer);
+				//log_info(logger, "READRESPONSE: Cantidad de bytes: %d", mensajeREAD_RESPONSE.tamanioBuffer);
 
 				crearPaquete((void*) &mensajeREAD_RESPONSE, &paqueteREAD);
 				if(paqueteGetAttr.tamanioPaquete == 0) {
@@ -346,7 +341,7 @@ int main(void) {
 				mensajeMKNOD_RESPONSE.tipoMensaje = MKNOD_RESPONSE;
 				mensajeMKNOD_RESPONSE.res = mknod_callback(((mensaje1_t*) mensajeRespuesta)->path);
 
-				log_info(logger, "MKNOD res: %d", mensajeMKNOD_RESPONSE.res);
+				//log_info(logger, "MKNOD res: %d", mensajeMKNOD_RESPONSE.res);
 
 				crearPaquete((void*) &mensajeMKNOD_RESPONSE, &paqueteMKNOD);
 				if(paqueteMKNOD.tamanioPaquete == 0) {
@@ -360,7 +355,7 @@ int main(void) {
 
 				break;
 			case WRITE:
-				log_info(logger, "Solicito WRITE del path: %s Cantidad de bytes: %d OFFSET: %d \n", ((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje8_t*) mensajeRespuesta)->offset);
+				log_info(logger, "Solicito WRITE del path: %s Cantidad de bytes: %d OFFSET: %d", ((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje8_t*) mensajeRespuesta)->offset);
 
 				// Enviar mensaje respuesta
 
@@ -394,7 +389,7 @@ int main(void) {
 				mensajeRENAME_RESPONSE.tipoMensaje = RENAME_RESPONSE;
 				mensajeRENAME_RESPONSE.res = rename_callback(((mensaje9_t*) mensajeRespuesta)->pathFrom,((mensaje9_t*) mensajeRespuesta)->pathTo);
 
-				log_info(logger, "RENAMERESPONSE: %d \n", mensajeRENAME_RESPONSE.res);
+				//log_info(logger, "RENAMERESPONSE: %d ", mensajeRENAME_RESPONSE.res);
 
 				crearPaquete((void*) &mensajeRENAME_RESPONSE, &paqueteRENAME);
 				if(paqueteGetAttr.tamanioPaquete == 0) {
@@ -417,7 +412,7 @@ int main(void) {
 				mensajeTRUNCATE_RESPONSE.tipoMensaje = TRUNCATE_RESPONSE;
 				mensajeTRUNCATE_RESPONSE.res = truncate_callback(((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
 
-				log_info(logger, "TRUNCATE_RESPONSE: %d \n", mensajeTRUNCATE_RESPONSE.res);
+				//log_info(logger, "TRUNCATE_RESPONSE: %d ", mensajeTRUNCATE_RESPONSE.res);
 
 				crearPaquete((void*) &mensajeTRUNCATE_RESPONSE, &paqueteTRUNCATE);
 				if(paqueteGetAttr.tamanioPaquete == 0) {
@@ -504,14 +499,14 @@ int truncate_callback(const char *path, int size) {
 		while (bloque != -1) {
 			//Limpio el bitmap
 			bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
-			//printf("\n Limpiando bitarray %d", bloque);
+			//log_info(logger," Limpiando bitarray %d", bloque);
 
 			bloqueAnterior = bloque;
 			bloque = tablaAsignaciones[bloque];
 
 			//Limpio tabla de asignaciones
 			tablaAsignaciones[bloqueAnterior] = -1;
-			//printf("Limpiando bloque: %d /n", bloqueAnterior);
+			//log_info(logger,"Limpiando bloque: %d /n", bloqueAnterior);
 		}
 
 		tablaArchivos[archivoID].file_size = size;
@@ -567,19 +562,19 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 		bloqueAnterior = bloque;
 		bloque = tablaAsignaciones[bloque];
 		sumOffset = sumOffset + OSADA_BLOCK_SIZE;
-		//printf("\nwrite sumoffset: %d", sumOffset);
-		//printf("\nwrite bloque: %d", bloque);
+		//log_info(logger,"write sumoffset: %d", sumOffset);
+		//log_info(logger,"write bloque: %d", bloque);
 		//log_info(logger, "Bloque offset: %d sum: %d", bloque, sumOffset);
 	}
 
-	//printf("\n sumOffset %d", sumOffset);
-	//printf("\n tamanioBuffer %d", tamanioBuffer);
+	//log_info(logger," sumOffset %d", sumOffset);
+	//log_info(logger," tamanioBuffer %d", tamanioBuffer);
 
 	//Si estamos en el final del archivo
 
 	//Si es un archivo vacio
 	if (bloque == -1) {
-		//printf("\n firstbit: %d , iniciobloquedatos: %d",getFirstBit(),inicioBloqueDatos);
+		//log_info(logger," firstbit: %d , iniciobloquedatos: %d",getFirstBit(),inicioBloqueDatos);
 		bloque = getFirstBit() - inicioBloqueDatos;
 		if (tablaArchivos[archivoID].first_block == -1) {
 			tablaArchivos[archivoID].first_block = bloque;
@@ -588,7 +583,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 			//log_info(logger, "Bloqueoffset anterior: %d nuevo: %d", bloqueAnterior, bloque);
 		}
 
-		//printf("\n primer bloque %d", tablaArchivos[archivoID].first_block);
+		//log_info(logger," primer bloque %d", tablaArchivos[archivoID].first_block);
 	}
 
 	while (sum<tamanioBuffer) {
@@ -598,12 +593,12 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 
 			sum = sum + OSADA_BLOCK_SIZE;
 			pthread_mutex_unlock(&mutex);
-			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
+			//log_info(logger," Escribio %d", OSADA_BLOCK_SIZE);
 		} else {
 			pthread_mutex_lock(&mutex);
 			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], (tamanioBuffer - sum) * sizeof(char));
-			//printf("\n ------Copia Parcial ------ %d", bloque);
-			//printf("\n Escribio %d", (tamanioBuffer - sum));
+			//log_info(logger," ------Copia Parcial ------ %d", bloque);
+			//log_info(logger," Escribio %d", (tamanioBuffer - sum));
 			sum = sum + (tamanioBuffer - sum);
 			pthread_mutex_unlock(&mutex);
 		}
@@ -611,8 +606,8 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 
 		//Actualizo bitarray
 		bitarray_set_bit(bitarray,bloque + inicioBloqueDatos);
-		//printf("\n Escribiendo bloque %d", bloque);
-		//printf("\n Cantidad Bytes restantes %d", (tamanioBuffer - sum));
+		//log_info(logger," Escribiendo bloque %d", bloque);
+		//log_info(logger," Cantidad Bytes restantes %d", (tamanioBuffer - sum));
 
 		int bloqueAnterior = bloque;
 
@@ -620,7 +615,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 		if (sum<tamanioBuffer) {
 			if (tablaAsignaciones[bloqueAnterior] != -1) {
 				bloque = tablaAsignaciones[bloqueAnterior];
-				//printf("\n Siguiente bloque reutilizado %d", bloque);
+				//log_info(logger," Siguiente bloque reutilizado %d", bloque);
 			} else { //Busco un nuevo bloque si corresponde
 				int nuevoBloque = getFirstBit();
 				if (nuevoBloque == -1) { //Disco lleno
@@ -631,7 +626,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 					tablaAsignaciones[bloqueAnterior] = bloque;
 					tablaAsignaciones[bloque] = -1;
 				}
-				//printf("\n Siguiente bloque nuevo %d", bloque);
+				//log_info(logger," Siguiente bloque nuevo %d", bloque);
 				//log_info(logger, "Bloques anterior: %d nuevo: %d", bloqueAnterior, bloque);
 			}
 		} else { //Finalizo la escritura
@@ -686,7 +681,7 @@ int mkdir_callback(const char *path) {
 		return -1; }
 
 	int n = string_length(array[i]);
-	printf("Size of name: %d", n);
+	log_info(logger,"Size of name: %d", n);
 	if (n > 17) {
 		return -2; }
 	osada_file newDir;
@@ -722,7 +717,7 @@ int mknod_callback(const char *path) {
 		return -1; }
 
 	int n = string_length(array[i]);
-	printf("Size of name: %d", n);
+	log_info(logger,"Size of name: %d", n);
 	if (n > 17) {
 		return -2; }
 
@@ -759,7 +754,7 @@ int unlink_callback(const char *path) {
 		while (bloque != -1) {
 			//Limpio el bitmap
 			bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
-			//printf("\n Limpiando bitarray %d", bloque);
+			//log_info(logger," Limpiando bitarray %d", bloque);
 
 			bloqueAnterior = bloque;
 			bloque = tablaAsignaciones[bloque];
@@ -829,26 +824,26 @@ t_block read_callback(const char *path, int offset, int tamanioBuffer){
 	int limite;
 	t_block res;
 	//Obtengo el bloque de datos correspondiente
-	int *block;
+	int* block;
 	if (tamanioArchivo-offset<tamanioBuffer) {
 		limite = tamanioArchivo-offset;
 	} else {
 		limite = tamanioBuffer;
 	}
 
-	block =(int *)malloc(limite * sizeof(int));
+	block = malloc(limite * sizeof(int));
 	int sum = 0;
 	int sumOffset = 0;
 	int bloque = primerBloque;
 
 	while (sumOffset<offset) {
 		bloque = tablaAsignaciones[bloque];
-		//printf("\n bloque offset %d", bloque);
+		//log_info(logger," bloque offset %d", bloque);
 		sumOffset = sumOffset + OSADA_BLOCK_SIZE;
 	}
 
-	//printf("\n sumOffset %d", sumOffset);
-	//printf("\n tamanioBuffer %d", tamanioBuffer);
+	//log_info(logger," sumOffset %d", sumOffset);
+	//log_info(logger," tamanioBuffer %d", tamanioBuffer);
 
 	while ((bloque != -1) && (sum<limite)) {
 		if (tablaAsignaciones[bloque] != -1) {
@@ -856,26 +851,26 @@ t_block read_callback(const char *path, int offset, int tamanioBuffer){
 			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
 			sum = sum + OSADA_BLOCK_SIZE;
 			pthread_mutex_unlock(&mutex);
-			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
+			//log_info(logger," Escribio %d", OSADA_BLOCK_SIZE);
 		} else {
 			pthread_mutex_lock(&mutex);
 			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (limite - sum) * sizeof(int));
-			//printf("\n ------Copia Parcial ------ %d", bloque);
-			//printf("\n Escribio %d", (limite - sum));
+			//log_info(logger," ------Copia Parcial ------ %d", bloque);
+			//log_info(logger," Escribio %d", (limite - sum));
 			sum = sum + (limite - sum);
 			pthread_mutex_unlock(&mutex);
 		}
 
-		//printf("\n Escribiendo bloque %d", bloque);
-		//printf("\n Cantidad Bytes restantes %d", (limite - sum));
-		//printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
+		//log_info(logger," Escribiendo bloque %d", bloque);
+		//log_info(logger," Cantidad Bytes restantes %d", (limite - sum));
+		//log_info(logger," Siguiente bloque %d", tablaAsignaciones[bloque]);
 		pthread_mutex_lock(&mutex);
 		bloque = tablaAsignaciones[bloque];
 		pthread_mutex_unlock(&mutex);
 	}
 
-	//printf("\n sum %d", sum);
-	res.block = block;
+	//log_info(logger," sum %d", sum);
+	res.block = (char*)block;
 	res.size = limite;
 	return res;
 }
@@ -1026,7 +1021,7 @@ void aceptarConexiones() {
 		free(paquete2.paqueteSerializado);
 
 
-		log_info(logger, "Se aceptó una conexión. Socket° %d.\n", pokedex_cliente->socket->descriptor);
+		log_info(logger, "Se aceptó una conexión. Socket° %d.", pokedex_cliente->socket->descriptor);
 
 		// CREACIÓN DEL HILO POKEDEXCLIENTE
 		pthread_t hiloCliente;

@@ -24,8 +24,6 @@ struct t_runtime_options {
 //Mensaje Pokedex Cliente-Servidor
 typedef struct mensajePokedex {
 	uint32_t tipoMensaje;
-	uint32_t ruta;
-	uint32_t nombre;
 } mensajeDePokedex;
 
 

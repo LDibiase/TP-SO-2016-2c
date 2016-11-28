@@ -840,7 +840,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje3_t*) mensaje)->tamanioArchivo = malloc(tamanioBuffer);
+			((mensaje3_t*) mensaje)->tamanioArchivo = (int)malloc(tamanioBuffer);
 			memcpy(&((mensaje3_t*) mensaje)->tamanioArchivo, buffer, tamanioBuffer);
 
 			free(buffer);
@@ -906,7 +906,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje4_t*) mensaje)->tamanioBuffer = malloc(tamanioBuffer);
+			((mensaje4_t*) mensaje)->tamanioBuffer = (int)malloc(tamanioBuffer);
 			memcpy(&((mensaje4_t*) mensaje)->tamanioBuffer, buffer, tamanioBuffer);
 			free(buffer);
 
@@ -927,7 +927,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje4_t*) mensaje)->offset = malloc(tamanioBuffer);
+			((mensaje4_t*) mensaje)->offset = (int)malloc(tamanioBuffer);
 			memcpy(&((mensaje4_t*) mensaje)->offset, buffer, tamanioBuffer);
 			free(buffer);
 
@@ -1039,7 +1039,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje6_t*) mensaje)->modo = malloc(tamanioBuffer);
+			((mensaje6_t*) mensaje)->modo = (int)malloc(tamanioBuffer);
 			memcpy(&((mensaje6_t*) mensaje)->modo, buffer, tamanioBuffer);
 			free(buffer);
 
@@ -1324,7 +1324,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje8_t*) mensaje)->tamanioBuffer = malloc(tamanioBuffer);
+			((mensaje8_t*) mensaje)->tamanioBuffer = (int)malloc(tamanioBuffer);
 			memcpy(&((mensaje8_t*) mensaje)->tamanioBuffer, buffer, tamanioBuffer);
 			free(buffer);
 
@@ -1366,7 +1366,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje8_t*) mensaje)->offset = malloc(tamanioBuffer);
+			((mensaje8_t*) mensaje)->offset = (int)malloc(tamanioBuffer);
 			memcpy(&((mensaje8_t*) mensaje)->offset, buffer, tamanioBuffer);
 			free(buffer);
 
@@ -1559,7 +1559,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 			}
 
-			((mensaje10_t*) mensaje)->size = malloc(tamanioBuffer);
+			((mensaje10_t*) mensaje)->size = (int)malloc(tamanioBuffer);
 			memcpy(&((mensaje10_t*) mensaje)->size, buffer, tamanioBuffer);
 			free(buffer);
 

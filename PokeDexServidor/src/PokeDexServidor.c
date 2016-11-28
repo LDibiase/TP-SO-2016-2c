@@ -55,7 +55,6 @@ int main(void) {
 	osada_header cabeceraFS;		// HEADER
 	char * bitmapS;					// BITMAP
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
-	int i;
 	pthread_mutex_init(&mutex, NULL);
 
 	// Variables para la creación del hilo en escucha

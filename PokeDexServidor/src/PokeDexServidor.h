@@ -59,6 +59,8 @@ int unlink_callback(const char *path);
 int mknod_callback(const char *path);
 int getFirstBit();
 int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer);
+int truncate_callback(const char *path, int size);
+int rename_callback(const char *from, const char *to);
 
 
 // Acepta múltiples conexiones de clientes

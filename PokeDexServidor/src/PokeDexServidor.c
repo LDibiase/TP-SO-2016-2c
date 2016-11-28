@@ -28,14 +28,13 @@
 
 #define BACKLOG 10 // Cuántas conexiones pendientes se mantienen en cola
 #define TAMANIO_MAXIMO_MENSAJE 50 // Tamaño máximo de un mensaje
-#define IP_SERVIDOR "127.0.0.1"
-#define PUERTO "8080"
+#define IP_SERVIDOR "0.0.0.0"
+#define PUERTO "6543"
 #define CANTIDAD_MAXIMA_CONEXIONES 1000
 #define TABLA_ARCHIVOS 2048
 #define LOG_FILE_PATH "PokeDexServidor.log"
 
 struct socket** clientes;
-char* rutaFS = "/home/utnso/workspace/testOsada/test.bin";
 //char* rutaOsadaDir = "/home/utnso/workspace/tp-2016-2c-CodeTogether/Osada";
 
 osada_file tablaArchivos[2048];		// TABLA DE ARCHIVOS
@@ -63,6 +62,8 @@ int main(void) {
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHilo;
 
+	//Carga variable de entorno del archivo .bin
+	const char* rutaFS = getenv("osadaFile");
 
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_SERVIDOR", true, LOG_LEVEL_INFO);
 
@@ -121,13 +122,6 @@ int main(void) {
 	printf("Pos %d = %d\n", 11551, bitarray_test_bit(bitarray, 11551));
 	printf("Pos %d = %d\n", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
 
-	/*
-	// Imprime todos los bits
-	j = bitarray_get_max_bit(bitarray);
-	for (i = 0; i < j; i++)
-		printf("%d = %d\n", i, bitarray_test_bit(bitarray, i));
-	 */
-
 	// Lee tabla de archivos
 	memcpy(&tablaArchivos, &pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], 1024 * OSADA_BLOCK_SIZE);
 
@@ -180,32 +174,6 @@ int main(void) {
 	printf("\n	TABLA DE ASIGNACIONES	\n");
 	printf("---------------------------\n");
 	printf("Tamano T.Asig: %d (bloques)\n\n", bloquesTablaAsignaciones);
-
-
-	//Imprime tabla de asignaciones
-	/*for (i = 19650; i <  19750 ;i++)
-		{
-			if (tablaAsignaciones[i] != 0)
-			{
-				printf("|    %d    	", i);
-				printf("|    %d    	", tablaAsignaciones[i]);
-				printf("\n");
-			}
-		}*/
-
-	//int bit = getFirstBit();
-	//printf("BIT: %d", bit);
-
-	//char* ruta = "/";
-	//escribirEstructura(65535,ruta); //Funcion recursiva, comienza en la raiz
-
-	//getattr_callback("/Pallet Town/Pokemons/Desafios/special.mp4");
-	//readdir_callback("/Pallet Town/Pokemons");
-
-	//mkdir_callback("/Pokemons/DirTest");
-
-	//mknod_callback("/test.txt");
-
 
 	// CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHilo);
@@ -437,17 +405,63 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteRENAME);
 				break;
+			case TRUNCATE:
+				log_info(logger, "Solicito TRUNCATE PATH: %s SIZE: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
+
+				// Enviar mensaje TRUNCATE
+				paquete_t paqueteTRUNCATE;
+				mensaje7_t mensajeTRUNCATE_RESPONSE;
+
+
+				mensajeTRUNCATE_RESPONSE.tipoMensaje = TRUNCATE_RESPONSE;
+				mensajeTRUNCATE_RESPONSE.res = truncate_callback(((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
+
+				log_info(logger, "TRUNCATE_RESPONSE: %d \n", mensajeTRUNCATE_RESPONSE.res);
+
+				crearPaquete((void*) &mensajeTRUNCATE_RESPONSE, &paqueteTRUNCATE);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteTRUNCATE);
+				break;
 			}
+
+			//Luego de cada operaciones sinconizo los datos a disco
+			// Copio el BITMAP a memoria
+			memcpy(&pmapFS[1 * OSADA_BLOCK_SIZE], bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+			// Copio tabla de archivos a memoria
+			memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], &tablaArchivos, 1024 * OSADA_BLOCK_SIZE);
+			// Copio tabla de ASIGNACIONES a memoria
+			memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks + 1024) * OSADA_BLOCK_SIZE], tablaAsignaciones, bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
+			msync(pmapFS, statFS.st_size, 2); //Sincronizo la memoria a disco
+
 		}
 	}
-
-	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
-	close(fileFS); //Cierro el archivo
 
 
 	////////////////////
 	///// SHUTDOWN /////
 	////////////////////
+
+	// Copio el BITMAP a memoria
+	memcpy(&pmapFS[1 * OSADA_BLOCK_SIZE], bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+
+	// Copio tabla de archivos a memoria
+	memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], &tablaArchivos, 1024 * OSADA_BLOCK_SIZE);
+
+	// Copio tabla de ASIGNACIONES a memoria
+	memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks + 1024) * OSADA_BLOCK_SIZE], tablaAsignaciones, bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
+
+	msync(pmapFS, statFS.st_size, 2); //Sincronizo el la memoria a disco
+
+	munmap (pmapFS, statFS.st_size); //Bajo el FS de la memoria
+
+	close(fileFS); //Cierro el archivo
+
 	free(bitmapS);
 	free(tablaAsignaciones);
 	bitmapS=NULL;
@@ -464,7 +478,48 @@ int getFirstBit() {
 			return i;
 		}
 	}
+	log_info(logger, "Disco lleno");
 	return -1;
+}
+
+int truncate_callback(const char *path, int size) {
+
+	int archivoID = getDirPadre(path);
+
+	if (archivoID != -1) {
+		int primerBloque = tablaArchivos[archivoID].first_block;
+
+		int sumOffset = 0;
+		int bloque = primerBloque;
+		int bloqueAnterior = bloque;
+
+		//Movimientos hasta el size
+		while (sumOffset<size) {
+			bloqueAnterior = bloque;
+			bloque = tablaAsignaciones[bloque];
+			sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+		}
+
+		while (bloque != -1) {
+			//Limpio el bitmap
+			bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
+			//printf("\n Limpiando bitarray %d", bloque);
+
+			bloqueAnterior = bloque;
+			bloque = tablaAsignaciones[bloque];
+
+			//Limpio tabla de asignaciones
+			tablaAsignaciones[bloqueAnterior] = -1;
+			//printf("Limpiando bloque: %d /n", bloqueAnterior);
+		}
+
+		tablaArchivos[archivoID].file_size = size;
+		if (size==0) {
+			tablaArchivos[archivoID].first_block = -1;
+		}
+	}
+
+	return archivoID;
 }
 
 int rename_callback(const char *from, const char *to) {
@@ -501,13 +556,6 @@ int rename_callback(const char *from, const char *to) {
 int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer){
 	int archivoID = getDirPadre(path);
 	int primerBloque = tablaArchivos[archivoID].first_block;
-
-	//Asigno nuevo tamaño
-
-	//printf("\nwrite file size: %d", tablaArchivos[archivoID].file_size);
-	tablaArchivos[archivoID].file_size = tamanioBuffer + offset;
-
-	//TODO:Si el tamaño es menor, liberar bloques
 
 	int sum = 0;
 	int sumOffset = 0;
@@ -574,9 +622,15 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 				bloque = tablaAsignaciones[bloqueAnterior];
 				//printf("\n Siguiente bloque reutilizado %d", bloque);
 			} else { //Busco un nuevo bloque si corresponde
-				bloque = getFirstBit() - inicioBloqueDatos;
-				tablaAsignaciones[bloqueAnterior] = bloque;
-				tablaAsignaciones[bloque] = -1;
+				int nuevoBloque = getFirstBit();
+				if (nuevoBloque == -1) { //Disco lleno
+					tablaArchivos[archivoID].file_size = sum + offset;
+					return -1;
+				} else {
+					bloque = nuevoBloque - inicioBloqueDatos;
+					tablaAsignaciones[bloqueAnterior] = bloque;
+					tablaAsignaciones[bloque] = -1;
+				}
 				//printf("\n Siguiente bloque nuevo %d", bloque);
 				//log_info(logger, "Bloques anterior: %d nuevo: %d", bloqueAnterior, bloque);
 			}
@@ -585,8 +639,8 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 		}
 	}
 
-	//printf("\n sum %d", sum);
-
+	//Asigno nuevo tamaño
+	tablaArchivos[archivoID].file_size = sum + offset;
 	return 1;
 }
 
@@ -718,7 +772,7 @@ int unlink_callback(const char *path) {
 
 		while (bloque != -1) {
 			//Limpio el bitmap
-			bitarray_set_bit(bitarray, bloque + inicioBloqueDatos);
+			bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
 			//printf("\n Limpiando bitarray %d", bloque);
 
 			bloqueAnterior = bloque;
@@ -858,91 +912,6 @@ int buscarTablaAchivos(int dirPadre, char* fname) {
 	}
 	return res;
 }
-/*
-void escribirEstructura(int dirPadre, char* ruta) {
-	int i;
-
-	for (i = 0; i < TABLA_ARCHIVOS; i++) {
-		if (tablaArchivos[i].state != 0) {
-			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
-				char *str = string_new();
-				string_append(&str, rutaOsadaDir);
-				string_append(&str, ruta);
-				string_append(&str, tablaArchivos[i].fname);
-				mkdir(str, 0700);
-				//printf("\nCreando DIRECTORIO %s \n", str);
-
-				char *str2 = string_new();
-				string_append(&str2, ruta);
-				string_append(&str2, tablaArchivos[i].fname);
-				string_append(&str2, "/");
-
-				escribirEstructura(i,str2); //Recursividad
-
-			} else {
-				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-					leerArchivo(i,ruta);
-				}
-			}
-		}
-	}
-}
-
-void leerArchivo(int archivoID, char* ruta){
-	char* archivoNombre = tablaArchivos[archivoID].fname;
-	int primerBloque = tablaArchivos[archivoID].first_block;
-	int tamanioArchivo = tablaArchivos[archivoID].file_size;
-	//printf("\nLeyendo el archivo %s \n", archivoNombre);
-
-	//Obtengo el bloque de datos correspondiente
-	int *block;
-	block =(int *)malloc(tamanioArchivo * sizeof(int));
-	//printf("\nTamaño del archivo %d \n", tamanioArchivo);
-
-	int sum = 0;
-	int i= 0;
-	int bloque = primerBloque;
-	//printf("\nPrimer bloque %d \n", bloque);
-
-	while (bloque != -1) {
-		if (tablaAsignaciones[bloque] != -1) {
-			pthread_mutex_lock(&mutex);
-			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
-			sum = sum + OSADA_BLOCK_SIZE;
-			pthread_mutex_unlock(&mutex);
-			//printf("\n Escribio %d", OSADA_BLOCK_SIZE);
-		} else {
-			pthread_mutex_lock(&mutex);
-			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (tamanioArchivo - sum) * sizeof(int));
-			//printf("\n ------Copia Parcial ------ %d", bloque);
-			//printf("\n Escribio %d", (tamanioArchivo - sum));
-			sum = sum + (tamanioArchivo - sum);
-			pthread_mutex_unlock(&mutex);
-		}
-
-		//printf("\n Escribiendo bloque %d", inicioBloqueDatos + bloque);
-		//printf("\n Cantidad Bytes restantes %d", (tamanioArchivo - sum));
-		//printf("\n Siguiente bloque %d", tablaAsignaciones[bloque]);
-		pthread_mutex_lock(&mutex);
-		bloque = tablaAsignaciones[bloque];
-		pthread_mutex_unlock(&mutex);
-	}
-
-	//Escribo el archivo obtenido
-	FILE* pFile;
-	char *str = string_new();
-	string_append(&str, rutaOsadaDir);
-	string_append(&str, ruta);
-	string_append(&str, archivoNombre);
-
-	pFile = fopen(str,"wb");
-	fwrite(block, tamanioArchivo, 1, pFile);
-	//printf("Creando archivo %s \n", str);
-	fclose(pFile);
-	free(block);
-	block=NULL;
-}*/
-
 
 void aceptarConexiones() {
 	struct socket* mi_socket_s;

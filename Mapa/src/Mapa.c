@@ -60,7 +60,7 @@ pthread_mutex_t mutexEntrenadores;
 pthread_mutex_t mutexReady;
 pthread_mutex_t mutexBlocked;
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv) {
 	// Variables para la creación del hilo para el manejo de señales
 //	pthread_t hiloSignalHandler;
 //	pthread_attr_t atributosHiloSignalHandler;
@@ -1315,6 +1315,9 @@ void signal_termination_handler(int signum) {
 }
 
 void chequearDeadlock() {
+	//CORRO EL ALGORITMO SEGUN EL TIEMPO QUE ESTÁ SETEADO EN LA CONFIGURACIÓN
+	sleep(configMapa.TiempoChequeoDeadlock);
+
 	if(algoritmoDeteccion())
 	{
 		t_pkmn_factory* pokemon_factory = create_pkmn_factory();

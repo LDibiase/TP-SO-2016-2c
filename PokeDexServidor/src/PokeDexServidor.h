@@ -35,8 +35,6 @@ typedef struct operacionOSADA {
 //Mensaje Pokedex Cliente-Servidor
 typedef struct mensajePokedex {
 	uint32_t tipoMensaje;
-	uint32_t ruta;
-	uint32_t nombre;
 } mensajeDePokedex;
 
 // Mensajes
@@ -61,7 +59,7 @@ int getFirstBit();
 int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer);
 int truncate_callback(const char *path, int size);
 int rename_callback(const char *from, const char *to);
-
+int buscarTablaAchivos(int dirPadre, char* fname);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

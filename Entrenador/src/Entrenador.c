@@ -27,17 +27,27 @@
 t_log* logger;							// Archivo de log
 t_entrenador_config configEntrenador;	// Datos de configuración
 int activo;							 	// Flag de actividad del entrenador
+char* puntoMontajeOsada;         	  // Ruta del FS
+char* rutaMetadataEntrenador;               // Ruta del archivo config
 
 socket_t* mapa_s;
 
 //SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
 //pthread_mutex_t mutexLog;
 
-int main(void) {
+int main(int argc, char **argv) {
 	t_ubicacion ubicacion;
 	char ejeAnterior;
 	int objetivosCompletados;
 	int victima;
+
+	//DANDOLE FORMA A LOS PARAMETROS RECIBIDOS
+	puntoMontajeOsada = strdup(argv[1]);
+	rutaMetadataEntrenador = strdup(argv[1]);
+	string_append(&rutaMetadataEntrenador, "/Entrenadores/");
+	string_append(&rutaMetadataEntrenador, argv[2]);
+	string_append(&rutaMetadataEntrenador, "/");
+
 
 	void _obtenerObjetivo(char* objetivo) {
 		if(!victima)
@@ -202,7 +212,9 @@ int main(void) {
 
 int cargarConfiguracion(t_entrenador_config* structConfig) {
 	t_config* config;
-	config = config_create(CONFIG_FILE_PATH);
+	char* puntoMontajeAux = strdup(rutaMetadataEntrenador);
+	string_append(&puntoMontajeAux, CONFIG_FILE_PATH);
+	config = config_create(puntoMontajeAux);
 
 	if(config != NULL)
 	{
@@ -251,7 +263,6 @@ int cargarConfiguracion(t_entrenador_config* structConfig) {
 	else
 	{
 		log_error(logger, "La ruta de archivo de configuración indicada no existe");
-		config_destroy(config);
 		return 1;
 	}
 }

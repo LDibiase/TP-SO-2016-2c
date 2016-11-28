@@ -19,6 +19,8 @@
 #include <string.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <string.h>
+#include <commons/string.h>
 //#include "protocoloPokedexClienteServidor.h"
 
 
@@ -35,7 +37,7 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 	mensaje1_t mensajeQuieroGetAttr;
 
 	mensajeQuieroGetAttr.tipoMensaje = GETATTR;
-	mensajeQuieroGetAttr.path = path;
+	mensajeQuieroGetAttr.path = (char *)path;
 	mensajeQuieroGetAttr.tamanioPath = strlen(mensajeQuieroGetAttr.path) + 1;
 
 	crearPaquete((void*) &mensajeQuieroGetAttr, &paqueteLectura);
@@ -89,7 +91,7 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	mensaje1_t mensajeQuieroLeer;
 
 	mensajeQuieroLeer.tipoMensaje = READDIR;
-	mensajeQuieroLeer.path = path;
+	mensajeQuieroLeer.path = (char *)path;
 	mensajeQuieroLeer.tamanioPath = strlen(mensajeQuieroLeer.path) + 1;
 
 	crearPaquete((void*) &mensajeQuieroLeer, &paqueteLectura);
@@ -134,7 +136,7 @@ static int fuse_open(const char *path, struct fuse_file_info *fi) {
 	mensaje1_t mensajeQuieroGetAttr;
 
 	mensajeQuieroGetAttr.tipoMensaje = GETATTR;
-	mensajeQuieroGetAttr.path = path;
+	mensajeQuieroGetAttr.path = (char *)path;
 	mensajeQuieroGetAttr.tamanioPath = strlen(mensajeQuieroGetAttr.path) + 1;
 
 	crearPaquete((void*) &mensajeQuieroGetAttr, &paqueteLectura);
@@ -177,7 +179,7 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 	mensaje4_t mensajeQuieroREAD;
 
 	mensajeQuieroREAD.tipoMensaje = READ;
-	mensajeQuieroREAD.path = path;
+	mensajeQuieroREAD.path = (char *)path;
 	mensajeQuieroREAD.tamanioPath = strlen(mensajeQuieroREAD.path) + 1;
 	mensajeQuieroREAD.tamanioBuffer = size;
 	mensajeQuieroREAD.offset = offset;
@@ -202,12 +204,9 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 		recibirMensaje(pokedex, &mensajeREAD_RESPONSE);
 		log_info(logger, "MENSAJE READ_RESPONSE TAMAÑO BUFFER %d", mensajeREAD_RESPONSE.tamanioBuffer);
 
-		//TODO: verificar si el archivo existe
-			//size = mensajeREAD_RESPONSE.buffer;
-		    memcpy(buf, mensajeREAD_RESPONSE.buffer, mensajeREAD_RESPONSE.tamanioBuffer);
-		    return mensajeREAD_RESPONSE.tamanioBuffer;
+		memcpy(buf, mensajeREAD_RESPONSE.buffer, mensajeREAD_RESPONSE.tamanioBuffer);
+		return mensajeREAD_RESPONSE.tamanioBuffer;
 
-		  //return -ENOENT;
 }
 
 static int fuse_mkdir(const char *path, mode_t mode)
@@ -219,7 +218,7 @@ static int fuse_mkdir(const char *path, mode_t mode)
    mensaje6_t mensajeQuieroMKDIR;
 
    mensajeQuieroMKDIR.tipoMensaje = MKDIR;
-   mensajeQuieroMKDIR.path = path;
+   mensajeQuieroMKDIR.path = (char *)path;
    mensajeQuieroMKDIR.tamanioPath = strlen(mensajeQuieroMKDIR.path) + 1;
    mensajeQuieroMKDIR.modo = mode;
 
@@ -262,7 +261,7 @@ static int fuse_rmdir(const char *path)
 	   mensaje1_t mensajeQuieroRMDIR;
 
 	   mensajeQuieroRMDIR.tipoMensaje = RMDIR;
-	   mensajeQuieroRMDIR.path = path;
+	   mensajeQuieroRMDIR.path = (char *)path;
 	   mensajeQuieroRMDIR.tamanioPath = strlen(mensajeQuieroRMDIR.path) + 1;
 
 
@@ -300,7 +299,7 @@ static int fuse_unlink(const char *path)
 	mensaje1_t mensajeQuieroUNLINK;
 
 	mensajeQuieroUNLINK.tipoMensaje = UNLINK;
-	mensajeQuieroUNLINK.path = path;
+	mensajeQuieroUNLINK.path = (char *)path;
 	mensajeQuieroUNLINK.tamanioPath = strlen(mensajeQuieroUNLINK.path) + 1;
 
 
@@ -337,7 +336,7 @@ static int fuse_mknod(const char *path, mode_t mode, dev_t rdev)
 	mensaje1_t mensajeQuieroMKNOD;
 
 	mensajeQuieroMKNOD.tipoMensaje = MKNOD;
-	mensajeQuieroMKNOD.path = path;
+	mensajeQuieroMKNOD.path = (char *)path;
 	mensajeQuieroMKNOD.tamanioPath = strlen(mensajeQuieroMKNOD.path) + 1;
 
 
@@ -378,7 +377,7 @@ static int fuse_create(const char *path, mode_t mode, dev_t rdev)
 		mensaje1_t mensajeQuieroMKNOD;
 
 		mensajeQuieroMKNOD.tipoMensaje = MKNOD;
-		mensajeQuieroMKNOD.path = path;
+		mensajeQuieroMKNOD.path = (char *)path;
 		mensajeQuieroMKNOD.tamanioPath = strlen(mensajeQuieroMKNOD.path) + 1;
 
 
@@ -417,9 +416,9 @@ static int fuse_write(const char *path, const char *buf, size_t size, off_t offs
 		mensaje8_t mensajeQuieroWRITE;
 
 		mensajeQuieroWRITE.tipoMensaje = WRITE;
-		mensajeQuieroWRITE.path = path;
+		mensajeQuieroWRITE.path = (char *)path;
 		mensajeQuieroWRITE.tamanioPath = strlen(mensajeQuieroWRITE.path) + 1;
-		mensajeQuieroWRITE.buffer = buf;
+		mensajeQuieroWRITE.buffer = (char *)buf;
 		mensajeQuieroWRITE.tamanioBuffer = size;
 		mensajeQuieroWRITE.offset = offset;
 
@@ -454,9 +453,9 @@ static int fuse_rename(const char* from, const char* to) {
 		mensaje9_t mensajeQuieroRENAME;
 
 		mensajeQuieroRENAME.tipoMensaje = RENAME;
-		mensajeQuieroRENAME.pathFrom = from;
+		mensajeQuieroRENAME.pathFrom = (char *)from;
 		mensajeQuieroRENAME.tamanioPathFrom = strlen(mensajeQuieroRENAME.pathFrom) + 1;
-		mensajeQuieroRENAME.pathTo = to;
+		mensajeQuieroRENAME.pathTo = (char *)to;
 		mensajeQuieroRENAME.tamanioPathTo = strlen(mensajeQuieroRENAME.pathTo) + 1;
 
 
@@ -491,7 +490,7 @@ static int fuse_truncate(const char *path, off_t size)
 			mensaje10_t mensajeQuieroTRUNCATE;
 
 			mensajeQuieroTRUNCATE.tipoMensaje = TRUNCATE;
-			mensajeQuieroTRUNCATE.path = path;
+			mensajeQuieroTRUNCATE.path = (char *)path;
 			mensajeQuieroTRUNCATE.tamanioPath = strlen(mensajeQuieroTRUNCATE.path) + 1;
 			mensajeQuieroTRUNCATE.size = size;
 
@@ -554,8 +553,8 @@ static struct fuse_operations fuse_oper = {
 		.unlink = fuse_unlink,
 		.mknod = fuse_mknod,
 		.write = fuse_write,
-		.flush = fuse_flush,
 		.create = fuse_create,
+		.flush = fuse_flush,
 		.release = fuse_release,
 		.rename = fuse_rename,
 		//utimens(const char* path, const struct timespec ts[2]
@@ -587,10 +586,10 @@ int main(int argc, char *argv[]) {
 	//export osadaIP=127.0.0.1
 	//export osadaPuerto=8080
 
-	pokedex = conectarAPokedexServidor(osadaIP, osadaPuerto);
+	pokedex = conectarAPokedexServidor((char *)osadaIP, (char *)osadaPuerto);
 
 	// Esta es la funcion principal de FUSE, es la que se encarga
-	// de realizar el montaje, comuniscarse con el kernel, delegar todo
+	// de realizar el montaje, comuniscarse con el kernel, delegar
 	// en varios threads
 	fuse_main(args.argc, args.argv, &fuse_oper, NULL);
 
@@ -620,8 +619,6 @@ socket_t* conectarAPokedexServidor(char* ip, char* puerto) {
 		mensajeDePokedex mensajePokedex;
 
 		mensajePokedex.tipoMensaje = CONEXION_POKEDEX_CLIENTE;
-		mensajePokedex.ruta = DEFAULT_FILE_PATH;
-		mensajePokedex.nombre= "Test";
 
 		crearPaquete((void*) &mensajePokedex, &paquete);
 

@@ -45,6 +45,7 @@ t_list* recursosAsignados;		// Recursos asignados (Pokémones)
 t_list* recursosSolicitados;	// Recursos solicitados (Pokémones)
 int activo;						// Flag de actividad del mapa
 int configuracionActualizada;   // Flag de actualización de la configuración
+char* puntoMontajeOsada;         // Ruta del FS
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos
@@ -58,10 +59,12 @@ pthread_mutex_t mutexEntrenadores;
 pthread_mutex_t mutexReady;
 pthread_mutex_t mutexBlocked;
 
-int main(void) {
+int main(char* puntoDeMontaje) {
 	// Variables para la creación del hilo para el manejo de señales
 //	pthread_t hiloSignalHandler;
 //	pthread_attr_t atributosHiloSignalHandler;
+
+	puntoMontajeOsada = puntoDeMontaje;
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -668,10 +671,14 @@ t_list* cargarPokenests() {
 	t_mapa_pokenest* recursoTotales;
 	t_mapa_pokenest* recursoDisponibles;
 	t_list* newlist = list_create();
+	char* puntoDeMontajeAux;
 
 	struct dirent* dent;
 
-	DIR* srcdir = opendir("PokeNests");
+	puntoDeMontajeAux = puntoMontajeOsada;
+	string_append(&puntoDeMontajeAux, "PokeNests/");
+
+	DIR* srcdir = opendir(puntoDeMontajeAux);
 	if (srcdir == NULL)
 		perror("opendir");
 
@@ -688,6 +695,7 @@ t_list* cargarPokenests() {
 
 		if (S_ISDIR(st.st_mode)){
 			char* str = string_new();
+			str = puntoMontajeOsada;
 			int cantidadDeRecursos = 0;
 
 			string_append(&str, "PokeNests/");
@@ -824,7 +832,7 @@ t_mapa_pokenest leerPokenest(char* metadata) {
 
 int cargarConfiguracion(t_mapa_config* structConfig) {
 	t_config* config;
-	config = config_create(CONFIG_FILE_PATH);
+	config = config_create(puntoMontajeOsada);
 
 	if(config != NULL)
 	{

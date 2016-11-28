@@ -51,7 +51,7 @@ t_queue* colaReady; 			// Cola de entrenadores listos
 t_queue* colaBlocked;			// Cola de entrenadores bloqueados
 
 //SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
-pthread_mutex_t mutexLog;
+//pthread_mutex_t mutexLog;
 
 //SEMÁFOROS PARA SINCRONIZAR LA LISTA Y LAS COLAS
 pthread_mutex_t mutexEntrenadores;
@@ -60,25 +60,22 @@ pthread_mutex_t mutexBlocked;
 
 int main(void) {
 	// Variables para la creación del hilo para el manejo de señales
-	pthread_t hiloSignalHandler;
-	pthread_attr_t atributosHiloSignalHandler;
+//	pthread_t hiloSignalHandler;
+//	pthread_attr_t atributosHiloSignalHandler;
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
 	pthread_attr_t atributosHiloEnEscucha;
 
 	// Variables para la creación del hilo verificador de deadlock
-	pthread_t hiloDeadlock;
-	pthread_attr_t atributosHiloDeadlock;
+//	pthread_t hiloDeadlock;
+//	pthread_attr_t atributosHiloDeadlock;
 
 	// Variables para la diagramación del mapa
 	int rows, cols;
 
-	// Flag de actividad
-	int activo;
-
 	//INICIALIZACIÓN DE LOS SEMÁFOROS
-	pthread_mutex_init(&mutexLog, NULL);
+//	pthread_mutex_init(&mutexLog, NULL);
 	pthread_mutex_init(&mutexEntrenadores, NULL);
 	pthread_mutex_init(&mutexReady, NULL);
 	pthread_mutex_init(&mutexBlocked, NULL);
@@ -98,7 +95,7 @@ int main(void) {
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
 
 	//CONFIGURACIÓN DEL MAPA
-	pthread_mutex_lock(&mutexLog);
+//	pthread_mutex_lock(&mutexLog);
 	log_info(logger, "Cargando archivo de configuración");
 
 	if (cargarConfiguracion(&configMapa) == 1)
@@ -115,10 +112,10 @@ int main(void) {
 	log_info(logger, "Quantum: %d", configMapa.Quantum);
 	log_info(logger, "Retardo: %d", configMapa.Retardo);
 	log_info(logger, "Tiempo de chequeo de deadlocks: %d", configMapa.TiempoChequeoDeadlock);
-	pthread_mutex_unlock(&mutexLog);
+//	pthread_mutex_unlock(&mutexLog);
 
 	//INICIALIZACIÓN DEL MAPA
-	items = cargarPokenests(); //Carga de las Pokénest del mapal
+	items = cargarPokenests(); //Carga de las Pokénest del mapa
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
 	nivel_gui_dibujar(items, "CodeTogether");
@@ -126,15 +123,17 @@ int main(void) {
 	// Se setea en 1 (on) el flag de actividad
 	activo = 1;
 
+	log_info(logger, "¿Activo? %d", activo);
+
 	//CREACIÓN DEL HILO PARA EL MANEJO DE SEÑALES
-	pthread_attr_init(&atributosHiloSignalHandler);
-	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
-	pthread_attr_destroy(&atributosHiloSignalHandler);
+//	pthread_attr_init(&atributosHiloSignalHandler);
+//	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
+//	pthread_attr_destroy(&atributosHiloSignalHandler);
 
 	//CREACIÓN DEL HILO VERIFICADOR DE DEADLOCK
-	pthread_attr_init(&atributosHiloDeadlock);
-	pthread_create(&hiloDeadlock, &atributosHiloDeadlock, (void*) chequearDeadlock, NULL);
-	pthread_attr_destroy(&atributosHiloDeadlock);
+//	pthread_attr_init(&atributosHiloDeadlock);
+//	pthread_create(&hiloDeadlock, &atributosHiloDeadlock, (void*) chequearDeadlock, NULL);
+//	pthread_attr_destroy(&atributosHiloDeadlock);
 
 	//CREACIÓN DEL HILO EN ESCUCHA
 	pthread_attr_init(&atributosHiloEnEscucha);
@@ -142,16 +141,39 @@ int main(void) {
 	pthread_attr_destroy(&atributosHiloEnEscucha);
 
 	while(activo) {
+
 		if(list_size(colaReady->elements) > 0)
 		{
-			pthread_mutex_lock(&mutexReady);
-			t_entrenador* entrenadorAEjecutar = queue_pop(colaReady); // TODO: Primero atender a los jugadores que desconozcan la posición de la Pokénest que buscan
-			pthread_mutex_unlock(&mutexReady);
+			t_entrenador* entrenadorAEjecutar = NULL;
+
+			if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
+			{
+				printf("SRDF");
+
+				bool _noConoceUbicacion(t_entrenador* entrenador) {
+					return entrenador->idPokenestActual == 0;
+				}
+
+				pthread_mutex_lock(&mutexReady);
+				entrenadorAEjecutar = list_remove_by_condition(colaReady->elements, (void*) _noConoceUbicacion);
+				pthread_mutex_unlock(&mutexReady);
+			}
+
+			if(entrenadorAEjecutar == NULL)
+			{
+				printf("Prueba, no se eligió jugador");
+
+				pthread_mutex_lock(&mutexReady);
+				entrenadorAEjecutar = queue_pop(colaReady);
+				pthread_mutex_unlock(&mutexReady);
+			}
+
+			printf("Elegí un jugador: %s", entrenadorAEjecutar->nombre);
 
 			//MENSAJES A UTILIZAR
 			mensaje5_t mensajeBrindaUbicacion;
 			mensaje7_t mensajeConfirmaDesplazamiento;
-			mensaje_t mensajeConfirmaCaptura;
+			mensaje9_t mensajeConfirmaCaptura;
 
 			//SE ATIENDEN LAS SOLICITUDES DEL PRIMER ENTRENADOR EN LA COLA DE LISTOS
 			int solicitoCaptura = 0;
@@ -175,10 +197,10 @@ int main(void) {
 
 					switch(entrenadorAEjecutar->socket->errorCode) {
 					case ERR_PEER_DISCONNECTED:
-						pthread_mutex_lock(&mutexLog);
+//						pthread_mutex_lock(&mutexLog);
 						log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
 						log_info(logger, entrenadorAEjecutar->socket->error);
-						pthread_mutex_unlock(&mutexLog);
+//						pthread_mutex_unlock(&mutexLog);
 
 						// TODO: Liberar recursos
 
@@ -189,14 +211,14 @@ int main(void) {
 
 						continue;
 					case ERR_MSG_CANNOT_BE_RECEIVED:
-						activo = 0;
+//						activo = 0;
 						eliminarSocket(mi_socket_s);
 
-						pthread_mutex_lock(&mutexLog);
+//						pthread_mutex_lock(&mutexLog);
 						log_info(logger, "No se ha podido recibir un mensaje");
 						log_info(logger, entrenadorAEjecutar->socket->error);
 						log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-						pthread_mutex_unlock(&mutexLog);
+//						pthread_mutex_unlock(&mutexLog);
 
 						eliminarEntrenador(entrenadorAEjecutar);
 						liberarMemoriaAlocada();
@@ -232,14 +254,14 @@ int main(void) {
 					crearPaquete((void*) &mensajeBrindaUbicacion, &paquetePokenest);
 					if(paquetePokenest.tamanioPaquete == 0)
 					{
-						activo = 0;
+//						activo = 0;
 						eliminarSocket(mi_socket_s);
 
 						free(mensajeSolicitud);
-						pthread_mutex_lock(&mutexLog);
+//						pthread_mutex_lock(&mutexLog);
 						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 						log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-						pthread_mutex_unlock(&mutexLog);
+//						pthread_mutex_unlock(&mutexLog);
 
 						eliminarEntrenador(entrenadorAEjecutar);
 						liberarMemoriaAlocada();
@@ -258,10 +280,10 @@ int main(void) {
 
 						switch(entrenadorAEjecutar->socket->errorCode) {
 						case ERR_PEER_DISCONNECTED:
-							pthread_mutex_lock(&mutexLog);
+//							pthread_mutex_lock(&mutexLog);
 							log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
 							log_info(logger, entrenadorAEjecutar->socket->error);
-							pthread_mutex_unlock(&mutexLog);
+//							pthread_mutex_unlock(&mutexLog);
 
 							eliminarEntrenadorMapa(entrenadorAEjecutar);
 							BorrarItem(items, entrenadorAEjecutar->id);
@@ -270,14 +292,14 @@ int main(void) {
 
 							continue;
 						case ERR_MSG_CANNOT_BE_SENT:
-							activo = 0;
+//							activo = 0;
 							eliminarSocket(mi_socket_s);
 
-							pthread_mutex_lock(&mutexLog);
+//							pthread_mutex_lock(&mutexLog);
 							log_info(logger, "No se ha podido enviar un mensaje");
 							log_info(logger, entrenadorAEjecutar->socket->error);
 							log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-							pthread_mutex_unlock(&mutexLog);
+//							pthread_mutex_unlock(&mutexLog);
 
 							eliminarEntrenador(entrenadorAEjecutar);
 							liberarMemoriaAlocada();
@@ -290,9 +312,9 @@ int main(void) {
 					log_info(logger, "Se envía ubicación de la PokéNest %c al entrenador", ((mensaje4_t*) mensajeSolicitud)->idPokeNest);
 					free(mensajeSolicitud);
 
-					if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
+					if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
 						solicitoUbicacion = 1;
-					else if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
+					else if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
 						entrenadorAEjecutar->utEjecutadas++;
 
 					break;
@@ -328,14 +350,14 @@ int main(void) {
 					crearPaquete((void*) &mensajeConfirmaDesplazamiento, &paqueteDesplazamiento);
 					if(paqueteDesplazamiento.tamanioPaquete == 0)
 					{
-						activo = 0;
+//						activo = 0;
 						eliminarSocket(mi_socket_s);
 
 						free(mensajeSolicitud);
-						pthread_mutex_lock(&mutexLog);
+//						pthread_mutex_lock(&mutexLog);
 						log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 						log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-						pthread_mutex_unlock(&mutexLog);
+//						pthread_mutex_unlock(&mutexLog);
 
 						eliminarEntrenador(entrenadorAEjecutar);
 						liberarMemoriaAlocada();
@@ -354,10 +376,10 @@ int main(void) {
 
 						switch(entrenadorAEjecutar->socket->errorCode) {
 						case ERR_PEER_DISCONNECTED:
-							pthread_mutex_lock(&mutexLog);
+//							pthread_mutex_lock(&mutexLog);
 							log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
 							log_info(logger, entrenadorAEjecutar->socket->error);
-							pthread_mutex_unlock(&mutexLog);
+//							pthread_mutex_unlock(&mutexLog);
 
 							eliminarEntrenadorMapa(entrenadorAEjecutar);
 							BorrarItem(items, entrenadorAEjecutar->id);
@@ -366,14 +388,14 @@ int main(void) {
 
 							continue;
 						case ERR_MSG_CANNOT_BE_SENT:
-							activo = 0;
+//							activo = 0;
 							eliminarSocket(mi_socket_s);
 
-							pthread_mutex_lock(&mutexLog);
+//							pthread_mutex_lock(&mutexLog);
 							log_info(logger, "No se ha podido enviar un mensaje");
 							log_info(logger, entrenadorAEjecutar->socket->error);
 							log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-							pthread_mutex_unlock(&mutexLog);
+//							pthread_mutex_unlock(&mutexLog);
 
 							eliminarEntrenador(entrenadorAEjecutar);
 							liberarMemoriaAlocada();
@@ -440,7 +462,6 @@ int main(void) {
 			{
 				if(solicitoCaptura)
 				{
-					//TODO LÓGICA DE ASIGNACIÓN DE POKÉMON AL ENTRENADOR
 					bool _esRecursoBuscado(t_mapa_pokenest* recursoBuscado) {
 						return recursoBuscado->id == entrenadorAEjecutar->idPokenestActual;
 					}
@@ -453,19 +474,25 @@ int main(void) {
 						recurso->cantidad--;
 						restarRecurso(items, entrenadorAEjecutar->idPokenestActual);
 
+						recurso = list_find(recursosTotales, (void*) _esRecursoBuscado);
+
+						t_metadataPokemon* metadata = list_get(recurso->metadatasPokemones, 0);
+
 						mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
+						mensajeConfirmaCaptura.tamanioNombreArchivoMetadata = strlen(metadata->rutaArchivo) + 1;
+						mensajeConfirmaCaptura.nombreArchivoMetadata = strdup(metadata->rutaArchivo);
 
 						paquete_t paqueteCaptura;
 						crearPaquete((void*) &mensajeConfirmaCaptura, &paqueteCaptura);
 						if(paqueteCaptura.tamanioPaquete == 0)
 						{
-							activo = 0;
+//							activo = 0;
 							eliminarSocket(mi_socket_s);
 
-							pthread_mutex_lock(&mutexLog);
+//							pthread_mutex_lock(&mutexLog);
 							log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 							log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-							pthread_mutex_unlock(&mutexLog);
+//							pthread_mutex_unlock(&mutexLog);
 
 							eliminarEntrenador(entrenadorAEjecutar);
 							liberarMemoriaAlocada();
@@ -482,10 +509,10 @@ int main(void) {
 						{
 							switch(entrenadorAEjecutar->socket->errorCode) {
 							case ERR_PEER_DISCONNECTED:
-								pthread_mutex_lock(&mutexLog);
+//								pthread_mutex_lock(&mutexLog);
 								log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
 								log_info(logger, entrenadorAEjecutar->socket->error);
-								pthread_mutex_unlock(&mutexLog);
+//								pthread_mutex_unlock(&mutexLog);
 
 								eliminarEntrenadorMapa(entrenadorAEjecutar);
 								BorrarItem(items, entrenadorAEjecutar->id);
@@ -494,14 +521,14 @@ int main(void) {
 
 								continue;
 							case ERR_MSG_CANNOT_BE_SENT:
-								activo = 0;
+//								activo = 0;
 								eliminarSocket(mi_socket_s);
 
-								pthread_mutex_lock(&mutexLog);
+//								pthread_mutex_lock(&mutexLog);
 								log_info(logger, "No se ha podido enviar un mensaje");
 								log_info(logger, entrenadorAEjecutar->socket->error);
 								log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-								pthread_mutex_unlock(&mutexLog);
+//								pthread_mutex_unlock(&mutexLog);
 
 								eliminarEntrenador(entrenadorAEjecutar);
 								liberarMemoriaAlocada();
@@ -523,8 +550,6 @@ int main(void) {
 			}
 		}
 	}
-
-
 
 	eliminarSocket(mi_socket_s);
 
@@ -670,7 +695,7 @@ t_list* cargarPokenests() {
 
 			//OBTENGO METADATAS DE PÓKEMONES EXISTENTES EN LA POKÉNEST
 			t_list* metadatasPokemones;
-			list_create(metadatasPokemones);
+			metadatasPokemones = list_create();
 
 			cantidadDeRecursos = obtenerCantidadRecursos(dent->d_name, str, metadatasPokemones);
 
@@ -702,53 +727,70 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 	int cantidad = 0;
 	t_config* config;
 
-	char* numeroPokemon = "001";
-	char* nombreArchivoPokemon = rutaPokenest;
-	string_append(&nombreArchivoPokemon, nombrePokemon);
+	char* nombreArchivoPokemonAux = strdup(rutaPokenest);
+	string_append(&nombreArchivoPokemonAux, "/");
+	string_append(&nombreArchivoPokemonAux, nombrePokemon);
+
+	char* numeroPokemon = strdup("001");
+	char* nombreArchivoPokemon = strdup(nombreArchivoPokemonAux);
 	string_append(&nombreArchivoPokemon, numeroPokemon);
 	string_append(&nombreArchivoPokemon, ".dat");
 
 	while(1) {
 		config = config_create(nombreArchivoPokemon);
 
-		if(config_has_property(config, "Nivel"))
+		if(config != NULL)
 		{
-			t_metadataPokemon* metadataPokemon = malloc(sizeof(t_metadataPokemon));
-			metadataPokemon->nivel = config_get_int_value(config, "Nivel");
-			metadataPokemon->rutaArchivo = nombreArchivoPokemon;
+			if(config_has_property(config, "Nivel"))
+			{
+				bool _mayorAMenorNivel(t_metadataPokemon* pokemonMayorNivel, t_metadataPokemon* pokemonMenorNivel) {
+					return pokemonMayorNivel->nivel > pokemonMenorNivel->nivel;
+				}
 
-			list_add(metadatasPokemones, metadataPokemon);
+				t_metadataPokemon* metadataPokemon = malloc(sizeof(t_metadataPokemon));
+				metadataPokemon->nivel = config_get_int_value(config, "Nivel");
+				metadataPokemon->rutaArchivo = nombreArchivoPokemon;
 
-			cantidad++;
+				list_add(metadatasPokemones, metadataPokemon);
+				list_sort(metadatasPokemones, (void*) _mayorAMenorNivel);
+
+				cantidad++;
+
+				free(numeroPokemon);
+				free(nombreArchivoPokemon);
+
+				char* cantidadToString = string_itoa(cantidad);
+
+				if(cantidad <= 9)
+					numeroPokemon = strdup("00");
+
+				if(cantidad > 9)
+					numeroPokemon = strdup("0");
+
+				if(cantidad > 99)
+					numeroPokemon = string_new();
+
+				string_append(&numeroPokemon, cantidadToString);
+				nombreArchivoPokemon = strdup(nombreArchivoPokemonAux);
+				string_append(&nombreArchivoPokemon, numeroPokemon);
+				string_append(&nombreArchivoPokemon, ".dat");
+
+				config_destroy(config);
+				free(cantidadToString);
+			}
+			else
+			{
+				config_destroy(config);
+				break;
+			}
 		}
 		else
-		{
-			config_destroy(config);
 			break;
-		}
-
-		char* cantidadToString = string_itoa(cantidad);
-
-		if(cantidad <= 9)
-		{
-			numeroPokemon = "00";
-		}
-
-		if(cantidad > 9)
-		{
-			numeroPokemon = "0";
-		}
-
-		if(cantidad > 99)
-		{
-			numeroPokemon = "";
-		}
-
-		string_append(&numeroPokemon, cantidadToString);
-		nombreArchivoPokemon = nombrePokemon;
-		string_append(&nombreArchivoPokemon, numeroPokemon);
-		string_append(&nombreArchivoPokemon, ".dat");
 	}
+
+	free(numeroPokemon);
+	free(nombreArchivoPokemon);
+	free(nombreArchivoPokemonAux);
 
 	return cantidad;
 }
@@ -773,9 +815,10 @@ t_mapa_pokenest leerPokenest(char* metadata) {
 	}
 	else
 	{
-		log_error(logger, "La PokéNest tiene un formato inválido");
+		log_error(logger, "El archivo de metadata de la PokéNest tiene un formato inválido");
 		config_destroy(config);
 	}
+
 	return structPokenest;
 }
 
@@ -783,29 +826,38 @@ int cargarConfiguracion(t_mapa_config* structConfig) {
 	t_config* config;
 	config = config_create(CONFIG_FILE_PATH);
 
-	if(config_has_property(config, "TiempoChequeoDeadlock")
-			&& config_has_property(config, "Batalla")
-			&& config_has_property(config, "algoritmo")
-			&& config_has_property(config, "quantum")
-			&& config_has_property(config, "retardo")
-			&& config_has_property(config, "IP")
-			&& config_has_property(config, "Puerto"))
+	if(config != NULL)
 	{
-		structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
-		structConfig->Batalla = config_get_int_value(config, "Batalla");
-		structConfig->Algoritmo = strdup(config_get_string_value(config, "algoritmo"));
-		structConfig->Quantum = config_get_int_value(config, "quantum");
-		structConfig->Retardo = config_get_int_value(config, "retardo");
-		structConfig->IP = strdup(config_get_string_value(config, "IP"));
-		structConfig->Puerto = strdup(config_get_string_value(config, "Puerto"));
+		if(config_has_property(config, "TiempoChequeoDeadlock")
+				&& config_has_property(config, "Batalla")
+				&& config_has_property(config, "algoritmo")
+				&& config_has_property(config, "quantum")
+				&& config_has_property(config, "retardo")
+				&& config_has_property(config, "IP")
+				&& config_has_property(config, "Puerto"))
+		{
+			structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
+			structConfig->Batalla = config_get_int_value(config, "Batalla");
+			structConfig->Algoritmo = strdup(config_get_string_value(config, "algoritmo"));
+			structConfig->Quantum = config_get_int_value(config, "quantum");
+			structConfig->Retardo = config_get_int_value(config, "retardo");
+			structConfig->IP = strdup(config_get_string_value(config, "IP"));
+			structConfig->Puerto = strdup(config_get_string_value(config, "Puerto"));
 
-		log_info(logger, "El archivo de configuración se cargó correctamente");
-		config_destroy(config);
-		return 0;
+			log_info(logger, "El archivo de configuración se cargó correctamente");
+			config_destroy(config);
+			return 0;
+		}
+		else
+		{
+			log_error(logger, "El archivo de metadata del pokémon tiene un formato inválido");
+			config_destroy(config);
+			return 1;
+		}
 	}
 	else
 	{
-		log_error(logger, "El archivo de configuración tiene un formato inválido");
+		log_error(logger, "La ruta de archivo de configuración indicada no existe");
 		config_destroy(config);
 		return 1;
 	}
@@ -817,37 +869,42 @@ void aceptarConexiones() {
 	mi_socket_s = crearServidor(configMapa.IP, configMapa.Puerto);
 	if(mi_socket_s->errorCode == ERR_SERVER_CREATION)
 	{
-		activo = 0;
+//		activo = 0;
 
-		pthread_mutex_lock(&mutexLog);
+//		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "La creación del servidor ha fallado");
 		log_info(logger, mi_socket_s->error);
 		log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-		pthread_mutex_unlock(&mutexLog);
+//		pthread_mutex_unlock(&mutexLog);
 
 		liberarMemoriaAlocada();
 		nivel_gui_terminar();
 
 		abort();
 	}
+
+	log_info(logger, "Servidor creado");
 
 	returnValue = escucharConexiones(*mi_socket_s, BACKLOG);
 	if(returnValue != 0)
 	{
-		activo = 0;
+//		activo = 0;
 		eliminarSocket(mi_socket_s);
 
-		pthread_mutex_lock(&mutexLog);
+//		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "No se ha podido iniciar la escucha de conexiones");
 		log_info(logger, strerror(returnValue));
 		log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-		pthread_mutex_unlock(&mutexLog);
+//		pthread_mutex_unlock(&mutexLog);
 
 		liberarMemoriaAlocada();
 		nivel_gui_terminar();
 
 		abort();
 	}
+
+	log_info(logger, "En escucha");
+	log_info(logger, "¿Activo? %d", activo);
 
 	while(activo) {
 		socket_t* cli_socket_s;
@@ -862,24 +919,24 @@ void aceptarConexiones() {
 		{
 			switch(cli_socket_s->errorCode) {
 			case ERR_CLIENT_CANNOT_CONNECT:
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "Un cliente ha intentado establecer conexión con el servidor sin éxito");
 				log_info(logger, cli_socket_s->error);
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				free(entrenador);
 				free(cli_socket_s->error);
 
 				continue;
 			case ERR_SERVER_DISCONNECTED:
-				activo = 0;
+//				activo = 0;
 				eliminarSocket(mi_socket_s);
 
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "El socket del servidor se encuentra desconectado");
 				log_info(logger, cli_socket_s->error);
 				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				free(entrenador);
 				free(cli_socket_s->error);
@@ -904,24 +961,24 @@ void aceptarConexiones() {
 		{
 			switch(cli_socket_s->errorCode) {
 			case ERR_PEER_DISCONNECTED:
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "El socket %d se encuentra desconectado", cli_socket_s->descriptor);
 				log_info(logger, cli_socket_s->error);
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				free(entrenador);
 				free(cli_socket_s->error);
 
 				continue;
 			case ERR_MSG_CANNOT_BE_RECEIVED:
-				activo = 0;
+//				activo = 0;
 				eliminarSocket(mi_socket_s);
 
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "No se ha podido recibir un mensaje");
 				log_info(logger, cli_socket_s->error);
 				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				free(entrenador);
 				free(cli_socket_s->error);
@@ -946,13 +1003,13 @@ void aceptarConexiones() {
 			crearPaquete((void*) &mensajeRechazaConexion, &paquete);
 			if(paquete.tamanioPaquete == 0)
 			{
-				activo = 0;
+//				activo = 0;
 				eliminarSocket(mi_socket_s);
 
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				free(cli_socket_s->error);
 
@@ -970,23 +1027,23 @@ void aceptarConexiones() {
 			{
 				switch(cli_socket_s->errorCode) {
 				case ERR_PEER_DISCONNECTED:
-					pthread_mutex_lock(&mutexLog);
+//					pthread_mutex_lock(&mutexLog);
 					log_info(logger, "El socket %d se encuentra desconectado", cli_socket_s->descriptor);
 					log_info(logger, cli_socket_s->error);
-					pthread_mutex_unlock(&mutexLog);
+//					pthread_mutex_unlock(&mutexLog);
 
 					free(cli_socket_s->error);
 
 					continue;
 				case ERR_MSG_CANNOT_BE_SENT:
-					activo = 0;
+//					activo = 0;
 					eliminarSocket(mi_socket_s);
 
-					pthread_mutex_lock(&mutexLog);
+//					pthread_mutex_lock(&mutexLog);
 					log_info(logger, "No se ha podido enviar un mensaje");
 					log_info(logger, cli_socket_s->error);
 					log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
+//					pthread_mutex_unlock(&mutexLog);
 
 					free(cli_socket_s->error);
 
@@ -1005,6 +1062,7 @@ void aceptarConexiones() {
 		log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", cli_socket_s->descriptor, mensajeConexionEntrenador.nombreEntrenador, mensajeConexionEntrenador.simboloEntrenador);
 
 		entrenador->id = mensajeConexionEntrenador.simboloEntrenador;
+		entrenador->idPokenestActual = 0;
 		entrenador->nombre = mensajeConexionEntrenador.nombreEntrenador;
 		entrenador->socket = cli_socket_s;
 		entrenador->ubicacion.x = 1;
@@ -1019,13 +1077,13 @@ void aceptarConexiones() {
 		crearPaquete((void*) &mensajeAceptaConexion, &paquete);
 		if(paquete.tamanioPaquete == 0)
 		{
-			activo = 0;
+//			activo = 0;
 			eliminarSocket(mi_socket_s);
 
-			pthread_mutex_lock(&mutexLog);
+//			pthread_mutex_lock(&mutexLog);
 			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 			log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-			pthread_mutex_unlock(&mutexLog);
+//			pthread_mutex_unlock(&mutexLog);
 
 			free(entrenador);
 			free(cli_socket_s->error);
@@ -1044,24 +1102,24 @@ void aceptarConexiones() {
 		{
 			switch(cli_socket_s->errorCode) {
 			case ERR_PEER_DISCONNECTED:
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "El socket %d se encuentra desconectado", cli_socket_s->descriptor);
 				log_info(logger, cli_socket_s->error);
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				free(entrenador);
 				free(cli_socket_s->error);
 
 				continue;
 			case ERR_MSG_CANNOT_BE_SENT:
-				activo = 0;
+//				activo = 0;
 				eliminarSocket(mi_socket_s);
 
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "No se ha podido enviar un mensaje");
 				log_info(logger, cli_socket_s->error);
 				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				free(entrenador);
 				free(cli_socket_s->error);
@@ -1241,13 +1299,19 @@ void liberarMemoriaAlocada() {
 	list_destroy_and_destroy_elements(recursosAsignados, (void*) eliminarRecursosEntrenador);
 	list_destroy_and_destroy_elements(recursosSolicitados, (void*) eliminarRecursosEntrenador);
 	list_destroy_and_destroy_elements(entrenadores, (void*) eliminarEntrenador);
+	pthread_mutex_lock(&mutexReady);
 	queue_destroy_and_destroy_elements(colaReady, (void*) eliminarEntrenador);
+	pthread_mutex_unlock(&mutexReady);
+	pthread_mutex_lock(&mutexBlocked);
 	queue_destroy_and_destroy_elements(colaBlocked, (void*) eliminarEntrenador);
+	pthread_mutex_unlock(&mutexBlocked);
+//	pthread_mutex_lock(&mutexLog);
 	log_destroy(logger);
+//	pthread_mutex_unlock(&mutexLog);
 	pthread_mutex_destroy(&mutexEntrenadores);
 	pthread_mutex_destroy(&mutexReady);
 	pthread_mutex_destroy(&mutexBlocked);
-	pthread_mutex_destroy(&mutexLog);
+//	pthread_mutex_destroy(&mutexLog);
 }
 
 void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar) {
@@ -1282,14 +1346,13 @@ void signal_handler() {
  	 if (sigaction(SIGUSR2, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGUSR2"); // Should not happen
 
+ 	 /*
  	 if (sigaction(SIGTERM, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
 
- 	 if (sigaction(SIGKILL, &sa, NULL) == -1)
- 	    log_info(logger, "Error: no se puede manejar la señal SIGKILL"); // Should not happen
-
  	 if (sigaction(SIGINT, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
+ 	 */
 }
 
 void signal_termination_handler(int signum) {
@@ -1298,18 +1361,16 @@ void signal_termination_handler(int signum) {
  		configuracionActualizada = 1;
 
  	   	break;
+/*
  	case SIGTERM:
 	      activo = 0;
 
 	      break;
- 	case SIGKILL:
- 		  activo = 0;
-
- 		  break;
  	case SIGINT:
  		  activo = 0;
 
  		  break;
+ */
  	 default:
  	    log_info(logger, "Código inválido: %d", signum);
 

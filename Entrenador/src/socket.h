@@ -72,6 +72,6 @@ void enviarMensaje(socket_t* socket, paquete_t paquete);
 void recibirMensaje(socket_t* socket, void* mensaje);
 
 // Devuelve la cantidad de elementos de un array
-int cantidadElementosArray(void** arrayDinamico); // TODO Pasar a un archivo utilidades.c
+int cantidadElementosArray(void** arrayDinamico);
 
 #endif /* UTILITY_LIBRARY_SOCKET_H_ */

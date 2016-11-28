@@ -31,7 +31,7 @@ int activo;							 	// Flag de actividad del entrenador
 socket_t* mapa_s;
 
 //SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
-pthread_mutex_t mutexLog;
+//pthread_mutex_t mutexLog;
 
 int main(void) {
 	t_ubicacion ubicacion;
@@ -58,7 +58,7 @@ int main(void) {
 					{
 						eliminarSocket(mapa_s);
 						log_destroy(logger);
-						pthread_mutex_destroy(&mutexLog);
+//						pthread_mutex_destroy(&mutexLog);
 						abort();
 					}
 				}
@@ -70,7 +70,7 @@ int main(void) {
 					{
 						eliminarSocket(mapa_s);
 						log_destroy(logger);
-						pthread_mutex_destroy(&mutexLog);
+//						pthread_mutex_destroy(&mutexLog);
 						exit(EXIT_FAILURE);
 					}
 				}
@@ -82,7 +82,7 @@ int main(void) {
 
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
-				pthread_mutex_destroy(&mutexLog);
+//				pthread_mutex_destroy(&mutexLog);
 				exit(EXIT_FAILURE);
 			}
 
@@ -92,7 +92,7 @@ int main(void) {
 			{
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
-				pthread_mutex_destroy(&mutexLog);
+//				pthread_mutex_destroy(&mutexLog);
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -108,7 +108,7 @@ int main(void) {
 			{
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
-				pthread_mutex_destroy(&mutexLog);
+//				pthread_mutex_destroy(&mutexLog);
 				exit(EXIT_FAILURE);
 			}
 
@@ -146,17 +146,17 @@ int main(void) {
 
 			eliminarSocket(mapa_s);
 			log_destroy(logger);
-			pthread_mutex_destroy(&mutexLog);
+//			pthread_mutex_destroy(&mutexLog);
 			exit(EXIT_FAILURE);
 		}
 	}
 
 	// Variables para la creación del hilo para el manejo de señales
-	pthread_t hiloSignalHandler;
-	pthread_attr_t atributosHiloSignalHandler;
+//	pthread_t hiloSignalHandler;
+//	pthread_attr_t atributosHiloSignalHandler;
 
 	//INICIALIZACIÓN DE LOS SEMÁFOROS
-	pthread_mutex_init(&mutexLog, NULL);
+//	pthread_mutex_init(&mutexLog, NULL);
 
 	// Creación del archivo de log
 	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
@@ -168,7 +168,7 @@ int main(void) {
 	{
 		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 		log_destroy(logger);
-		pthread_mutex_destroy(&mutexLog);
+//		pthread_mutex_destroy(&mutexLog);
 		return EXIT_FAILURE;
 	}
 
@@ -180,9 +180,9 @@ int main(void) {
 	activo = 1;
 
 	// Creación del hilo para el manejo de señales
-	pthread_attr_init(&atributosHiloSignalHandler);
-	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
-	pthread_attr_destroy(&atributosHiloSignalHandler);
+//	pthread_attr_init(&atributosHiloSignalHandler);
+//	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
+//	pthread_attr_destroy(&atributosHiloSignalHandler);
 
 	// Obtención de los objetivos propios de cada mapa (ciudad) incluido en la Hoja de Viaje del entrenador
 	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _obtenerObjetivosCiudad);
@@ -190,7 +190,7 @@ int main(void) {
 	log_info(logger, "La ejecución del proceso Entrenador ha finalizado correctamente");
 
 	log_destroy(logger);
-	pthread_mutex_destroy(&mutexLog);
+//	pthread_mutex_destroy(&mutexLog);
 	return EXIT_SUCCESS;
 }
 
@@ -198,44 +198,53 @@ int cargarConfiguracion(t_entrenador_config* structConfig) {
 	t_config* config;
 	config = config_create(CONFIG_FILE_PATH);
 
-	if(config_has_property(config, "nombre")
-			&& config_has_property(config, "simbolo")
-			&& config_has_property(config, "hojaDeViaje")
-			&& config_has_property(config, "vidas"))
+	if(config != NULL)
 	{
-		void _auxIterate(char* ciudad)
+		if(config_has_property(config, "nombre")
+				&& config_has_property(config, "simbolo")
+				&& config_has_property(config, "hojaDeViaje")
+				&& config_has_property(config, "vidas"))
 		{
-			char* stringObjetivo = string_from_format("obj[%s]", ciudad);
-			t_ciudad_objetivos* ciudadObjetivos;
-			ciudadObjetivos = malloc(sizeof(t_ciudad_objetivos));
+			void _auxIterate(char* ciudad)
+			{
+				char* stringObjetivo = string_from_format("obj[%s]", ciudad);
+				t_ciudad_objetivos* ciudadObjetivos;
+				ciudadObjetivos = malloc(sizeof(t_ciudad_objetivos));
 
-			char** arrayObjetivos;
-			arrayObjetivos = config_get_array_value(config, stringObjetivo);
+				char** arrayObjetivos;
+				arrayObjetivos = config_get_array_value(config, stringObjetivo);
 
-			ciudadObjetivos->Nombre = strdup(ciudad);
-			ciudadObjetivos->Objetivos = arrayObjetivos;
+				ciudadObjetivos->Nombre = strdup(ciudad);
+				ciudadObjetivos->Objetivos = arrayObjetivos;
 
-			list_add(structConfig->CiudadesYObjetivos, ciudadObjetivos);
-			free(stringObjetivo);
+				list_add(structConfig->CiudadesYObjetivos, ciudadObjetivos);
+				free(stringObjetivo);
+			}
+
+			structConfig->CiudadesYObjetivos = list_create();
+			char** hojaDeViaje = config_get_array_value(config, "hojaDeViaje");
+
+			structConfig->Nombre = strdup(config_get_string_value(config, "nombre"));
+			structConfig->Simbolo = strdup(config_get_string_value(config, "simbolo"));
+			structConfig->Vidas = config_get_int_value(config, "vidas");
+
+			//SE BUSCAN LOS OBJETIVOS DE CADA CIUDAD
+			string_iterate_lines(hojaDeViaje, (void*) _auxIterate);
+
+			log_info(logger, "El archivo de configuración se cargó correctamente");
+			config_destroy(config);
+			return 0;
 		}
-
-		structConfig->CiudadesYObjetivos = list_create();
-		char** hojaDeViaje = config_get_array_value(config, "hojaDeViaje");
-
-		structConfig->Nombre = strdup(config_get_string_value(config, "nombre"));
-		structConfig->Simbolo = strdup(config_get_string_value(config, "simbolo"));
-		structConfig->Vidas = config_get_int_value(config, "vidas");
-
-		//SE BUSCAN LOS OBJETIVOS DE CADA CIUDAD
-		string_iterate_lines(hojaDeViaje, (void*) _auxIterate);
-
-		log_info(logger, "El archivo de configuración se cargó correctamente");
-		config_destroy(config);
-		return 0;
+		else
+		{
+			log_error(logger, "El archivo de configuración tiene un formato inválido");
+			config_destroy(config);
+			return 1;
+		}
 	}
 	else
 	{
-		log_error(logger, "El archivo de configuración tiene un formato inválido");
+		log_error(logger, "La ruta de archivo de configuración indicada no existe");
 		config_destroy(config);
 		return 1;
 	}
@@ -261,7 +270,7 @@ socket_t* conectarAMapa(char* ip, char* puerto) {
 		return mapa_s;
 	}
 
-	log_info(logger, "El proceso Entrenador se ha conectado de manera exitosa al proceso Mapa");
+	log_info(logger, "El proceso Entrenador se ha conectado de manera exitosa al proceso Mapa (socket n° %d)", mapa_s->descriptor);
 
 	///////////////////////
 	////// HANDSHAKE //////
@@ -657,14 +666,13 @@ void signal_handler() {
  	 if (sigaction(SIGUSR1, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGUSR1"); // Should not happen
 
+ 	 /*
  	 if (sigaction(SIGTERM, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
 
- 	 if (sigaction(SIGKILL, &sa, NULL) == -1)
- 	    log_info(logger, "Error: no se puede manejar la señal SIGKILL"); // Should not happen
-
  	 if (sigaction(SIGINT, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
+ 	 */
 }
 
 void signal_termination_handler(int signum) {
@@ -675,20 +683,18 @@ void signal_termination_handler(int signum) {
  	   	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
  	   	break;
-  	case SIGTERM:
+/*
+ 	 case SIGTERM:
   		configEntrenador.Vidas--;
   	    log_info(logger, "SIGTERM: Se ha perdido una vida");
   	    log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
   	    break;
- 	 case SIGKILL:
- 		 activo = 0;
-
- 		 break;
  	 case SIGINT:
  		activo = 0;
 
  		 break;
+*/
  	 default:
  	    log_info(logger, "Código inválido: %d", signum);
 

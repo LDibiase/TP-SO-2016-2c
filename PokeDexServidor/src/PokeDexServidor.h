@@ -35,8 +35,6 @@ typedef struct operacionOSADA {
 //Mensaje Pokedex Cliente-Servidor
 typedef struct mensajePokedex {
 	uint32_t tipoMensaje;
-	uint32_t ruta;
-	uint32_t nombre;
 } mensajeDePokedex;
 
 // Mensajes

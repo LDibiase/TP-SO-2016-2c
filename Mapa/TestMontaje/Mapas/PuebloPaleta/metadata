@@ -1,7 +1,0 @@
-TiempoChequeoDeadlock=10000
-Batalla=1
-algoritmo=RR
-quantum=200
-retardo=200000
-IP=0.0.0.0
-Puerto=3490

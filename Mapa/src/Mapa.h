@@ -66,7 +66,7 @@ typedef struct metadataPokemon{
 // Ruta al archivo de log
 #define LOG_FILE_PATH "mapa.log"
 // Ruta al archivo de configuración
-#define CONFIG_FILE_PATH "config.cfg"
+#define CONFIG_FILE_PATH "metadata"
 
 
 /* Declaración de funciones */

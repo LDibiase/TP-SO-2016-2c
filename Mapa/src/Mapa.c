@@ -133,8 +133,6 @@ int main(int argc, char **argv) {
 	// Se setea en 1 (on) el flag de actividad
 	activo = 1;
 
-	log_info(logger, "¿Activo? %d", activo);
-
 	//CREACIÓN DEL HILO PARA EL MANEJO DE SEÑALES
 //	pthread_attr_init(&atributosHiloSignalHandler);
 //	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
@@ -158,8 +156,6 @@ int main(int argc, char **argv) {
 
 			if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
 			{
-				printf("SRDF");
-
 				bool _noConoceUbicacion(t_entrenador* entrenador) {
 					return entrenador->idPokenestActual == 0;
 				}
@@ -171,19 +167,14 @@ int main(int argc, char **argv) {
 
 			if(entrenadorAEjecutar == NULL)
 			{
-				printf("Prueba, no se eligió jugador");
-
 				pthread_mutex_lock(&mutexReady);
 				entrenadorAEjecutar = queue_pop(colaReady);
 				pthread_mutex_unlock(&mutexReady);
 			}
 
-			printf("Elegí un jugador: %s", entrenadorAEjecutar->nombre);
-
 			//MENSAJES A UTILIZAR
 			mensaje5_t mensajeBrindaUbicacion;
 			mensaje7_t mensajeConfirmaDesplazamiento;
-			mensaje9_t mensajeConfirmaCaptura;
 
 			//SE ATIENDEN LAS SOLICITUDES DEL PRIMER ENTRENADOR EN LA COLA DE LISTOS
 			int solicitoCaptura = 0;
@@ -195,8 +186,7 @@ int main(int argc, char **argv) {
 
 			while(((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum)
 				 || string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
-				 && !solicitoCaptura && !solicitoUbicacion && entrenadorAEjecutar != NULL && activo)
-			{
+				 && !solicitoCaptura && !solicitoUbicacion && entrenadorAEjecutar != NULL && activo) {
 				void* mensajeSolicitud = malloc(TAMANIO_MAXIMO_MENSAJE);
 				((mensaje_t*) mensajeSolicitud)->tipoMensaje = INDEFINIDO;
 
@@ -212,12 +202,12 @@ int main(int argc, char **argv) {
 						log_info(logger, entrenadorAEjecutar->socket->error);
 //						pthread_mutex_unlock(&mutexLog);
 
-						// TODO: Liberar recursos
-
 						eliminarEntrenadorMapa(entrenadorAEjecutar);
 						BorrarItem(items, entrenadorAEjecutar->id);
 						eliminarEntrenador(entrenadorAEjecutar);
 						entrenadorAEjecutar = NULL;
+
+						desbloquearJugadores();
 
 						continue;
 					case ERR_MSG_CANNOT_BE_RECEIVED:
@@ -299,6 +289,8 @@ int main(int argc, char **argv) {
 							BorrarItem(items, entrenadorAEjecutar->id);
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
+
+							desbloquearJugadores();
 
 							continue;
 						case ERR_MSG_CANNOT_BE_SENT:
@@ -396,6 +388,8 @@ int main(int argc, char **argv) {
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
+							desbloquearJugadores();
+
 							continue;
 						case ERR_MSG_CANNOT_BE_SENT:
 //							activo = 0;
@@ -426,6 +420,8 @@ int main(int argc, char **argv) {
 					log_info(logger, "Socket %d: solicito capturar Pokémon", entrenadorAEjecutar->socket->descriptor);
 
 					solicitoCaptura = 1;
+
+					actualizarSolicitudes(entrenadorAEjecutar);
 					insertarAlFinal(entrenadorAEjecutar, colaBlocked, &mutexBlocked);
 
 					free(mensajeSolicitud);
@@ -472,87 +468,7 @@ int main(int argc, char **argv) {
 			{
 				if(solicitoCaptura)
 				{
-					bool _esRecursoBuscado(t_mapa_pokenest* recursoBuscado) {
-						return recursoBuscado->id == entrenadorAEjecutar->idPokenestActual;
-					}
-
-					t_mapa_pokenest* recurso;
-					recurso = list_find(recursosDisponibles, (void*) _esRecursoBuscado);
-
-					if(recurso->cantidad >= 1)
-					{
-						recurso->cantidad--;
-						restarRecurso(items, entrenadorAEjecutar->idPokenestActual);
-
-						recurso = list_find(recursosTotales, (void*) _esRecursoBuscado);
-
-						t_metadataPokemon* metadata = list_get(recurso->metadatasPokemones, 0);
-
-						mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
-						mensajeConfirmaCaptura.tamanioNombreArchivoMetadata = strlen(metadata->rutaArchivo) + 1;
-						mensajeConfirmaCaptura.nombreArchivoMetadata = strdup(metadata->rutaArchivo);
-
-						paquete_t paqueteCaptura;
-						crearPaquete((void*) &mensajeConfirmaCaptura, &paqueteCaptura);
-						if(paqueteCaptura.tamanioPaquete == 0)
-						{
-//							activo = 0;
-							eliminarSocket(mi_socket_s);
-
-//							pthread_mutex_lock(&mutexLog);
-							log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-							log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-//							pthread_mutex_unlock(&mutexLog);
-
-							eliminarEntrenador(entrenadorAEjecutar);
-							liberarMemoriaAlocada();
-							nivel_gui_terminar();
-
-							return EXIT_FAILURE;
-						}
-
-						enviarMensaje(entrenadorAEjecutar->socket, paqueteCaptura);
-
-						free(paqueteCaptura.paqueteSerializado);
-
-						if(entrenadorAEjecutar->socket->errorCode != NO_ERROR)
-						{
-							switch(entrenadorAEjecutar->socket->errorCode) {
-							case ERR_PEER_DISCONNECTED:
-//								pthread_mutex_lock(&mutexLog);
-								log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAEjecutar->socket->descriptor);
-								log_info(logger, entrenadorAEjecutar->socket->error);
-//								pthread_mutex_unlock(&mutexLog);
-
-								eliminarEntrenadorMapa(entrenadorAEjecutar);
-								BorrarItem(items, entrenadorAEjecutar->id);
-								eliminarEntrenador(entrenadorAEjecutar);
-								entrenadorAEjecutar = NULL;
-
-								continue;
-							case ERR_MSG_CANNOT_BE_SENT:
-//								activo = 0;
-								eliminarSocket(mi_socket_s);
-
-//								pthread_mutex_lock(&mutexLog);
-								log_info(logger, "No se ha podido enviar un mensaje");
-								log_info(logger, entrenadorAEjecutar->socket->error);
-								log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-//								pthread_mutex_unlock(&mutexLog);
-
-								eliminarEntrenador(entrenadorAEjecutar);
-								liberarMemoriaAlocada();
-								nivel_gui_terminar();
-
-								return EXIT_FAILURE;
-							}
-						}
-
-						log_info(logger, "Se le confirma al entrenador la captura del Pokémon solicitado (%c)", entrenadorAEjecutar->idPokenestActual);
-
-						//VUELVO A ENCOLAR AL ENTRENADOR
-						reencolarEntrenador(entrenadorAEjecutar);
-					}
+					capturarPokemon(entrenadorAEjecutar);
 				}
 				else
 					//VUELVO A ENCOLAR AL ENTRENADOR
@@ -899,8 +815,6 @@ void aceptarConexiones() {
 		abort();
 	}
 
-	log_info(logger, "Servidor creado");
-
 	returnValue = escucharConexiones(*mi_socket_s, BACKLOG);
 	if(returnValue != 0)
 	{
@@ -918,9 +832,6 @@ void aceptarConexiones() {
 
 		abort();
 	}
-
-	log_info(logger, "En escucha");
-	log_info(logger, "¿Activo? %d", activo);
 
 	while(activo) {
 		socket_t* cli_socket_s;
@@ -1305,8 +1216,19 @@ bool algoritmoDeteccion() {
 }
 
 void eliminarRecursosEntrenador(t_recursosEntrenador* recursosEntrenador) {
-	free(&(recursosEntrenador->id));
-	list_destroy_and_destroy_elements(recursosEntrenador->recursos, (void*) free);
+	void _eliminarRecursos(t_mapa_pokenest* recurso) {
+		void _eliminarMetadata(t_metadataPokemon* metadata) {
+			free(metadata->rutaArchivo);
+			free(metadata);
+		}
+
+		free(recurso->tipo);
+		list_destroy_and_destroy_elements(recurso->metadatasPokemones, (void*) _eliminarMetadata);
+		free(recurso);
+	}
+
+	list_destroy_and_destroy_elements(recursosEntrenador->recursos, (void*) _eliminarRecursos);
+	free(recursosEntrenador);
 }
 
 void liberarMemoriaAlocada() {
@@ -1337,11 +1259,7 @@ void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar) {
 
 	list_remove_and_destroy_by_condition(entrenadores, (void*) _esEntrenadorBuscado, (void*) eliminarEntrenador);
 
-//	TODO: Liberar recursos
-//	recursosTotales;  		// Recursos existentes en el mapa (Pokémones)
-//	recursosDisponibles;	// Recursos disponibles en el mapa (Pokémones)
-//	recursosAsignados;		// Recursos asignados (Pokémones)
-//	recursosSolicitados;	// Recursos solicitados (Pokémones)
+	liberarRecursosEntrenador(entrenadorAEliminar);
 }
 
 void signal_handler() {
@@ -1474,6 +1392,8 @@ void chequearDeadlock() {
 				eliminarEntrenador(entrenadorAux);
 				entrenadorAux = NULL;
 
+				desbloquearJugadores();
+
 				break;
 			case ERR_MSG_CANNOT_BE_SENT:
 				activo = 0;
@@ -1537,7 +1457,7 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 				t_pokemonEntrenador* entrenadorRestante;
 				entrenadorRestante = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
 
-				//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR. Y ASÍ SABER QUIEN ES EL MAS LOSER
+				//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR Y ASÍ SABER QUIÉN ES EL PERDEDOR
 				t_pokemon* loser = pkmn_battle(entrenadorPerdedor->pokemon, entrenadorRestante->pokemon);
 
 				if(entrenadorRestante->pokemon == loser)
@@ -1553,4 +1473,146 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 	}
 	
 	return entrenadorPerdedor;
+}
+
+void liberarRecursosEntrenador(t_entrenador* entrenador) {
+	bool _recursosEntrenador(t_recursosEntrenador* recursos) {
+		return recursos->id == entrenador->id;
+	}
+
+	void _actualizarMatrices(t_mapa_pokenest* recurso) {
+		bool _esRecursoBuscado(t_mapa_pokenest* recursoBuscado) {
+			return recursoBuscado->id == recurso->id;
+		}
+
+		t_mapa_pokenest* recursoAActualizar;
+
+		recursoAActualizar = list_find(recursosDisponibles, (void*) _esRecursoBuscado);
+
+		if(recursoAActualizar != NULL)
+		{
+			recursoAActualizar->cantidad = recursoAActualizar->cantidad + recurso->cantidad;
+		}
+	}
+
+	t_recursosEntrenador* recursosEntrenador;
+
+	recursosEntrenador = list_remove_by_condition(recursosAsignados, (void*) _recursosEntrenador);
+	list_iterate(recursosEntrenador->recursos, (void*) _actualizarMatrices);
+	eliminarRecursosEntrenador(recursosEntrenador);
+
+	list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
+}
+
+void desbloquearJugadores() {
+	list_iterate(colaBlocked->elements, (void*) capturarPokemon);
+}
+
+void capturarPokemon(t_entrenador* entrenador) {
+	bool _recursoBuscado(t_mapa_pokenest* recursoBuscado) {
+		return recursoBuscado->id == entrenador->idPokenestActual;
+	}
+
+	bool _recursosEntrenador(t_recursosEntrenador* recursos) {
+		return recursos->id == entrenador->id;
+	}
+
+	t_mapa_pokenest* recurso;
+	recurso = list_find(recursosDisponibles, (void*) _recursoBuscado);
+
+	if(recurso->cantidad >= 1)
+	{
+		mensaje9_t mensajeConfirmaCaptura;
+
+		recurso->cantidad--;
+		restarRecurso(items, entrenador->idPokenestActual);
+
+		recurso = list_find(recursosTotales, (void*) _recursoBuscado);
+
+		list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
+
+		t_metadataPokemon* metadata = list_get(recurso->metadatasPokemones, 0);
+
+		mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
+		mensajeConfirmaCaptura.tamanioNombreArchivoMetadata = strlen(metadata->rutaArchivo) + 1;
+		mensajeConfirmaCaptura.nombreArchivoMetadata = strdup(metadata->rutaArchivo);
+
+		paquete_t paqueteCaptura;
+		crearPaquete((void*) &mensajeConfirmaCaptura, &paqueteCaptura);
+		if(paqueteCaptura.tamanioPaquete == 0)
+		{
+//							activo = 0;
+			eliminarSocket(mi_socket_s);
+
+//							pthread_mutex_lock(&mutexLog);
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+//							pthread_mutex_unlock(&mutexLog);
+
+			eliminarEntrenador(entrenador);
+			liberarMemoriaAlocada();
+			nivel_gui_terminar();
+
+			abort();
+		}
+
+		enviarMensaje(entrenador->socket, paqueteCaptura);
+
+		free(paqueteCaptura.paqueteSerializado);
+
+		if(entrenador->socket->errorCode != NO_ERROR)
+		{
+			switch(entrenador->socket->errorCode) {
+			case ERR_PEER_DISCONNECTED:
+//								pthread_mutex_lock(&mutexLog);
+				log_info(logger, "Conexión mediante socket %d finalizada", entrenador->socket->descriptor);
+				log_info(logger, entrenador->socket->error);
+//								pthread_mutex_unlock(&mutexLog);
+
+				eliminarEntrenadorMapa(entrenador);
+				BorrarItem(items, entrenador->id);
+				eliminarEntrenador(entrenador);
+				entrenador = NULL;
+
+				desbloquearJugadores();
+
+				return;
+			case ERR_MSG_CANNOT_BE_SENT:
+//								activo = 0;
+				eliminarSocket(mi_socket_s);
+
+//								pthread_mutex_lock(&mutexLog);
+				log_info(logger, "No se ha podido enviar un mensaje");
+				log_info(logger, entrenador->socket->error);
+				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+//								pthread_mutex_unlock(&mutexLog);
+
+				eliminarEntrenador(entrenador);
+				liberarMemoriaAlocada();
+				nivel_gui_terminar();
+
+				abort();
+			}
+		}
+
+		log_info(logger, "Se le confirma al entrenador la captura del Pokémon solicitado (%c)", entrenador->idPokenestActual);
+
+		//VUELVO A ENCOLAR AL ENTRENADOR
+		reencolarEntrenador(entrenador);
+	}
+}
+
+void actualizarSolicitudes(t_entrenador* entrenador) {
+	bool _recursosEntrenador(t_recursosEntrenador* recursos) {
+		return recursos->id == entrenador->id;
+	}
+
+	bool _recursoBuscado(t_mapa_pokenest* recurso) {
+		return recurso->id == entrenador->idPokenestActual;
+	}
+
+	t_recursosEntrenador* recursosEntrenador = list_find(recursosSolicitados, (void*) _recursosEntrenador);
+	t_mapa_pokenest* recursoAActualizar = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
+
+	recursoAActualizar->cantidad++;
 }

@@ -368,7 +368,7 @@ static int fuse_mknod(const char *path, mode_t mode, dev_t rdev)
 	return 0;
 }
 
-static int fuse_create(const char *path, mode_t mode, dev_t rdev)
+static int fuse_create(const char *path, mode_t mode, struct fuse_file_info* fi)
 {
 	int res;
 
@@ -410,7 +410,7 @@ static int fuse_create(const char *path, mode_t mode, dev_t rdev)
 		return 0;
 }
 
-static int fuse_write(const char *path, const char *buf, size_t size, off_t offset) {
+static int fuse_write(const char* path, const char * buf, size_t size, off_t offset, struct fuse_file_info* fi) {
 	// Enviar mensaje WRITE
 		paquete_t paqueteLectura;
 		mensaje8_t mensajeQuieroWRITE;

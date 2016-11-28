@@ -12,7 +12,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <pthread.h>
-
+#include <string.h>
+#include <commons/string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -53,7 +54,7 @@ int main(void) {
 	int fileFS;
 	struct stat statFS;
 	osada_header cabeceraFS;		// HEADER
-	unsigned char * bitmapS;		// BITMAP
+	char * bitmapS;		// BITMAP
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
 	int i;
 	pthread_mutex_init(&mutex, NULL);
@@ -76,7 +77,7 @@ int main(void) {
 	fileFS = open(rutaFS,O_RDWR);
 	stat(rutaFS,&statFS);
 	pmapFS = (char*)mmap(0, statFS.st_size, PROT_READ | PROT_WRITE, MAP_SHARED, fileFS, 0); //puntero al primer byte del FS (array de bytes)
-	printf("El tamaño del FS es %d \n", statFS.st_size);
+	printf("El tamaño del FS es %d \n", (int)statFS.st_size);
 
 	memcpy(&cabeceraFS, &pmapFS[0], sizeof(cabeceraFS));
 	// Valida que sea un FS OSADA
@@ -100,7 +101,7 @@ int main(void) {
 
 
 	// Aloca el espacio en memoria para el Bitmap
-	bitmapS=(char *)malloc(cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+	bitmapS=malloc(cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
 	if (bitmapS== NULL)	{
 		printf("No se dispone de memoria para alocar el Bitmap\n");
 		return EXIT_FAILURE;
@@ -110,7 +111,7 @@ int main(void) {
 	memcpy(bitmapS, &pmapFS[1 * OSADA_BLOCK_SIZE], cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
 
 	// Crea el array de bits
-	bitarray = bitarray_create(bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
+	bitarray = bitarray_create(bitmapS,cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
 
 	// INFORMACION BITMAP
 	printf("\n---------------------------");
@@ -159,7 +160,7 @@ int main(void) {
 	printf("Leido Tabla de Archivos %d\n", bloquesTablaAsignaciones); // POSICION
 
 	//Reserva espacio tabla de asignaciones
-	tablaAsignaciones=(int *)malloc(bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
+	tablaAsignaciones=malloc(bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
 	if (tablaAsignaciones== NULL) {
 		printf("No se dispone de memoria para alocar la Tabla de Asignaciones\n");
 		return EXIT_FAILURE;
@@ -527,10 +528,9 @@ int rename_callback(const char *from, const char *to) {
 	int i = 0;
 	int res = -1;
 	int dirPadre = 65535;
-	if (!(string_equals_ignore_case(to, "/"))) {
-		array = string_split(to, "/");
+	if (!(string_equals_ignore_case((char *)to, "/"))) {
+		array = string_split((char *)to, "/");
 		while (array[i+1]) {
-			char* fname = array[i];
 			res = buscarTablaAchivos(dirPadre,array[i]);
 			dirPadre = res;
 			i++;
@@ -541,13 +541,13 @@ int rename_callback(const char *from, const char *to) {
 
 	int archivoID = getDirPadre(from);
 
-	int n = string_length(array[i]);
+	int n = string_length((char *)array[i]);
 		if (n > 17) {
 			return -2; }
 
 	if (archivoID != -1) {
 		tablaArchivos[archivoID].parent_directory=res;
-		strcpy(tablaArchivos[archivoID].fname, array[i]);
+		strcpy((char *)tablaArchivos[archivoID].fname, (const char *)array[i]);
 	}
 
 	return archivoID;
@@ -651,11 +651,11 @@ char* readdir_callback(const char *path) {
 	for (i = 0; i < TABLA_ARCHIVOS; i++) {
 		if (tablaArchivos[i].state != 0) {
 			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Directorios en el directorio
-				string_append(&cadenaMensaje, tablaArchivos[i].fname);
+				string_append(&cadenaMensaje, (char *)tablaArchivos[i].fname);
 				string_append(&cadenaMensaje, "/");
 			} else {
 				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)) { //Archivos en el directorio
-					string_append(&cadenaMensaje, tablaArchivos[i].fname);
+					string_append(&cadenaMensaje, (char *)tablaArchivos[i].fname);
 					string_append(&cadenaMensaje, "/");
 				}
 			}
@@ -669,19 +669,12 @@ int mkdir_callback(const char *path) {
 	int i = 0;
 	int res = -1;
 	int dirPadre = 65535;
-	if (!(string_equals_ignore_case(path, "/"))) {
-		array = string_split(path, "/");
+	if (!(string_equals_ignore_case((char *)path, "/"))) {
+		array = string_split((char *)path, "/");
 		while (array[i+1]) {
-			char* fname = array[i];
 			res = buscarTablaAchivos(dirPadre,array[i]);
 			dirPadre = res;
 			i++;
-		}
-		if (tablaArchivos[res].state == 1) {
-			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
-		}
-		if (tablaArchivos[res].state == 2) {
-			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
 		}
 	} else {
 		res = dirPadre;
@@ -697,7 +690,7 @@ int mkdir_callback(const char *path) {
 	if (n > 17) {
 		return -2; }
 	osada_file newDir;
-	strcpy(newDir.fname, array[i]);
+	strcpy((char *)newDir.fname, array[i]);
 	newDir.state = 2;
 	newDir.parent_directory = res;
 	newDir.file_size = 0;
@@ -713,19 +706,12 @@ int mknod_callback(const char *path) {
 	int i = 0;
 	int res = -1;
 	int dirPadre = 65535;
-	if (!(string_equals_ignore_case(path, "/"))) {
-		array = string_split(path, "/");
+	if (!(string_equals_ignore_case((char *)path, "/"))) {
+		array = string_split((char *)path, "/");
 		while (array[i+1]) {
-			char* fname = array[i];
 			res = buscarTablaAchivos(dirPadre,array[i]);
 			dirPadre = res;
 			i++;
-		}
-		if (tablaArchivos[res].state == 1) {
-			//printf("Es un ARCHIVO: %s Tipo: %d  Tamaño: %d \n ", tablaArchivos[res].fname, tablaArchivos[res].state, tablaArchivos[res].file_size);
-		}
-		if (tablaArchivos[res].state == 2) {
-			//printf("Es un DIRECTORIO: %s Tipo: %d \n", tablaArchivos[res].fname, tablaArchivos[res].state);
 		}
 	} else {
 		res = dirPadre;
@@ -741,7 +727,7 @@ int mknod_callback(const char *path) {
 		return -2; }
 
 	osada_file newDir;
-	strcpy(newDir.fname, array[i]);
+	strcpy((char*)newDir.fname, (const char *)array[i]);
 	newDir.state = 1;
 	newDir.parent_directory = res;
 	newDir.file_size = 0;
@@ -804,10 +790,9 @@ int getDirPadre(const char *path) {
 	int i = 0;
 	int res = -1;
 	int dirPadre = 65535;
-	if (!(string_equals_ignore_case(path, "/"))) {
-		array = string_split(path, "/");
+	if (!(string_equals_ignore_case((char *)path, "/"))) {
+		array = string_split((char *)path, "/");
 		while (array[i]) {
-			char* fname = array[i];
 			res = buscarTablaAchivos(dirPadre,array[i]);
 			dirPadre = res;
 			i++;
@@ -822,7 +807,7 @@ t_getattr getattr_callback(const char *path) {
 	t_getattr res;
 	res.tipoArchivo = 0;
 	res.tamanioArchivo = 0;
-	if (!(string_equals_ignore_case(path, "/"))) {
+	if (!(string_equals_ignore_case((char *)path, "/"))) {
 		int id = getDirPadre(path);
 		if (tablaArchivos[id].state == 1) {
 			res.tipoArchivo = 1;
@@ -900,11 +885,11 @@ int buscarTablaAchivos(int dirPadre, char* fname) {
 	int res = -1;
 	for (i = 0; i < TABLA_ARCHIVOS; i++) {
 		if (tablaArchivos[i].state != 0) {
-			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un direcotrio
+			if ((tablaArchivos[i].state == 2)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp((const char *)tablaArchivos[i].fname, (const char *)fname) == 0)) { //Es un direcotrio
 				res = i;
 
 			} else {
-				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp(tablaArchivos[i].fname, fname) == 0)) { //Es un archivo
+				if ((tablaArchivos[i].state == 1)&&(tablaArchivos[i].parent_directory==dirPadre)&&(strcmp((const char *)tablaArchivos[i].fname, (const char *)fname) == 0)) { //Es un archivo
 					res = i;
 				}
 			}
@@ -1070,7 +1055,6 @@ void pokedexCliente(t_pokedex_cliente* pokedex_cliente) {
 			free(mensajeRespuesta);
 			log_info(logger, pokedex_cliente->socket->error);
 			log_info(logger, "Conexión mediante socket %d finalizada", pokedex_cliente->socket->descriptor);
-			//TODO Cerrar todos los sockets y salir
 			eliminarSocket(pokedex_cliente->socket);
 		}
 		((operacionOSADA*) operacionEjecutar)->operacion = mensajeRespuesta;

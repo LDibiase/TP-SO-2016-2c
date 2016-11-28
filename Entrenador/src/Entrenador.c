@@ -31,6 +31,8 @@ char* puntoMontajeOsada;         	  	// Punto de montaje del FS
 char* rutaDirectorioEntrenador;         // Ruta del directorio del entrenador
 
 socket_t* mapa_s;
+char* ip;
+char* puerto;
 
 //SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
 //pthread_mutex_t mutexLog;
@@ -108,13 +110,11 @@ int main(int argc, char **argv) {
 	}
 
 	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
-		char* ip = string_new();
-		char* puerto = string_new();
-
 		objetivosCompletados = 0;
+		victima = 0;
 
 		// Obtener datos de conexión del mapa
-		obtenerDatosConexion(ciudad->Nombre, ip, puerto);
+		obtenerDatosConexion(ciudad->Nombre);
 
 		while(configEntrenador.Vidas > 0 && activo && !objetivosCompletados) {
 			// Conexión al mapa
@@ -172,8 +172,8 @@ int main(int argc, char **argv) {
 	}
 
 	// Variables para la creación del hilo para el manejo de señales
-//	pthread_t hiloSignalHandler;
-//	pthread_attr_t atributosHiloSignalHandler;
+	pthread_t hiloSignalHandler;
+	pthread_attr_t atributosHiloSignalHandler;
 
 	//INICIALIZACIÓN DE LOS SEMÁFOROS
 //	pthread_mutex_init(&mutexLog, NULL);
@@ -200,9 +200,9 @@ int main(int argc, char **argv) {
 	activo = 1;
 
 	// Creación del hilo para el manejo de señales
-//	pthread_attr_init(&atributosHiloSignalHandler);
-//	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
-//	pthread_attr_destroy(&atributosHiloSignalHandler);
+	pthread_attr_init(&atributosHiloSignalHandler);
+	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
+	pthread_attr_destroy(&atributosHiloSignalHandler);
 
 	// Obtención de los objetivos propios de cada mapa (ciudad) incluido en la Hoja de Viaje del entrenador
 	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _obtenerObjetivosCiudad);
@@ -693,13 +693,11 @@ void signal_handler() {
  	 if (sigaction(SIGUSR1, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGUSR1"); // Should not happen
 
- 	 /*
  	 if (sigaction(SIGTERM, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
 
  	 if (sigaction(SIGINT, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
- 	 */
 }
 
 void signal_termination_handler(int signum) {
@@ -710,7 +708,7 @@ void signal_termination_handler(int signum) {
  	   	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
  	   	break;
-/*
+
  	 case SIGTERM:
   		configEntrenador.Vidas--;
   	    log_info(logger, "SIGTERM: Se ha perdido una vida");
@@ -721,7 +719,7 @@ void signal_termination_handler(int signum) {
  		activo = 0;
 
  		 break;
-*/
+
  	 default:
  	    log_info(logger, "Código inválido: %d", signum);
 
@@ -729,11 +727,11 @@ void signal_termination_handler(int signum) {
  	}
 }
 
-void obtenerDatosConexion(char* nombreCiudad, char* ip, char* puerto) {
+void obtenerDatosConexion(char* nombreCiudad) {
 	t_config* metadata;
 
 	char* rutaMetadataMapa = strdup(puntoMontajeOsada);
-	string_append(&rutaMetadataMapa, "Mapas/");
+	string_append(&rutaMetadataMapa, "/Mapas/");
 	string_append(&rutaMetadataMapa, nombreCiudad);
 	string_append(&rutaMetadataMapa, "/");
 	string_append(&rutaMetadataMapa, METADATA);
@@ -764,8 +762,10 @@ void obtenerDatosConexion(char* nombreCiudad, char* ip, char* puerto) {
 		}
 	}
 	else
+	{
 		ip = NULL;
 		puerto = NULL;
 
 		log_error(logger, "La ruta de archivo de metadata indicada no existe");
+	}
 }

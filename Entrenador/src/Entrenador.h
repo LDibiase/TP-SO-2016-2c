@@ -30,7 +30,7 @@ typedef struct entrenador {
 // Ruta al archivo de log
 #define LOG_FILE_PATH "entrenador.log"
 // Nombre del archivo de metadata
-#define METADATA "metadata.dat"
+#define METADATA "metadata"
 
 
 /* Declaración de funciones */
@@ -43,6 +43,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 void solicitarCaptura(socket_t* mapa_s, int* victima);
 void signal_handler();
 void signal_termination_handler(int signum);
-void obtenerDatosConexion(char* nombreCiudad, char* ip, char* puerto);
+void obtenerDatosConexion(char* nombreCiudad);
 
 #endif /* ENTRENADOR_H_ */

@@ -1420,10 +1420,10 @@ void chequearDeadlock() {
 			activo = 0;
 			eliminarSocket(mi_socket_s);
 
-			pthread_mutex_lock(&mutexLog);
+//			pthread_mutex_lock(&mutexLog);
 			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 			log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-			pthread_mutex_unlock(&mutexLog);
+//			pthread_mutex_unlock(&mutexLog);
 
 			liberarMemoriaAlocada();
 			nivel_gui_terminar();
@@ -1445,10 +1445,10 @@ void chequearDeadlock() {
 		{
 			switch(entrenadorAux->socket->errorCode) {
 			case ERR_PEER_DISCONNECTED:
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAux->socket->descriptor);
 				log_info(logger, entrenadorAux->socket->error);
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				eliminarEntrenadorMapa(entrenadorAux);
 				BorrarItem(items, entrenadorAux->id);
@@ -1460,11 +1460,11 @@ void chequearDeadlock() {
 				activo = 0;
 				eliminarSocket(mi_socket_s);
 
-				pthread_mutex_lock(&mutexLog);
+//				pthread_mutex_lock(&mutexLog);
 				log_info(logger, "No se ha podido enviar un mensaje");
 				log_info(logger, entrenadorAux->socket->error);
 				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-				pthread_mutex_unlock(&mutexLog);
+//				pthread_mutex_unlock(&mutexLog);
 
 				eliminarEntrenador(entrenadorAux);
 				liberarMemoriaAlocada();

@@ -1395,6 +1395,9 @@ void signal_termination_handler(int signum) {
 }
 
 void chequearDeadlock() {
+	//CORRO EL ALGORITMO SEGUN EL TIEMPO QUE ESTÁ SETEADO EN LA CONFIGURACIÓN
+	sleep(configMapa.TiempoChequeoDeadlock);
+
 	if(algoritmoDeteccion())
 	{
 		t_pkmn_factory* pokemon_factory = create_pkmn_factory();

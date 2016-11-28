@@ -45,8 +45,8 @@ t_list* recursosAsignados;		// Recursos asignados (Pokémones)
 t_list* recursosSolicitados;	// Recursos solicitados (Pokémones)
 int activo;						// Flag de actividad del mapa
 int configuracionActualizada;   // Flag de actualización de la configuración
-char* puntoMontajeOsada;        // Ruta del FS
-char* rutaDirectorioMapa;		// Nombre del mapa
+char* puntoMontajeOsada;        // Punto de montaje del FS
+char* rutaDirectorioMapa;		// Ruta del directorio del mapa
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos
@@ -733,36 +733,45 @@ t_mapa_pokenest leerPokenest(char* metadata) {
 
 	config = config_create(metadata);
 
-	if(config_has_property(config, "Tipo")
-			&& config_has_property(config, "Posicion")
-			&& config_has_property(config, "Identificador"))
+	if(config != NULL)
 	{
-		structPokenest.id = *(config_get_string_value(config, "Identificador"));
-		structPokenest.tipo = strdup(config_get_string_value(config, "Tipo"));
-		char* posXY = strdup(config_get_string_value(config, "Posicion"));
-		char** array = string_split(posXY, ";");
-		structPokenest.ubicacion.x = atoi(array[0]);
-		structPokenest.ubicacion.y = atoi(array[1]);
-		config_destroy(config);
+		if(config_has_property(config, "Tipo")
+				&& config_has_property(config, "Posicion")
+				&& config_has_property(config, "Identificador"))
+		{
+			structPokenest.id = *(config_get_string_value(config, "Identificador"));
+			structPokenest.tipo = strdup(config_get_string_value(config, "Tipo"));
+			char* posXY = strdup(config_get_string_value(config, "Posicion"));
+			char** array = string_split(posXY, ";");
+			structPokenest.ubicacion.x = atoi(array[0]);
+			structPokenest.ubicacion.y = atoi(array[1]);
+			config_destroy(config);
+		}
+		else
+		{
+			log_error(logger, "El archivo de metadata de la PokéNest tiene un formato inválido");
+			config_destroy(config);
+		}
 	}
 	else
-	{
-		log_error(logger, "El archivo de metadata de la PokéNest tiene un formato inválido");
-		config_destroy(config);
-	}
+		log_error(logger, "La ruta de archivo de metadata indicada no existe");
 
 	return structPokenest;
 }
 
 int cargarConfiguracion(t_mapa_config* structConfig) {
 	t_config* config;
-	char* rutaMetadataMapa = strdup(rutaDirectorioMapa);
-	string_append(&rutaMetadataMapa, "metadata");
+	char* rutaMetadataMapa;
+
+	rutaMetadataMapa = strdup(rutaDirectorioMapa);
+	string_append(&rutaMetadataMapa, METADATA);
 
 	config = config_create(rutaMetadataMapa);
 
 	if(config != NULL)
 	{
+		free(rutaMetadataMapa);
+
 		if(config_has_property(config, "TiempoChequeoDeadlock")
 				&& config_has_property(config, "Batalla")
 				&& config_has_property(config, "algoritmo")
@@ -793,6 +802,7 @@ int cargarConfiguracion(t_mapa_config* structConfig) {
 	else
 	{
 		log_error(logger, "La ruta de archivo de configuración indicada no existe");
+		free(rutaMetadataMapa);
 		return 1;
 	}
 }

@@ -29,8 +29,8 @@ typedef struct entrenador {
 
 // Ruta al archivo de log
 #define LOG_FILE_PATH "entrenador.log"
-// Ruta al archivo de configuración
-#define CONFIG_FILE_PATH "metadata"
+// Nombre del archivo de metadata
+#define METADATA "metadata.dat"
 
 
 /* Declaración de funciones */

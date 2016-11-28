@@ -27,8 +27,8 @@
 t_log* logger;							// Archivo de log
 t_entrenador_config configEntrenador;	// Datos de configuración
 int activo;							 	// Flag de actividad del entrenador
-char* puntoMontajeOsada;         	  // Ruta del FS
-char* rutaMetadataEntrenador;               // Ruta del archivo config
+char* puntoMontajeOsada;         	  	// Punto de montaje del FS
+char* rutaDirectorioEntrenador;         // Ruta del directorio del entrenador
 
 socket_t* mapa_s;
 
@@ -43,11 +43,10 @@ int main(int argc, char **argv) {
 
 	//DANDOLE FORMA A LOS PARAMETROS RECIBIDOS
 	puntoMontajeOsada = strdup(argv[1]);
-	rutaMetadataEntrenador = strdup(argv[1]);
-	string_append(&rutaMetadataEntrenador, "/Entrenadores/");
-	string_append(&rutaMetadataEntrenador, argv[2]);
-	string_append(&rutaMetadataEntrenador, "/");
-
+	rutaDirectorioEntrenador = strdup(argv[1]);
+	string_append(&rutaDirectorioEntrenador, "/Entrenadores/");
+	string_append(&rutaDirectorioEntrenador, argv[2]);
+	string_append(&rutaDirectorioEntrenador, "/");
 
 	void _obtenerObjetivo(char* objetivo) {
 		if(!victima)
@@ -109,17 +108,18 @@ int main(int argc, char **argv) {
 	}
 
 	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
-//		char* ip;
-//		char* puerto;
+		char* ip = string_new();
+		char* puerto = string_new();
 
 		objetivosCompletados = 0;
 
-		while(configEntrenador.Vidas > 0 && activo && !objetivosCompletados) {
-			// Obtener datos de conexión del mapa
-//			obtenerDatosConexion(ciudad->Nombre, ip, puerto);
+		// Obtener datos de conexión del mapa
+		obtenerDatosConexion(ciudad->Nombre, ip, puerto);
 
+		while(configEntrenador.Vidas > 0 && activo && !objetivosCompletados) {
 			// Conexión al mapa
-			mapa_s = conectarAMapa("127.0.0.1", "3490"); //conectarAMapa(ip, puerto);
+			mapa_s = conectarAMapa(ip, puerto);
+
 			if(mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
@@ -144,9 +144,13 @@ int main(int argc, char **argv) {
 				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
 				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
 				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+
 				eliminarSocket(mapa_s);
 			}
 		}
+
+		free(ip);
+		free(puerto);
 
 		if(configEntrenador.Vidas == 0)
 		{
@@ -212,12 +216,17 @@ int main(int argc, char **argv) {
 
 int cargarConfiguracion(t_entrenador_config* structConfig) {
 	t_config* config;
-	char* puntoMontajeAux = strdup(rutaMetadataEntrenador);
-	string_append(&puntoMontajeAux, CONFIG_FILE_PATH);
-	config = config_create(puntoMontajeAux);
+	char* rutaMetadataEntrenador;
+
+	rutaMetadataEntrenador = strdup(rutaDirectorioEntrenador);
+	string_append(&rutaMetadataEntrenador, METADATA);
+
+	config = config_create(rutaMetadataEntrenador);
 
 	if(config != NULL)
 	{
+		free(rutaMetadataEntrenador);
+
 		if(config_has_property(config, "nombre")
 				&& config_has_property(config, "simbolo")
 				&& config_has_property(config, "hojaDeViaje")
@@ -263,6 +272,7 @@ int cargarConfiguracion(t_entrenador_config* structConfig) {
 	else
 	{
 		log_error(logger, "La ruta de archivo de configuración indicada no existe");
+		free(rutaMetadataEntrenador);
 		return 1;
 	}
 }
@@ -623,7 +633,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	log_info(logger, "Se solicita capturar un Pokémon");
 
 	// Recibir mensaje CONFIRMA_CAPTURA
-	mensaje_t mensajeConfirmaCaptura;
+	mensaje9_t mensajeConfirmaCaptura;
 
 	mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
 	recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
@@ -722,8 +732,11 @@ void signal_termination_handler(int signum) {
 void obtenerDatosConexion(char* nombreCiudad, char* ip, char* puerto) {
 	t_config* metadata;
 
-	char* rutaMetadataMapa = string_new(); //strdup(puntoMontajeOsada);
+	char* rutaMetadataMapa = strdup(puntoMontajeOsada);
 	string_append(&rutaMetadataMapa, "Mapas/");
+	string_append(&rutaMetadataMapa, nombreCiudad);
+	string_append(&rutaMetadataMapa, "/");
+	string_append(&rutaMetadataMapa, METADATA);
 
 	metadata = config_create(rutaMetadataMapa);
 	if(metadata != NULL)
@@ -743,10 +756,16 @@ void obtenerDatosConexion(char* nombreCiudad, char* ip, char* puerto) {
 		}
 		else
 		{
+			ip = NULL;
+			puerto = NULL;
+
 			log_error(logger, "El archivo de metadata del mapa tiene un formato inválido");
 			config_destroy(metadata);
 		}
 	}
 	else
-		log_error(logger, "La ruta de archivo de configuración indicada no existe");
+		ip = NULL;
+		puerto = NULL;
+
+		log_error(logger, "La ruta de archivo de metadata indicada no existe");
 }

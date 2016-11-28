@@ -46,7 +46,7 @@ t_list* recursosSolicitados;	// Recursos solicitados (Pokémones)
 int activo;						// Flag de actividad del mapa
 int configuracionActualizada;   // Flag de actualización de la configuración
 char* puntoMontajeOsada;         // Ruta del FS
-char* rutaMetadataMapa;               // Nombre del mapa
+char* rutaMetadataMapa;               // Ruta del archivo config
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos

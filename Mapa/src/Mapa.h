@@ -66,7 +66,7 @@ typedef struct metadataPokemon{
 // Ruta al archivo de log
 #define LOG_FILE_PATH "mapa.log"
 // Ruta al archivo de configuración
-#define CONFIG_FILE_PATH "config.cfg"
+#define CONFIG_FILE_PATH "metadata"
 
 
 /* Declaración de funciones */
@@ -96,5 +96,9 @@ void chequearDeadlock();
 t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador);
 t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear);
 int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* metadatasPokemones);
+void liberarRecursosEntrenador(t_entrenador* entrenador);
+void capturarPokemon(t_entrenador* entrenador);
+void desbloquearJugadores();
+void actualizarSolicitudes(t_entrenador* entrenador);
 
 #endif /* MAPA_H_ */

@@ -1345,9 +1345,73 @@ void chequearDeadlock() {
 		//YA TENGO TODOS LOS POKEMON DE CADA ENTRENADOR, AHORA A PELEAR
 		t_pokemonEntrenador* entrenadorAEliminar;
 		entrenadorAEliminar = malloc(sizeof(t_pokemonEntrenador));
-		*entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
+		entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
 
-		//LLAMAR FUNCION PARA LIBERAR RECURSOS
+		//ARMO EL MENSAJE PARA MANDAR A LIBERAR RECURSOS
+		mensaje_t mensajeLiberaRecursos;
+		mensajeLiberaRecursos.tipoMensaje = INFORMA_MUERTE;
+
+		paquete_t paqueteEliminarRecursos;
+		crearPaquete((void*) &mensajeLiberaRecursos, &paqueteEliminarRecursos);
+
+		if(paqueteEliminarRecursos.tamanioPaquete == 0)
+		{
+			activo = 0;
+			eliminarSocket(mi_socket_s);
+
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+			pthread_mutex_unlock(&mutexLog);
+
+			liberarMemoriaAlocada();
+			nivel_gui_terminar();
+			abort();
+		}
+
+		bool _esElEntrenador(t_entrenador* entrenador)
+		{
+			return entrenador->id == entrenadorAEliminar->id;
+		}
+
+		t_entrenador* entrenadorAux;
+		entrenadorAux = list_find(colaBlocked->elements, (void*) _esElEntrenador);
+
+		enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
+		free(paqueteEliminarRecursos.paqueteSerializado);
+
+		if(entrenadorAux->socket->errorCode != NO_ERROR)
+		{
+			switch(entrenadorAux->socket->errorCode) {
+			case ERR_PEER_DISCONNECTED:
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAux->socket->descriptor);
+				log_info(logger, entrenadorAux->socket->error);
+				pthread_mutex_unlock(&mutexLog);
+
+				eliminarEntrenadorMapa(entrenadorAux);
+				BorrarItem(items, entrenadorAux->id);
+				eliminarEntrenador(entrenadorAux);
+				entrenadorAux = NULL;
+
+				break;
+			case ERR_MSG_CANNOT_BE_SENT:
+				activo = 0;
+				eliminarSocket(mi_socket_s);
+
+				pthread_mutex_lock(&mutexLog);
+				log_info(logger, "No se ha podido enviar un mensaje");
+				log_info(logger, entrenadorAux->socket->error);
+				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+				pthread_mutex_unlock(&mutexLog);
+
+				eliminarEntrenador(entrenadorAux);
+				liberarMemoriaAlocada();
+				nivel_gui_terminar();
+
+				break;
+			}
+		}
 	}
 }
 
@@ -1360,48 +1424,52 @@ t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador) {
 	return entrenadorYPokemon;
 }
 
-t_pokemonEntrenador obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear) {
-	t_pokemonEntrenador entrenadorPerdedor;
+t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear) {
+	t_pokemonEntrenador* entrenadorPerdedor;
 	bool noHayEntrenadorAEliminar = true;
 
 	while(noHayEntrenadorAEliminar)
 	{
-		if(list_size(entrenadoresConPokemonesAPelear) >= 2)
+		if(list_size(entrenadoresConPokemonesAPelear) != 0)
 		{
-			t_pokemonEntrenador* entrenador1;
-			t_pokemonEntrenador* entrenador2;
-
-			entrenador1 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
-			entrenador2 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
-
-			//HACER PELEAR A LOS ENTRENADORES
-			t_pokemon * loser = pkmn_battle(entrenador1.pokemon, entrenador2.pokemon);
-
-			if(entrenador1->pokemon == loser)
+			if(list_size(entrenadoresConPokemonesAPelear) >= 2)
 			{
-				entrenadorPerdedor = entrenador1;
+				t_pokemonEntrenador* entrenador1;
+				t_pokemonEntrenador* entrenador2;
+
+				entrenador1 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+				entrenador2 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+
+				//HACER PELEAR A LOS ENTRENADORES
+				t_pokemon * loser = pkmn_battle(entrenador1->pokemon, entrenador2->pokemon);
+
+				if(entrenador1->pokemon == loser)
+				{
+					entrenadorPerdedor = entrenador1;
+				}
+				else
+				{
+					entrenadorPerdedor = entrenador2;
+				}
 			}
 			else
 			{
-				entrenadorPerdedor = entrenador2;
+				t_pokemonEntrenador* entrenadorRestante;
+				entrenadorRestante = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+
+				//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR. Y ASÍ SABER QUIEN ES EL MAS LOSER
+				t_pokemon* loser = pkmn_battle(entrenadorPerdedor->pokemon, entrenadorRestante->pokemon);
+
+				if(entrenadorRestante->pokemon == loser)
+				{
+					entrenadorPerdedor = entrenadorRestante;
+				}
+
+				noHayEntrenadorAEliminar = false;
 			}
 		}
 		else
-		{
-			t_pokemonEntrenador* entrenadorRestante;
-			entrenadorRestante = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
-
-			//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR. Y ASÍ SABER QUIEN ES EL MAS LOSER
-			t_pokemon * loser = pkmn_battle(entrenadorPerdedor.pokemon, entrenadorRestante.pokemon);
-
-			if(entrenadorRestante->pokemon == loser)
-			{
-				entrenadorPerdedor = entrenadorRestante;
-			}
-
-
-			noHayEntrenadorAEliminar = false;
-		}
+			break;
 	}
 	
 	return entrenadorPerdedor;

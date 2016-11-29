@@ -141,6 +141,19 @@ int main(int argc, char **argv) {
 			{
 				objetivosCompletados = 1;
 
+				char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
+				string_append(&rutaEntrenador, "Medallas/");
+
+				char* rutaMedalla = strdup(puntoMontajeOsada);
+				string_append(&rutaMedalla, "/Mapas/");
+				string_append(&rutaMedalla, ciudad->Nombre);
+				string_append(&rutaMedalla, "/");
+				string_append(&rutaMedalla, "medalla-");
+				string_append(&rutaMedalla, ciudad->Nombre);
+				string_append(&rutaMedalla, ".jpg");
+
+				execl( "/bin/cp", "-p", rutaMedalla, rutaEntrenador);
+
 				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
 				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
 				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);

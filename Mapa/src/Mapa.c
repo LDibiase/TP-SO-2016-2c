@@ -646,6 +646,17 @@ t_list* cargarPokenests() {
 
 	        pokenestLeida = leerPokenest(str);
 
+			//CHEQUEO QUE LA POSICIÓN OBTENIDA NO SEA 0. SI LO ES, LE SUMO UNO. (ACLARADO POR LOS AYUDANTES)
+			if(pokenestLeida.ubicacion.x == 0)
+			{
+				pokenestLeida.ubicacion.x++;
+			}
+			
+			if(pokenestLeida.ubicacion.y == 0)
+			{
+				pokenestLeida.ubicacion.y++;
+			}
+
 	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, cantidadDeRecursos);
 
 	        recursoTotales = malloc(sizeof(pokenestLeida));

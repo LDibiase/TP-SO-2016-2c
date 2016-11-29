@@ -35,7 +35,7 @@ char* ip;
 char* puerto;
 
 //SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
-//pthread_mutex_t mutexLog;
+pthread_mutex_t mutexLog;
 
 int main(int argc, char **argv) {
 	t_ubicacion ubicacion;
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
 					{
 						eliminarSocket(mapa_s);
 						log_destroy(logger);
-//						pthread_mutex_destroy(&mutexLog);
+						pthread_mutex_destroy(&mutexLog);
 						abort();
 					}
 				}
@@ -81,7 +81,7 @@ int main(int argc, char **argv) {
 					{
 						eliminarSocket(mapa_s);
 						log_destroy(logger);
-//						pthread_mutex_destroy(&mutexLog);
+						pthread_mutex_destroy(&mutexLog);
 						exit(EXIT_FAILURE);
 					}
 				}
@@ -93,7 +93,7 @@ int main(int argc, char **argv) {
 
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
-//				pthread_mutex_destroy(&mutexLog);
+				pthread_mutex_destroy(&mutexLog);
 				exit(EXIT_FAILURE);
 			}
 
@@ -103,7 +103,7 @@ int main(int argc, char **argv) {
 			{
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
-//				pthread_mutex_destroy(&mutexLog);
+				pthread_mutex_destroy(&mutexLog);
 				exit(EXIT_FAILURE);
 			}
 		}
@@ -124,7 +124,7 @@ int main(int argc, char **argv) {
 			{
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
-//				pthread_mutex_destroy(&mutexLog);
+				pthread_mutex_destroy(&mutexLog);
 				exit(EXIT_FAILURE);
 			}
 
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
 
 			eliminarSocket(mapa_s);
 			log_destroy(logger);
-//			pthread_mutex_destroy(&mutexLog);
+			pthread_mutex_destroy(&mutexLog);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -176,7 +176,7 @@ int main(int argc, char **argv) {
 	pthread_attr_t atributosHiloSignalHandler;
 
 	//INICIALIZACIÓN DE LOS SEMÁFOROS
-//	pthread_mutex_init(&mutexLog, NULL);
+	pthread_mutex_init(&mutexLog, NULL);
 
 	// Creación del archivo de log
 	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
@@ -188,7 +188,7 @@ int main(int argc, char **argv) {
 	{
 		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 		log_destroy(logger);
-//		pthread_mutex_destroy(&mutexLog);
+		pthread_mutex_destroy(&mutexLog);
 		return EXIT_FAILURE;
 	}
 
@@ -210,7 +210,7 @@ int main(int argc, char **argv) {
 	log_info(logger, "La ejecución del proceso Entrenador ha finalizado correctamente");
 
 	log_destroy(logger);
-//	pthread_mutex_destroy(&mutexLog);
+	pthread_mutex_destroy(&mutexLog);
 	return EXIT_SUCCESS;
 }
 
@@ -690,7 +690,7 @@ void signal_handler() {
  	 struct sigaction sa;
 
  	 // Print PID
- 	 log_info(logger, "PID del proceso entrenador: %d\n", getpid());
+ 	 log_info(logger, "PID del proceso entrenador: %d", getpid());
 
  	 // Setup the sighub handler
  	 sa.sa_handler = &signal_termination_handler;
@@ -719,7 +719,6 @@ void signal_termination_handler(int signum) {
  	   	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
  	   	break;
-
  	 case SIGTERM:
   		configEntrenador.Vidas--;
   	    log_info(logger, "SIGTERM: Se ha perdido una vida");
@@ -730,7 +729,6 @@ void signal_termination_handler(int signum) {
  		activo = 0;
 
  		 break;
-
  	 default:
  	    log_info(logger, "Código inválido: %d", signum);
 

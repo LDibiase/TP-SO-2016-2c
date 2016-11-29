@@ -102,7 +102,6 @@ int main(int argc, char** argv) {
 
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
-	log_info(logger, "El punto de montaje recibido es: %s", puntoMontajeOsada);
 
 	//CONFIGURACIÓN DEL MAPA
 	pthread_mutex_lock(&mutexLog);
@@ -658,12 +657,12 @@ t_list* cargarPokenests() {
 int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* metadatasPokemones) {
 	int cantidad = 0;
 	t_config* config;
+
 	char* nombreArchivoPokemonAux = strdup(rutaPokenest);
 	string_append(&nombreArchivoPokemonAux, "/");
 	string_append(&nombreArchivoPokemonAux, nombrePokemon);
 
 	char* numeroPokemon = strdup("001");
-
 	char* nombreArchivoPokemon = strdup(nombreArchivoPokemonAux);
 	string_append(&nombreArchivoPokemon, numeroPokemon);
 	string_append(&nombreArchivoPokemon, ".dat");
@@ -1083,12 +1082,15 @@ void aceptarConexiones() {
 
 		encolarEntrenador(entrenadorPlanificado);
 
-		//SE ADAPTAN LAS MATRICES DE RECURSOS
+		//SE ADAPTAN Y ACTUALIZAN LAS MATRICES DE RECURSOS
 		t_recursosEntrenador* recursosAsignadosEntrenador;
 		t_recursosEntrenador* recursosSolicitadosEntrenador;
 
 		recursosAsignadosEntrenador = malloc(sizeof(t_recursosEntrenador));
 		recursosSolicitadosEntrenador = malloc(sizeof(t_recursosEntrenador));
+
+		recursosAsignadosEntrenador->id = entrenadorPlanificado->id;
+		recursosSolicitadosEntrenador->id = entrenadorPlanificado->id;
 
 		recursosAsignadosEntrenador->recursos = list_create();
 		recursosSolicitadosEntrenador->recursos = list_create();
@@ -1101,11 +1103,15 @@ void aceptarConexiones() {
 			recursoAsignado = malloc(sizeof(t_mapa_pokenest));
 			recursoSolicitado = malloc(sizeof(t_mapa_pokenest));
 
+			recursoAsignado->tipo = NULL;
 			recursoAsignado->id = recurso->id;
-			recursoAsignado->cantidad = 10; //*recurso->cantidad;
+			recursoAsignado->cantidad = 0;
+			recursoAsignado->metadatasPokemones = list_create();
 
+			recursoSolicitado->tipo = NULL;
 			recursoSolicitado->id = recurso->id;
-			recursoSolicitado->cantidad = 10; //*recurso->cantidad;
+			recursoSolicitado->cantidad = 0;
+			recursoSolicitado->metadatasPokemones = list_create();
 
 			list_add(recursosAsignadosEntrenador->recursos, recursoAsignado);
 			list_add(recursosSolicitadosEntrenador->recursos, recursoSolicitado);
@@ -1234,8 +1240,11 @@ void eliminarRecursosEntrenador(t_recursosEntrenador* recursosEntrenador) {
 			free(metadata);
 		}
 
-		free(recurso->tipo);
+		if(recurso->tipo != NULL)
+			free(recurso->tipo);
+
 		list_destroy_and_destroy_elements(recurso->metadatasPokemones, (void*) _eliminarMetadata);
+
 		free(recurso);
 	}
 

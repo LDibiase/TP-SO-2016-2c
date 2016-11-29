@@ -206,6 +206,9 @@ int main(int argc, char** argv) {
 						eliminarEntrenador(entrenadorAEjecutar);
 						entrenadorAEjecutar = NULL;
 
+						informarEstadoCola("Cola Ready", colaReady->elements);
+						informarEstadoCola("Cola Blocked", colaBlocked->elements);
+
 						desbloquearJugadores();
 
 						continue;
@@ -288,6 +291,9 @@ int main(int argc, char** argv) {
 							BorrarItem(items, entrenadorAEjecutar->id);
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
+
+							informarEstadoCola("Cola Ready", colaReady->elements);
+							informarEstadoCola("Cola Blocked", colaBlocked->elements);
 
 							desbloquearJugadores();
 
@@ -387,6 +393,9 @@ int main(int argc, char** argv) {
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
+							informarEstadoCola("Cola Ready", colaReady->elements);
+							informarEstadoCola("Cola Blocked", colaBlocked->elements);
+
 							desbloquearJugadores();
 
 							continue;
@@ -422,6 +431,7 @@ int main(int argc, char** argv) {
 
 					actualizarSolicitudes(entrenadorAEjecutar);
 					insertarAlFinal(entrenadorAEjecutar, colaBlocked, &mutexBlocked);
+					informarEstadoCola("Cola Blocked", colaBlocked->elements);
 
 					free(mensajeSolicitud);
 
@@ -504,6 +514,8 @@ void encolarEntrenador(t_entrenador* entrenador) {
 	}
 
 	log_info(logger, "Se encola al entrenador");
+
+	informarEstadoCola("Cola Ready", colaReady->elements);
 }
 
 void reencolarEntrenador(t_entrenador* entrenador) {
@@ -518,6 +530,8 @@ void reencolarEntrenador(t_entrenador* entrenador) {
 	}
 
 	log_info(logger, "Se encola al entrenador");
+
+	informarEstadoCola("Cola Ready", colaReady->elements);
 }
 
 void calcularFaltante(t_entrenador entrenador) {
@@ -633,19 +647,26 @@ t_list* cargarPokenests() {
 	        pokenestLeida = leerPokenest(str);
 
 	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, cantidadDeRecursos);
-	    	recursoTotales = malloc(sizeof(pokenestLeida));
+
+	        recursoTotales = malloc(sizeof(pokenestLeida));
 	    	recursoDisponibles = malloc(sizeof(pokenestLeida));
 
-	        *recursoTotales = pokenestLeida;
+	        recursoTotales->cantidad = cantidadDeRecursos;
+	        recursoTotales->id = pokenestLeida.id;
 	        recursoTotales->metadatasPokemones = metadatasPokemones;
+	        recursoTotales->tipo = NULL;
 
-	        *recursoDisponibles = pokenestLeida;
+	        recursoDisponibles->cantidad = cantidadDeRecursos;
+	        recursoDisponibles->id = pokenestLeida.id;
+	        recursoDisponibles->metadatasPokemones = list_create();
+	        recursoDisponibles->tipo = NULL;
 
 	        list_add(recursosTotales, recursoTotales);
 	        list_add(recursosDisponibles, recursoDisponibles);
 
 	        log_info(logger, "Se cargó la PokéNest: %c", pokenestLeida.id);
 	    	free(str);
+	    	free(pokenestLeida.tipo);
 		}
 	}
 
@@ -680,7 +701,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 
 				t_metadataPokemon* metadataPokemon = malloc(sizeof(t_metadataPokemon));
 				metadataPokemon->nivel = config_get_int_value(config, "Nivel");
-				metadataPokemon->rutaArchivo = nombreArchivoPokemon;
+				metadataPokemon->rutaArchivo = strdup(nombreArchivoPokemon);
 
 				list_add(metadatasPokemones, metadataPokemon);
 				list_sort(metadatasPokemones, (void*) _mayorAMenorNivel);
@@ -1002,12 +1023,14 @@ void aceptarConexiones() {
 
 		log_info(logger, "Socket %d: mi nombre es %s (%c) y soy un entrenador Pokémon", cli_socket_s->descriptor, mensajeConexionEntrenador.nombreEntrenador, mensajeConexionEntrenador.simboloEntrenador);
 
+		entrenador->faltaEjecutar = 0;
 		entrenador->id = mensajeConexionEntrenador.simboloEntrenador;
 		entrenador->idPokenestActual = 0;
 		entrenador->nombre = mensajeConexionEntrenador.nombreEntrenador;
 		entrenador->socket = cli_socket_s;
 		entrenador->ubicacion.x = 1;
 		entrenador->ubicacion.y = 1;
+		entrenador->utEjecutadas = 0;
 
 		// Enviar mensaje ACEPTA_CONEXION
 		paquete_t paquete;
@@ -1077,13 +1100,25 @@ void aceptarConexiones() {
 
 		log_info(logger, "Se aceptó una conexión (socket %d)", entrenador->socket->descriptor);
 
+		informarEstadoCola("Entrenadores conectados", entrenadores);
+
 		//SE PLANIFICA AL NUEVO ENTRENADOR
 		t_entrenador* entrenadorPlanificado;
 
 		entrenadorPlanificado = malloc(sizeof(t_entrenador));
-		*entrenadorPlanificado = *entrenador;
+
+		entrenadorPlanificado->faltaEjecutar = entrenador->faltaEjecutar;
+		entrenadorPlanificado->id = entrenador->id;
+		entrenadorPlanificado->idPokenestActual = entrenador->idPokenestActual;
+		entrenadorPlanificado->nombre = strdup(entrenador->nombre);
+		entrenadorPlanificado->socket = malloc(sizeof(socket_t));
+		*(entrenadorPlanificado->socket) = *(entrenador->socket);
+		entrenadorPlanificado->ubicacion.x = entrenador->ubicacion.x;
+		entrenadorPlanificado->ubicacion.y = entrenador->ubicacion.y;
+		entrenadorPlanificado->utEjecutadas = entrenador->utEjecutadas;
 
 		encolarEntrenador(entrenadorPlanificado);
+		informarEstadoCola("Cola Blocked", colaBlocked->elements);
 
 		//SE ADAPTAN Y ACTUALIZAN LAS MATRICES DE RECURSOS
 		t_recursosEntrenador* recursosAsignadosEntrenador;
@@ -1282,6 +1317,7 @@ void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar) {
 	}
 
 	list_remove_and_destroy_by_condition(entrenadores, (void*) _esEntrenadorBuscado, (void*) eliminarEntrenador);
+	informarEstadoCola("Entrenadores conectados", entrenadores);
 
 	liberarRecursosEntrenador(entrenadorAEliminar);
 }
@@ -1411,6 +1447,9 @@ void chequearDeadlock() {
 				BorrarItem(items, entrenadorAux->id);
 				eliminarEntrenador(entrenadorAux);
 				entrenadorAux = NULL;
+
+				informarEstadoCola("Cola Ready", colaReady->elements);
+				informarEstadoCola("Cola Blocked", colaBlocked->elements);
 
 				desbloquearJugadores();
 
@@ -1551,6 +1590,10 @@ void capturarPokemon(t_entrenador* entrenador) {
 
 		list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
 
+		t_recursosEntrenador* recursosEntrenador = list_find(recursosAsignados, (void*) _recursosEntrenador);
+		recurso = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
+		recurso->cantidad++;
+
 		t_metadataPokemon* metadata = list_get(recurso->metadatasPokemones, 0);
 
 		mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
@@ -1594,6 +1637,9 @@ void capturarPokemon(t_entrenador* entrenador) {
 				eliminarEntrenador(entrenador);
 				entrenador = NULL;
 
+				informarEstadoCola("Cola Ready", colaReady->elements);
+				informarEstadoCola("Cola Blocked", colaBlocked->elements);
+
 				desbloquearJugadores();
 
 				return;
@@ -1635,4 +1681,24 @@ void actualizarSolicitudes(t_entrenador* entrenador) {
 	t_mapa_pokenest* recursoAActualizar = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
 
 	recursoAActualizar->cantidad++;
+}
+
+void informarEstadoCola(char* nombreCola, t_list* cola) {
+	char* estadoCola;
+
+	void _informarEstado(t_entrenador* entrenador) {
+		if(string_is_empty(estadoCola))
+			string_append(&estadoCola, entrenador->nombre);
+		else
+		{
+			string_append(&estadoCola, " - ");
+			string_append(&estadoCola, entrenador->nombre);
+		}
+	}
+
+	estadoCola = string_new();
+
+	list_iterate(cola, (void*) _informarEstado);
+
+	log_info(logger, "%s: %s", nombreCola, estadoCola);
 }

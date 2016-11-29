@@ -100,5 +100,6 @@ void liberarRecursosEntrenador(t_entrenador* entrenador);
 void capturarPokemon(t_entrenador* entrenador);
 void desbloquearJugadores();
 void actualizarSolicitudes(t_entrenador* entrenador);
+void informarEstadoCola(char* nombreCola, t_list* cola);
 
 #endif /* MAPA_H_ */

@@ -82,12 +82,12 @@ socket_t* nuevoSocket() {
 }
 
 void eliminarSocket(socket_t* socket_s) {
-	free(&(socket_s->errorCode));
-
 	if(socket_s->error != NULL)
 		free(socket_s->error);
 
 	close(socket_s->descriptor);
+
+	free(socket_s);
 }
 
 socket_t* crearServidor(char* ip, char* puerto) {
@@ -357,7 +357,7 @@ void enviarMensaje(socket_t* socket, paquete_t paquete) {
 		else
 			socket->errorCode = ERR_MSG_CANNOT_BE_SENT;
 
-		socket->error = strerror(errno);
+		socket->error = strdup(strerror(errno));
 	}
 }
 
@@ -376,7 +376,7 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			else
 				socket->errorCode = ERR_MSG_CANNOT_BE_RECEIVED;
 
-			socket->error = strerror(errno);
+			socket->error = strdup(strerror(errno));
 
 			free(buffer);
 

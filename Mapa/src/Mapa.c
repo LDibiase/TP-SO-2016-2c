@@ -717,7 +717,10 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 			}
 		}
 		else
+		{
+			cantidad--;
 			break;
+		}
 	}
 
 	free(numeroPokemon);

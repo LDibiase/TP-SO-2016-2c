@@ -47,6 +47,7 @@ int activo;						// Flag de actividad del mapa
 int configuracionActualizada;   // Flag de actualización de la configuración
 char* puntoMontajeOsada;        // Punto de montaje del FS
 char* rutaDirectorioMapa;		// Ruta del directorio del mapa
+char* nombreMapa;				// Nombre del mapa
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos
@@ -71,6 +72,8 @@ int main(int argc, char** argv) {
 	string_append(&rutaDirectorioMapa, "/Mapas/");
 	string_append(&rutaDirectorioMapa, argv[2]);
 	string_append(&rutaDirectorioMapa, "/");
+
+	nombreMapa = argv[2];
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -127,7 +130,7 @@ int main(int argc, char** argv) {
 	items = cargarPokenests(); //Carga de las Pokénest del mapa
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
-	nivel_gui_dibujar(items, "CodeTogether");
+	nivel_gui_dibujar(items, nombreMapa);
 
 	// Se setea en 1 (on) el flag de actividad
 	activo = 1;
@@ -346,7 +349,7 @@ int main(int argc, char** argv) {
 						break;
 					}
 
-					realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+					realizar_movimiento(items, *entrenadorAEjecutar, nombreMapa);
 
 					//LE ENVÍO AL ENTRENADOR SU NUEVA UBICACIÓN
 					mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
@@ -590,7 +593,7 @@ void insertarAlFinal(t_entrenador* entrenador, t_queue* cola, pthread_mutex_t* m
 void realizar_movimiento(t_list* items, t_entrenador personaje, char* mapa) {
 	MoverPersonaje(items, personaje.id, personaje.ubicacion.x, personaje.ubicacion.y);
 	nivel_gui_dibujar(items, mapa);
-	usleep(configMapa.Retardo);
+	usleep(configMapa.Retardo * 1000);
 }
 
 ITEM_NIVEL* find_by_id(t_list* items, char idToFind) {

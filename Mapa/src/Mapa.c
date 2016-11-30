@@ -429,7 +429,7 @@ int main(int argc, char** argv) {
 
 					solicitoCaptura = 1;
 
-					actualizarSolicitudes(entrenadorAEjecutar);
+					actualizarMatriz(recursosSolicitados, entrenadorAEjecutar, 1);
 					insertarAlFinal(entrenadorAEjecutar, colaBlocked, &mutexBlocked);
 					informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 					informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
@@ -1641,19 +1641,20 @@ void capturarPokemon(t_entrenador* entrenador) {
 
 	if(recurso->cantidad >= 1)
 	{
-		mensaje9_t mensajeConfirmaCaptura;
+		t_recursosEntrenador* recursosEntrenador;
 
 		recurso->cantidad--;
 		restarRecurso(items, entrenador->idPokenestActual);
 
-		list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
-
-		t_recursosEntrenador* recursosEntrenador = list_find(recursosAsignados, (void*) _recursosEntrenador);
-		recurso = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
-		recurso->cantidad++;
+		actualizarMatriz(recursosSolicitados, entrenador, 0);
+		actualizarMatriz(recursosAsignados, entrenador, 1);
 
 		recurso = list_find(recursosTotales, (void*) _recursoBuscado);
-		t_metadataPokemon* metadata = list_get(recurso->metadatasPokemones, 0);
+
+		t_metadataPokemon* metadata;
+		metadata = list_get(recurso->metadatasPokemones, 0);
+
+		mensaje9_t mensajeConfirmaCaptura;
 
 		mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
 		mensajeConfirmaCaptura.tamanioNombreArchivoMetadata = strlen(metadata->rutaArchivo) + 1;
@@ -1727,7 +1728,7 @@ void capturarPokemon(t_entrenador* entrenador) {
 	}
 }
 
-void actualizarSolicitudes(t_entrenador* entrenador) {
+void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar) {
 	bool _recursosEntrenador(t_recursosEntrenador* recursos) {
 		return recursos->id == entrenador->id;
 	}
@@ -1736,10 +1737,16 @@ void actualizarSolicitudes(t_entrenador* entrenador) {
 		return recurso->id == entrenador->idPokenestActual;
 	}
 
-	t_recursosEntrenador* recursosEntrenador = list_find(recursosSolicitados, (void*) _recursosEntrenador);
-	t_mapa_pokenest* recursoAActualizar = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
+	t_recursosEntrenador* recursosEntrenador;
+	t_mapa_pokenest* recursoAActualizar;
 
-	recursoAActualizar->cantidad++;
+	recursosEntrenador = list_find(matriz, (void*) _recursosEntrenador);
+	recursoAActualizar = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
+
+	if(aumentar)
+		recursoAActualizar->cantidad++;
+	else
+		recursoAActualizar->cantidad--;
 }
 
 void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex) {

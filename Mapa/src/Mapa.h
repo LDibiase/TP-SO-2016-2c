@@ -99,7 +99,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 void liberarRecursosEntrenador(t_entrenador* entrenador);
 void capturarPokemon(t_entrenador* entrenador);
 void desbloquearJugadores();
-void actualizarSolicitudes(t_entrenador* entrenador);
+void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar);
 void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex);
 
 #endif /* MAPA_H_ */

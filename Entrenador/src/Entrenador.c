@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
 			}
 
 			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
-			solicitarCaptura(mapa_s, &victima);
+			solicitarCaptura(mapa_s, &victima, objetivo);
 			if(mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
@@ -604,7 +604,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);
 }
 
- void solicitarCaptura(socket_t* mapa_s, int* victima) {
+ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 	// Enviar mensaje SOLICITA_CAPTURA
 	paquete_t paquete;
 	mensaje_t mensajeSolicitaCaptura;
@@ -643,7 +643,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		return;
 	}
 
-	log_info(logger, "Se solicita capturar un Pokémon");
+	log_info(logger, "Se solicita capturar un Pokémon %s", objetivo);
 
 	// Recibir mensaje CONFIRMA_CAPTURA
 	mensaje9_t mensajeConfirmaCaptura;
@@ -679,10 +679,15 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
 		string_append(&rutaEntrenador, "Dir de Bill/");
 
-		execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador, NULL);
+//		execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador, (char*) NULL);
+
+		char* command = string_from_format("/bin/cp -p %s %s", rutaPokemon, rutaEntrenador);
+
+		system(command);
 
 		free(rutaPokemon);
 		free(rutaEntrenador);
+		free(command);
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{

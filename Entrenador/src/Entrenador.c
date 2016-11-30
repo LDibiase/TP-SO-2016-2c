@@ -152,7 +152,22 @@ int main(int argc, char **argv) {
 				string_append(&rutaMedalla, ciudad->Nombre);
 				string_append(&rutaMedalla, ".jpg");
 
-				execl( "/bin/cp", "-p", rutaMedalla, rutaEntrenador, NULL);
+				char* rutaOrigen = strdup("cp ");
+				string_append(&rutaOrigen, rutaMedalla);
+				string_append(&rutaOrigen, " ");
+
+				char* rutaDestino = strdup(rutaEntrenador);
+
+				char* sysCall = strdup(rutaOrigen);
+				string_append(&sysCall, rutaDestino);
+
+				system(sysCall);
+
+				free(rutaEntrenador);
+				free(rutaMedalla);
+				free(rutaOrigen);
+				free(rutaDestino);
+				free(sysCall);
 
 				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
 				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
@@ -677,7 +692,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		string_append(&rutaPokemon, mensajeConfirmaCaptura.nombreArchivoMetadata);
 
 		char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
-		//string_append(&rutaEntrenador, "Dir de Bill/");
 
 		char* rutaOrigen = strdup("cp ");
 		string_append(&rutaOrigen, rutaPokemon);
@@ -690,8 +704,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		string_append(&sysCall, rutaDestino);
 
 		system(sysCall);
-
-		//execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador, NULL);
 
 		free(rutaPokemon);
 		free(rutaEntrenador);

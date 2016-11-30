@@ -144,6 +144,7 @@ int main(int argc, char **argv) {
 				char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
 				string_append(&rutaEntrenador, "medallas/");
 
+				//SE LE OTORGA LA MEDALLA
 				char* rutaMedalla = strdup(puntoMontajeOsada);
 				string_append(&rutaMedalla, "/Mapas/");
 				string_append(&rutaMedalla, ciudad->Nombre);
@@ -163,11 +164,20 @@ int main(int argc, char **argv) {
 
 				system(sysCall);
 
+				//SE BORRA EL DIR DE BIL
+				char* rutaBorrado = strdup("rm -rf ");
+				string_append(&rutaBorrado, rutaDirectorioEntrenador);
+				string_append(&rutaBorrado, "\"Dir de Bill\"");
+				string_append(&rutaBorrado, "/*");
+
+				system(rutaBorrado);
+
 				free(rutaEntrenador);
 				free(rutaMedalla);
 				free(rutaOrigen);
 				free(rutaDestino);
 				free(sysCall);
+				free(rutaBorrado);
 
 				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
 				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
@@ -717,7 +727,8 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 		char* rutaBorrado = strdup("rm -rf ");
 		string_append(&rutaBorrado, rutaDirectorioEntrenador);
-		string_append(&rutaBorrado, "Dir de Bill/*");
+		string_append(&rutaBorrado, "\"Dir de Bill\"");
+		string_append(&rutaBorrado, "/*");
 
 		system(rutaBorrado);
 

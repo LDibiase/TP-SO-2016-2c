@@ -206,8 +206,8 @@ int main(int argc, char** argv) {
 						eliminarEntrenador(entrenadorAEjecutar);
 						entrenadorAEjecutar = NULL;
 
-						informarEstadoCola("Cola Ready", colaReady->elements);
-						informarEstadoCola("Cola Blocked", colaBlocked->elements);
+						informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+						informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 
 						desbloquearJugadores();
 
@@ -292,8 +292,8 @@ int main(int argc, char** argv) {
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
-							informarEstadoCola("Cola Ready", colaReady->elements);
-							informarEstadoCola("Cola Blocked", colaBlocked->elements);
+							informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+							informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 
 							desbloquearJugadores();
 
@@ -393,8 +393,8 @@ int main(int argc, char** argv) {
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
-							informarEstadoCola("Cola Ready", colaReady->elements);
-							informarEstadoCola("Cola Blocked", colaBlocked->elements);
+							informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+							informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 
 							desbloquearJugadores();
 
@@ -431,7 +431,8 @@ int main(int argc, char** argv) {
 
 					actualizarSolicitudes(entrenadorAEjecutar);
 					insertarAlFinal(entrenadorAEjecutar, colaBlocked, &mutexBlocked);
-					informarEstadoCola("Cola Blocked", colaBlocked->elements);
+					informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
+					informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
 
 					free(mensajeSolicitud);
 
@@ -477,7 +478,22 @@ int main(int argc, char** argv) {
 			{
 				if(solicitoCaptura)
 				{
+					bool _esEntrenador(t_entrenador* entrenador) {
+						return entrenador->id == entrenadorAEjecutar->id;
+					}
+
+					pthread_mutex_lock(&mutexBlocked);
+					entrenadorAEjecutar = list_remove_by_condition(colaBlocked->elements, (void*) _esEntrenador);
+					pthread_mutex_unlock(&mutexBlocked);
+
 					capturarPokemon(entrenadorAEjecutar);
+
+					if(!list_any_satisfy(colaReady->elements, (void*) _esEntrenador))
+					{
+						pthread_mutex_lock(&mutexBlocked);
+						queue_push(colaBlocked, entrenadorAEjecutar);
+						pthread_mutex_unlock(&mutexBlocked);
+					}
 				}
 				else
 					//VUELVO A ENCOLAR AL ENTRENADOR
@@ -515,7 +531,8 @@ void encolarEntrenador(t_entrenador* entrenador) {
 
 	log_info(logger, "Se encola al entrenador");
 
-	informarEstadoCola("Cola Ready", colaReady->elements);
+	informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+	informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 }
 
 void reencolarEntrenador(t_entrenador* entrenador) {
@@ -531,7 +548,8 @@ void reencolarEntrenador(t_entrenador* entrenador) {
 
 	log_info(logger, "Se encola al entrenador");
 
-	informarEstadoCola("Cola Ready", colaReady->elements);
+	informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+	informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 }
 
 void calcularFaltante(t_entrenador entrenador) {
@@ -606,6 +624,7 @@ t_list* cargarPokenests() {
 	t_mapa_pokenest pokenestLeida;
 	t_mapa_pokenest* recursoTotales;
 	t_mapa_pokenest* recursoDisponibles;
+
 	t_list* newlist = list_create();
 	char* rutaDirectorioPokenests;
 
@@ -633,14 +652,17 @@ t_list* cargarPokenests() {
 			char* str;
 			int cantidadDeRecursos = 0;
 
+	        recursoTotales = malloc(sizeof(pokenestLeida));
+	    	recursoDisponibles = malloc(sizeof(pokenestLeida));
+
+			recursoTotales->metadatasPokemones = list_create();
+			recursoDisponibles->metadatasPokemones = list_create();
+
 			str = strdup(rutaDirectorioPokenests);
 			string_append(&str, dent->d_name);
 
 			//OBTENGO METADATAS DE PÓKEMONES EXISTENTES EN LA POKÉNEST
-			t_list* metadatasPokemones;
-			metadatasPokemones = list_create();
-
-			cantidadDeRecursos = obtenerCantidadRecursos(dent->d_name, str, metadatasPokemones);
+			cantidadDeRecursos = obtenerCantidadRecursos(dent->d_name, str, recursoTotales->metadatasPokemones);
 
 			string_append(&str, "/metadata");
 
@@ -659,17 +681,12 @@ t_list* cargarPokenests() {
 
 	        CrearCaja(newlist, pokenestLeida.id, pokenestLeida.ubicacion.x, pokenestLeida.ubicacion.y, cantidadDeRecursos);
 
-	        recursoTotales = malloc(sizeof(pokenestLeida));
-	    	recursoDisponibles = malloc(sizeof(pokenestLeida));
-
 	        recursoTotales->cantidad = cantidadDeRecursos;
 	        recursoTotales->id = pokenestLeida.id;
-	        recursoTotales->metadatasPokemones = metadatasPokemones;
 	        recursoTotales->tipo = NULL;
 
 	        recursoDisponibles->cantidad = cantidadDeRecursos;
 	        recursoDisponibles->id = pokenestLeida.id;
-	        recursoDisponibles->metadatasPokemones = list_create();
 	        recursoDisponibles->tipo = NULL;
 
 	        list_add(recursosTotales, recursoTotales);
@@ -710,7 +727,9 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 					return pokemonMayorNivel->nivel > pokemonMenorNivel->nivel;
 				}
 
-				t_metadataPokemon* metadataPokemon = malloc(sizeof(t_metadataPokemon));
+				t_metadataPokemon* metadataPokemon;
+				metadataPokemon = malloc(sizeof(t_metadataPokemon));
+
 				metadataPokemon->nivel = config_get_int_value(config, "Nivel");
 				metadataPokemon->rutaArchivo = strdup(nombreArchivoPokemon);
 
@@ -753,6 +772,8 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 			break;
 		}
 	}
+
+	list_remove(metadatasPokemones, 0); // TODO Arreglar
 
 	free(numeroPokemon);
 	free(nombreArchivoPokemon);
@@ -1106,16 +1127,9 @@ void aceptarConexiones() {
 			}
 		}
 
-		//Se agrega al entrenador a la lista de entrenadores conectados
-		list_add(entrenadores, entrenador);
-
 		log_info(logger, "Se aceptó una conexión (socket %d)", entrenador->socket->descriptor);
 
-		informarEstadoCola("Entrenadores conectados", entrenadores);
-
-		//SE PLANIFICA AL NUEVO ENTRENADOR
 		t_entrenador* entrenadorPlanificado;
-
 		entrenadorPlanificado = malloc(sizeof(t_entrenador));
 
 		entrenadorPlanificado->faltaEjecutar = entrenador->faltaEjecutar;
@@ -1128,8 +1142,15 @@ void aceptarConexiones() {
 		entrenadorPlanificado->ubicacion.y = entrenador->ubicacion.y;
 		entrenadorPlanificado->utEjecutadas = entrenador->utEjecutadas;
 
+		//Se agrega al entrenador a la lista de entrenadores conectados
+		pthread_mutex_lock(&mutexEntrenadores);
+		list_add(entrenadores, entrenador);
+		pthread_mutex_unlock(&mutexEntrenadores);
+
+		informarEstadoCola("Entrenadores conectados", entrenadores, &mutexEntrenadores);
+
+		//SE PLANIFICA AL NUEVO ENTRENADOR
 		encolarEntrenador(entrenadorPlanificado);
-		informarEstadoCola("Cola Blocked", colaBlocked->elements);
 
 		//SE ADAPTAN Y ACTUALIZAN LAS MATRICES DE RECURSOS
 		t_recursosEntrenador* recursosAsignadosEntrenador;
@@ -1327,8 +1348,11 @@ void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar) {
 		return entrenador->id == entrenadorAEliminar->id;
 	}
 
+	pthread_mutex_lock(&mutexEntrenadores);
 	list_remove_and_destroy_by_condition(entrenadores, (void*) _esEntrenadorBuscado, (void*) eliminarEntrenador);
-	informarEstadoCola("Entrenadores conectados", entrenadores);
+	pthread_mutex_unlock(&mutexEntrenadores);
+
+	informarEstadoCola("Entrenadores conectados", entrenadores, &mutexEntrenadores);
 
 	liberarRecursosEntrenador(entrenadorAEliminar);
 }
@@ -1397,7 +1421,9 @@ void chequearDeadlock() {
 			t_pokemonEntrenador* pokemonConEntrenador;
 			pokemonConEntrenador = malloc(sizeof(t_pokemonEntrenador));
 
+			pthread_mutex_lock(&mutexBlocked);
 			t_entrenador* entrenadorAux = list_get(colaBlocked->elements, i);
+			pthread_mutex_unlock(&mutexBlocked);
 			*pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
 
 			//CREO EL POKEMON DE LA "CLASE" DE LA BIBLIOTECA
@@ -1459,8 +1485,8 @@ void chequearDeadlock() {
 				eliminarEntrenador(entrenadorAux);
 				entrenadorAux = NULL;
 
-				informarEstadoCola("Cola Ready", colaReady->elements);
-				informarEstadoCola("Cola Blocked", colaBlocked->elements);
+				informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+				informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 
 				desbloquearJugadores();
 
@@ -1575,7 +1601,30 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 }
 
 void desbloquearJugadores() {
-	list_iterate(colaBlocked->elements, (void*) capturarPokemon);
+	int i;
+
+	for(i = 0; i <= list_size(colaBlocked->elements); i++) {
+		t_entrenador* entrenadorBloqueado;
+
+		bool _esEntrenador(t_entrenador* entrenador) {
+			return entrenador->id == entrenadorBloqueado->id;
+		}
+
+		pthread_mutex_lock(&mutexBlocked);
+		entrenadorBloqueado = list_remove(colaBlocked->elements, i);
+		pthread_mutex_unlock(&mutexBlocked);
+
+		capturarPokemon(entrenadorBloqueado);
+
+		if(!list_any_satisfy(colaReady->elements, (void*) _esEntrenador))
+		{
+			pthread_mutex_lock(&mutexBlocked);
+			queue_push(colaBlocked, entrenadorBloqueado);
+			pthread_mutex_unlock(&mutexBlocked);
+		}
+		else
+			i--;
+	}
 }
 
 void capturarPokemon(t_entrenador* entrenador) {
@@ -1597,14 +1646,13 @@ void capturarPokemon(t_entrenador* entrenador) {
 		recurso->cantidad--;
 		restarRecurso(items, entrenador->idPokenestActual);
 
-		recurso = list_find(recursosTotales, (void*) _recursoBuscado);
-
 		list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
 
 		t_recursosEntrenador* recursosEntrenador = list_find(recursosAsignados, (void*) _recursosEntrenador);
 		recurso = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
 		recurso->cantidad++;
 
+		recurso = list_find(recursosTotales, (void*) _recursoBuscado);
 		t_metadataPokemon* metadata = list_get(recurso->metadatasPokemones, 0);
 
 		mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
@@ -1648,8 +1696,8 @@ void capturarPokemon(t_entrenador* entrenador) {
 				eliminarEntrenador(entrenador);
 				entrenador = NULL;
 
-				informarEstadoCola("Cola Ready", colaReady->elements);
-				informarEstadoCola("Cola Blocked", colaBlocked->elements);
+				informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+				informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 
 				desbloquearJugadores();
 
@@ -1694,7 +1742,7 @@ void actualizarSolicitudes(t_entrenador* entrenador) {
 	recursoAActualizar->cantidad++;
 }
 
-void informarEstadoCola(char* nombreCola, t_list* cola) {
+void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex) {
 	char* estadoCola;
 
 	void _informarEstado(t_entrenador* entrenador) {
@@ -1709,7 +1757,14 @@ void informarEstadoCola(char* nombreCola, t_list* cola) {
 
 	estadoCola = string_new();
 
-	list_iterate(cola, (void*) _informarEstado);
+	if(list_size(cola) > 0)
+	{
+		pthread_mutex_lock(mutex);
+		list_iterate(cola, (void*) _informarEstado);
+		pthread_mutex_unlock(mutex);
 
-	log_info(logger, "%s: %s", nombreCola, estadoCola);
+		log_info(logger, "%s: %s", nombreCola, estadoCola);
+	}
+	else
+		log_info(logger, "%s: se encuentra vacía", nombreCola);
 }

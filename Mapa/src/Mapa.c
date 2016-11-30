@@ -731,7 +731,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 				metadataPokemon = malloc(sizeof(t_metadataPokemon));
 
 				metadataPokemon->nivel = config_get_int_value(config, "Nivel");
-				metadataPokemon->rutaArchivo = strdup(nombreArchivoPokemon);
+				metadataPokemon->rutaArchivo = string_substring_from(nombreArchivoPokemon, strlen(puntoMontajeOsada));
 
 				list_add(metadatasPokemones, metadataPokemon);
 				list_sort(metadatasPokemones, (void*) _mayorAMenorNivel);

@@ -31,6 +31,7 @@ typedef struct entrenador {
 	int utEjecutadas;
 	socket_t* socket;
 	t_ubicacion ubicacion;
+	time_t fechaIngreso;
 } t_entrenador;
 
 typedef struct pokenest {
@@ -101,5 +102,6 @@ void capturarPokemon(t_entrenador* entrenador);
 void desbloquearJugadores();
 void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar);
 void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex);
+time_t obtenerFechaIngreso();
 
 #endif /* MAPA_H_ */

@@ -677,12 +677,27 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		string_append(&rutaPokemon, mensajeConfirmaCaptura.nombreArchivoMetadata);
 
 		char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
-		string_append(&rutaEntrenador, "Dir de Bill/");
+		//string_append(&rutaEntrenador, "Dir de Bill/");
 
-		execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador, NULL);
+		char* rutaOrigen = strdup("cp ");
+		string_append(&rutaOrigen, rutaPokemon);
+		string_append(&rutaOrigen, " ");
+
+		char* rutaDestino = strdup(rutaEntrenador);
+		string_append(&rutaDestino, "\"Dir de Bill\"");
+
+		char* sysCall = strdup(rutaOrigen);
+		string_append(&sysCall, rutaDestino);
+
+		system(sysCall);
+
+		//execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador, NULL);
 
 		free(rutaPokemon);
 		free(rutaEntrenador);
+		free(rutaOrigen);
+		free(rutaDestino);
+		free(sysCall);
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{

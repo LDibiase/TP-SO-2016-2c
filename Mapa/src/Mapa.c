@@ -183,9 +183,9 @@ int main(int argc, char** argv) {
 			if(!activo)
 				continue;
 
-			while(((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum)
-				 || string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
-				 && !solicitoCaptura && !solicitoUbicacion && entrenadorAEjecutar != NULL && activo) {
+			while(entrenadorAEjecutar != NULL && activo && !solicitoCaptura && !solicitoUbicacion &&
+                ((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum) ||
+                  string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))) {
 				void* mensajeSolicitud = malloc(TAMANIO_MAXIMO_MENSAJE);
 				((mensaje_t*) mensajeSolicitud)->tipoMensaje = INDEFINIDO;
 
@@ -1603,7 +1603,7 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 void desbloquearJugadores() {
 	int i;
 
-	for(i = 0; i <= list_size(colaBlocked->elements); i++) {
+	for(i = 0; i < list_size(colaBlocked->elements); i++) {
 		t_entrenador* entrenadorBloqueado;
 
 		bool _esEntrenador(t_entrenador* entrenador) {

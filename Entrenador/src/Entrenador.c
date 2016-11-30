@@ -142,7 +142,7 @@ int main(int argc, char **argv) {
 				objetivosCompletados = 1;
 
 				char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
-				string_append(&rutaEntrenador, "Medallas/");
+				string_append(&rutaEntrenador, "medallas/");
 
 				char* rutaMedalla = strdup(puntoMontajeOsada);
 				string_append(&rutaMedalla, "/Mapas/");

@@ -137,6 +137,16 @@ int main(int argc, char **argv) {
 
 			string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
 
+			if(activo == 0)
+			{
+				log_info(logger, "El jugador ha abandonado el juego");
+
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				pthread_mutex_destroy(&mutexLog);
+				exit(EXIT_FAILURE);
+			}
+
 			if(victima == 0)
 			{
 				objetivosCompletados = 1;
@@ -164,7 +174,7 @@ int main(int argc, char **argv) {
 
 				system(sysCall);
 
-				//SE BORRA EL DIR DE BIL
+				//SE BORRA EL DIR DE BILL
 				char* rutaBorrado = strdup("rm -rf ");
 				string_append(&rutaBorrado, rutaDirectorioEntrenador);
 				string_append(&rutaBorrado, "\"Dir de Bill\"");
@@ -183,19 +193,67 @@ int main(int argc, char **argv) {
 				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
 				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
 
+				free(ip);
+				free(puerto);
+
 				eliminarSocket(mapa_s);
 			}
-		}
+			else
+				configEntrenador.Vidas--;
 
-		free(ip);
-		free(puerto);
+			if(activo == 0)
+			{
+				log_info(logger, "El jugador ha abandonado el juego");
 
-		if(configEntrenador.Vidas == 0)
-		{
-			log_info(logger, "¿Desea reiniciar el juego? (Y/N)");
+				eliminarSocket(mapa_s);
+				log_destroy(logger);
+				pthread_mutex_destroy(&mutexLog);
+				exit(EXIT_FAILURE);
+			}
 
-			// TODO: A continuación se debería aguardar por la respuesta del usuario; en caso de que ésta sea negativa...
-			activo = 0;
+			if(configEntrenador.Vidas == 0)
+			{
+				char respuesta;
+
+				log_info(logger, "¿Desea reiniciar el juego? (Y/N)");
+
+				respuesta = getchar();
+
+				if(respuesta == 'Y')
+				{
+					activo = 1;
+
+					if (cargarConfiguracion(&configEntrenador) == 1)
+					{
+						log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+						log_destroy(logger);
+						pthread_mutex_destroy(&mutexLog);
+						abort();
+					}
+				}
+				else if (respuesta == 'N')
+					activo = 0;
+				else
+					log_info(logger, "Ingrese una de las siguientes respuestas:/n Yes (Y)/n No (N)");
+
+				char* rutaBorrado;
+
+				//SE BORRA EL CONTENIDO DEL DIR DE BILL
+				rutaBorrado = strdup("rm -rf ");
+				string_append(&rutaBorrado, rutaDirectorioEntrenador);
+				string_append(&rutaBorrado, "\"Dir de Bill\"");
+				string_append(&rutaBorrado, "/*");
+
+				free(rutaBorrado);
+
+				//SE BORRA EL CONTENIDO DE MEDALLAS
+				rutaBorrado = strdup("rm -rf ");
+				string_append(&rutaBorrado, rutaDirectorioEntrenador);
+				string_append(&rutaBorrado, "medallas");
+				string_append(&rutaBorrado, "/*");
+
+				free(rutaBorrado);
+			}
 		}
 
 		if(activo == 0)

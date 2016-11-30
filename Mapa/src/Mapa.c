@@ -1314,7 +1314,6 @@ void eliminarRecursosEntrenador(t_recursosEntrenador* recursosEntrenador) {
 			free(recurso->tipo);
 
 		list_destroy_and_destroy_elements(recurso->metadatasPokemones, (void*) _eliminarMetadata);
-
 		free(recurso);
 	}
 
@@ -1576,25 +1575,22 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 		return recursos->id == entrenador->id;
 	}
 
-	void _actualizarMatrices(t_mapa_pokenest* recurso) {
-		bool _esRecursoBuscado(t_mapa_pokenest* recursoBuscado) {
+	void _actualizarDisponibilidad(t_mapa_pokenest* recurso) {
+		bool _recursoBuscado(t_mapa_pokenest* recursoBuscado) {
 			return recursoBuscado->id == recurso->id;
 		}
 
 		t_mapa_pokenest* recursoAActualizar;
-
-		recursoAActualizar = list_find(recursosDisponibles, (void*) _esRecursoBuscado);
+		recursoAActualizar = list_find(recursosDisponibles, (void*) _recursoBuscado);
 
 		if(recursoAActualizar != NULL)
-		{
 			recursoAActualizar->cantidad = recursoAActualizar->cantidad + recurso->cantidad;
-		}
 	}
 
 	t_recursosEntrenador* recursosEntrenador;
 
 	recursosEntrenador = list_remove_by_condition(recursosAsignados, (void*) _recursosEntrenador);
-	list_iterate(recursosEntrenador->recursos, (void*) _actualizarMatrices);
+	list_iterate(recursosEntrenador->recursos, (void*) _actualizarDisponibilidad);
 	eliminarRecursosEntrenador(recursosEntrenador);
 
 	list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
@@ -1630,10 +1626,6 @@ void desbloquearJugadores() {
 void capturarPokemon(t_entrenador* entrenador) {
 	bool _recursoBuscado(t_mapa_pokenest* recursoBuscado) {
 		return recursoBuscado->id == entrenador->idPokenestActual;
-	}
-
-	bool _recursosEntrenador(t_recursosEntrenador* recursos) {
-		return recursos->id == entrenador->id;
 	}
 
 	t_mapa_pokenest* recurso;

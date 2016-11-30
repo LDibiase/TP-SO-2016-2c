@@ -1641,8 +1641,6 @@ void capturarPokemon(t_entrenador* entrenador) {
 
 	if(recurso->cantidad >= 1)
 	{
-		t_recursosEntrenador* recursosEntrenador;
-
 		recurso->cantidad--;
 		restarRecurso(items, entrenador->idPokenestActual);
 

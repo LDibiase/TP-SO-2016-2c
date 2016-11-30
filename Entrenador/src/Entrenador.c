@@ -152,7 +152,7 @@ int main(int argc, char **argv) {
 				string_append(&rutaMedalla, ciudad->Nombre);
 				string_append(&rutaMedalla, ".jpg");
 
-				execl( "/bin/cp", "-p", rutaMedalla, rutaEntrenador);
+				execl( "/bin/cp", "-p", rutaMedalla, rutaEntrenador, NULL);
 
 				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
 				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
@@ -677,23 +677,27 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		string_append(&rutaPokemon, mensajeConfirmaCaptura.nombreArchivoMetadata);
 
 		char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
-		string_append(&rutaEntrenador, "/");
 		string_append(&rutaEntrenador, "Dir de Bill/");
 
-		execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador);
+		execl( "/bin/cp", "-p", rutaPokemon, rutaEntrenador, NULL);
+
+		free(rutaPokemon);
+		free(rutaEntrenador);
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
 
-		char* rutaBorrado = strdup("rm -rf /");
+		char* rutaBorrado = strdup("rm -rf ");
 		string_append(&rutaBorrado, rutaDirectorioEntrenador);
-		string_append(&rutaBorrado, "/");
 		string_append(&rutaBorrado, "Dir de Bill/*");
 
 		system(rutaBorrado);
+
 		// Se activa el flag Víctima
 		*victima = 1;
+
+		free(rutaBorrado);
 	}
 	else
 		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);

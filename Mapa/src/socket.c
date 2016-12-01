@@ -375,10 +375,12 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 		if(valorRetornoRecv == 0 || valorRetornoRecv == -1)
 		{
-			if(valorRetornoRecv == 0 || errno == ECONNREFUSED)
+			if(valorRetornoRecv == 0 || errno == ECONNREFUSED || errno == ECONNRESET)
 				socket->errorCode = ERR_PEER_DISCONNECTED;
 			else
+			{
 				socket->errorCode = ERR_MSG_CANNOT_BE_RECEIVED;
+			}
 
 			socket->error = strdup(strerror(errno));
 
@@ -517,16 +519,6 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			break;
 		case CONFIRMA_CAPTURA:
 			free(buffer);
-			tamanioBuffer = sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata);
-			buffer = malloc(tamanioBuffer);
-
-			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
-			if(_hayError(bytesRecibidos) == 1)
-				return;
-
-			memcpy(&(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata), buffer, tamanioBuffer);
-
-			free(buffer);
 			tamanioBuffer = sizeof(((mensaje9_t*) mensaje)->nivel);
 			buffer = malloc(tamanioBuffer);
 
@@ -535,6 +527,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 
 			memcpy(&(((mensaje9_t*) mensaje)->nivel), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			memcpy(&(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata), buffer, tamanioBuffer);
 
 			free(buffer);
 			tamanioBuffer = ((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata;

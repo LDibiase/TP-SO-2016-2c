@@ -55,13 +55,15 @@ int main(int argc, char **argv) {
 	// Se crea la lista de pokémones atrapados
 	pokemonesAtrapados = list_create();
 
-	char* rutaLog;
+	char* nombreLog;
 
-	rutaLog = strdup(rutaDirectorioEntrenador);
-	string_append(&rutaLog, LOG_FILE_PATH);
+	nombreLog = strdup(configEntrenador.Nombre);
+	string_append(&nombreLog, LOG_FILE_PATH);
 
 	// Se crea el archivo de log
-	logger = log_create(rutaLog, "ENTRENADOR", true, LOG_LEVEL_INFO);
+	logger = log_create(nombreLog, "ENTRENADOR", true, LOG_LEVEL_INFO);
+
+	free(nombreLog);
 
 	void _obtenerObjetivo(char* objetivo) {
 		if(!victima)
@@ -153,7 +155,7 @@ int main(int argc, char **argv) {
 			ubicacion.x = 1;
 			ubicacion.y = 1;
 
-			log_info(logger, "La ubicación del entrenador es (%c,%c).", ubicacion.x, ubicacion.y);
+			log_info(logger, "La ubicación del entrenador es (%d,%d).", ubicacion.x, ubicacion.y);
 
 			// Determinar el eje de movimiento anterior arbitrariamente
 			ejeAnterior = 'x';
@@ -198,7 +200,7 @@ int main(int argc, char **argv) {
 
 				system(sysCall);
 
-				log_info(logger, "Se copia la medalla %s al directorio del entrenador.");
+				log_info(logger, "Se copia la medalla %s al directorio del entrenador.", rutaMedalla);
 
 				free(rutaEntrenador);
 				free(rutaMedalla);

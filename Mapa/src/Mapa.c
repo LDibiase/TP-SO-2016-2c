@@ -104,13 +104,13 @@ int main(int argc, char** argv) {
 	colaReady = queue_create();
 	colaBlocked = queue_create();
 
-	char* rutaLog;
+	char* nombreLog;
 
-	rutaLog = strdup(rutaDirectorioMapa);
-	string_append(&rutaLog, LOG_FILE_PATH);
+	nombreLog = strdup(nombreMapa);
+	string_append(&nombreLog, LOG_FILE_PATH);
 
 	//CREACIÓN DEL ARCHIVO DE LOG
-	logger = log_create(rutaLog, "MAPA", false, LOG_LEVEL_INFO);
+	logger = log_create(nombreLog, "MAPA", false, LOG_LEVEL_INFO);
 
 	//CONFIGURACIÓN DEL MAPA
 	pthread_mutex_lock(&mutexLog);
@@ -1679,7 +1679,9 @@ void capturarPokemon(t_entrenador* entrenador) {
 		mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
 		mensajeConfirmaCaptura.nivel = metadata->nivel;
 		mensajeConfirmaCaptura.tamanioNombreArchivoMetadata = strlen(metadata->rutaArchivo) + 1;
+		log_info(logger, "Se envía una ruta de longitud %d.", mensajeConfirmaCaptura.tamanioNombreArchivoMetadata);
 		mensajeConfirmaCaptura.nombreArchivoMetadata = strdup(metadata->rutaArchivo);
+		log_info(logger, "La ruta del archivo del pokémon capturado %s.", mensajeConfirmaCaptura.nombreArchivoMetadata);
 
 		paquete_t paqueteCaptura;
 		crearPaquete((void*) &mensajeConfirmaCaptura, &paqueteCaptura);

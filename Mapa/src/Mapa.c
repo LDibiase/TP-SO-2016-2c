@@ -1419,7 +1419,7 @@ void signal_termination_handler(int signum) {
 
 void chequearDeadlock() {
 	//CORRO EL ALGORITMO SEGUN EL TIEMPO QUE ESTÁ SETEADO EN LA CONFIGURACIÓN
-	sleep(configMapa.TiempoChequeoDeadlock);
+	usleep(configMapa.TiempoChequeoDeadlock);
 
 	log_info(logger, "Se realiza el chequeo");
 

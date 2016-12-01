@@ -33,6 +33,8 @@ char* rutaDirectorioEntrenador;         // Ruta del directorio del entrenador
 socket_t* mapa_s;
 char* ip;
 char* puerto;
+char* nombreCiudad;
+t_list* pokemonesAtrapados;
 
 //SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
 pthread_mutex_t mutexLog;
@@ -43,11 +45,13 @@ int main(int argc, char **argv) {
 	int objetivosCompletados;
 	int victima;
 
+	pokemonesAtrapados = list_create();
+
 	//DANDOLE FORMA A LOS PARAMETROS RECIBIDOS
-	puntoMontajeOsada = strdup(argv[1]);
-	rutaDirectorioEntrenador = strdup(argv[1]);
+	puntoMontajeOsada = strdup(argv[2]);
+	rutaDirectorioEntrenador = strdup(argv[2]);
 	string_append(&rutaDirectorioEntrenador, "/Entrenadores/");
-	string_append(&rutaDirectorioEntrenador, argv[2]);
+	string_append(&rutaDirectorioEntrenador, argv[1]);
 	string_append(&rutaDirectorioEntrenador, "/");
 
 	void _obtenerObjetivo(char* objetivo) {
@@ -69,6 +73,7 @@ int main(int argc, char **argv) {
 					{
 						eliminarSocket(mapa_s);
 						log_destroy(logger);
+						free(nombreCiudad);
 						pthread_mutex_destroy(&mutexLog);
 						abort();
 					}
@@ -81,8 +86,9 @@ int main(int argc, char **argv) {
 					{
 						eliminarSocket(mapa_s);
 						log_destroy(logger);
+						free(nombreCiudad);
 						pthread_mutex_destroy(&mutexLog);
-						exit(EXIT_FAILURE);
+						abort();
 					}
 				}
 			}
@@ -93,8 +99,9 @@ int main(int argc, char **argv) {
 
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
+				free(nombreCiudad);
 				pthread_mutex_destroy(&mutexLog);
-				exit(EXIT_FAILURE);
+				abort();
 			}
 
 			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
@@ -103,8 +110,9 @@ int main(int argc, char **argv) {
 			{
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
+				free(nombreCiudad);
 				pthread_mutex_destroy(&mutexLog);
-				exit(EXIT_FAILURE);
+				abort();
 			}
 		}
 	}
@@ -112,6 +120,7 @@ int main(int argc, char **argv) {
 	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
 		objetivosCompletados = 0;
 		victima = 0;
+		nombreCiudad = strdup(ciudad->Nombre);
 
 		// Obtener datos de conexión del mapa
 		obtenerDatosConexion(ciudad->Nombre);
@@ -123,9 +132,10 @@ int main(int argc, char **argv) {
 			if(mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
+				free(nombreCiudad);
 				log_destroy(logger);
 				pthread_mutex_destroy(&mutexLog);
-				exit(EXIT_FAILURE);
+				abort();
 			}
 
 			// Determinar la ubicación inicial del entrenador en el mapa
@@ -143,8 +153,9 @@ int main(int argc, char **argv) {
 
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
+				free(nombreCiudad);
 				pthread_mutex_destroy(&mutexLog);
-				exit(EXIT_FAILURE);
+				abort();
 			}
 
 			if(victima == 0)
@@ -207,8 +218,9 @@ int main(int argc, char **argv) {
 
 				eliminarSocket(mapa_s);
 				log_destroy(logger);
+				free(nombreCiudad);
 				pthread_mutex_destroy(&mutexLog);
-				exit(EXIT_FAILURE);
+				abort();
 			}
 
 			if(configEntrenador.Vidas == 0)
@@ -226,7 +238,10 @@ int main(int argc, char **argv) {
 					if (cargarConfiguracion(&configEntrenador) == 1)
 					{
 						log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+						eliminarSocket(mapa_s);
 						log_destroy(logger);
+						free(nombreCiudad);
 						pthread_mutex_destroy(&mutexLog);
 						abort();
 					}
@@ -263,7 +278,7 @@ int main(int argc, char **argv) {
 			eliminarSocket(mapa_s);
 			log_destroy(logger);
 			pthread_mutex_destroy(&mutexLog);
-			exit(EXIT_FAILURE);
+			abort();
 		}
 	}
 
@@ -756,6 +771,15 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	{
 		log_info(logger, "Socket %d: ha capturado el Pokémon solicitado", mapa_s->descriptor);
 
+		t_metadataPokemon* pokemon;
+		pokemon = malloc(sizeof(t_metadataPokemon));
+
+		pokemon->ciudad = strdup(nombreCiudad);
+		pokemon->nivel = mensajeConfirmaCaptura.nivel;
+		pokemon->rutaArchivo = strdup(mensajeConfirmaCaptura.nombreArchivoMetadata);
+
+		list_add(pokemonesAtrapados, pokemon);
+
 		char* rutaPokemon = strdup(puntoMontajeOsada);
 		string_append(&rutaPokemon, mensajeConfirmaCaptura.nombreArchivoMetadata);
 
@@ -781,19 +805,30 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{
+		t_list* pokemonesCiudad;
+
+		bool _pokemonCiudad(t_metadataPokemon* pokemon) {
+			return string_equals_ignore_case(pokemon->ciudad, nombreCiudad);
+		}
+
+		void _borrarArchivoMetadata(t_metadataPokemon* pokemon) {
+			char* rutaBorrado = strdup("rm -rf ");
+			string_append(&rutaBorrado, rutaDirectorioEntrenador);
+			string_append(&rutaBorrado, "\"Dir de Bill\"");
+			string_append(&rutaBorrado, "/*");
+
+			system(rutaBorrado);
+
+			free(rutaBorrado);
+		}
+
+		pokemonesCiudad = list_filter(pokemonesAtrapados, (void*) _pokemonCiudad);
+		list_iterate(pokemonesCiudad, (void*) _borrarArchivoMetadata);
+
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
-
-		char* rutaBorrado = strdup("rm -rf ");
-		string_append(&rutaBorrado, rutaDirectorioEntrenador);
-		string_append(&rutaBorrado, "\"Dir de Bill\"");
-		string_append(&rutaBorrado, "/*");
-
-		system(rutaBorrado);
 
 		// Se activa el flag Víctima
 		*victima = 1;
-
-		free(rutaBorrado);
 	}
 	else
 		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);

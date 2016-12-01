@@ -101,6 +101,7 @@ typedef struct mensaje7 {
 // Mensaje 9
 typedef struct mensaje9 {
 	uint32_t tipoMensaje;
+	uint32_t nivel;
 	uint32_t tamanioNombreArchivoMetadata;
 	char* nombreArchivoMetadata;
 } mensaje9_t;

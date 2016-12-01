@@ -66,10 +66,10 @@ int main(int argc, char** argv) {
 	pthread_attr_t atributosHiloSignalHandler;
 
 	//DANDOLE FORMA A LOS PARAMETROS RECIBIDOS
-	puntoMontajeOsada = strdup(argv[1]);
-	rutaDirectorioMapa = strdup(argv[1]);
+	puntoMontajeOsada = strdup(argv[2]);
+	rutaDirectorioMapa = strdup(argv[2]);
 	string_append(&rutaDirectorioMapa, "/Mapas/");
-	string_append(&rutaDirectorioMapa, argv[2]);
+	string_append(&rutaDirectorioMapa, argv[1]);
 	string_append(&rutaDirectorioMapa, "/");
 
 	// Variables para la creación del hilo en escucha
@@ -203,6 +203,7 @@ int main(int argc, char** argv) {
 
 						eliminarEntrenadorMapa(entrenadorAEjecutar);
 						BorrarItem(items, entrenadorAEjecutar->id);
+						nivel_gui_dibujar(items, "Test Chamber 04");
 						eliminarEntrenador(entrenadorAEjecutar);
 						entrenadorAEjecutar = NULL;
 
@@ -289,6 +290,7 @@ int main(int argc, char** argv) {
 
 							eliminarEntrenadorMapa(entrenadorAEjecutar);
 							BorrarItem(items, entrenadorAEjecutar->id);
+							nivel_gui_dibujar(items, "Test Chamber 04");
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
@@ -390,6 +392,7 @@ int main(int argc, char** argv) {
 
 							eliminarEntrenadorMapa(entrenadorAEjecutar);
 							BorrarItem(items, entrenadorAEjecutar->id);
+							nivel_gui_dibujar(items, "Test Chamber 04");
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
@@ -1481,6 +1484,7 @@ void chequearDeadlock() {
 
 				eliminarEntrenadorMapa(entrenadorAux);
 				BorrarItem(items, entrenadorAux->id);
+				nivel_gui_dibujar(items, "Test Chamber 04");
 				eliminarEntrenador(entrenadorAux);
 				entrenadorAux = NULL;
 
@@ -1684,6 +1688,7 @@ void capturarPokemon(t_entrenador* entrenador) {
 
 				eliminarEntrenadorMapa(entrenador);
 				BorrarItem(items, entrenador->id);
+				nivel_gui_dibujar(items, "Test Chamber 04");
 				eliminarEntrenador(entrenador);
 				entrenador = NULL;
 

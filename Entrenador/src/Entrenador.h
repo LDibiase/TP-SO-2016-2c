@@ -24,6 +24,12 @@ typedef struct entrenador {
 	int Vidas;
 } t_entrenador_config;
 
+typedef struct metadataPokemon {
+	char* rutaArchivo;
+	int nivel;
+	char* ciudad;
+} t_metadataPokemon;
+
 
 /* Constantes */
 

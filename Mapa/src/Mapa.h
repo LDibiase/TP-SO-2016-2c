@@ -46,7 +46,7 @@ typedef struct recursosEntrenador {
 	t_list* recursos;
 } t_recursosEntrenador;
 
-typedef struct pokemonEntrenador{
+typedef struct pokemonEntrenador {
 	char id;
 	char* nombre;
 	char* tipo;
@@ -54,12 +54,13 @@ typedef struct pokemonEntrenador{
 	int nivel;
 	char idEntrenador;
 	t_pokemon* pokemon;
-}t_pokemonEntrenador;
+} t_pokemonEntrenador;
 
-typedef struct metadataPokemon{
+typedef struct metadataPokemon {
 	char* rutaArchivo;
 	int nivel;
-}t_metadataPokemon;
+} t_metadataPokemon;
+
 
 /* Constantes */
 

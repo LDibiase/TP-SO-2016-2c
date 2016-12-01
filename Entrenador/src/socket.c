@@ -325,7 +325,7 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 	case CONFIRMA_CAPTURA:
 		punteroAuxiliar = paquete->paqueteSerializado;
 
-		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata) + ((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata;
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje9_t*) mensaje)->nivel) + sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata) + ((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata;
 		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
 		if(paquete->paqueteSerializado == NULL)
 		{
@@ -333,6 +333,10 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 			paquete->tamanioPaquete = 0;
 			return;
 		}
+
+		tamanioOperando = sizeof(((mensaje9_t*) mensaje)->nivel);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje9_t*) mensaje)->nivel), tamanioOperando);
+		offset = offset + tamanioOperando;
 
 		tamanioOperando = sizeof(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata);
 		memcpy(paquete->paqueteSerializado + offset, &(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata), tamanioOperando);
@@ -521,6 +525,16 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 				return;
 
 			memcpy(&(((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje9_t*) mensaje)->nivel);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			memcpy(&(((mensaje9_t*) mensaje)->nivel), buffer, tamanioBuffer);
 
 			free(buffer);
 			tamanioBuffer = ((mensaje9_t*) mensaje)->tamanioNombreArchivoMetadata;

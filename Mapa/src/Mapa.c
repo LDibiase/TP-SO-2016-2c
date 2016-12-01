@@ -850,6 +850,7 @@ int cargarConfiguracion(t_mapa_config* structConfig) {
 				&& config_has_property(config, "Puerto"))
 		{
 			structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
+			structConfig->TiempoChequeoDeadlock = structConfig->TiempoChequeoDeadlock * 1000;
 			structConfig->Batalla = config_get_int_value(config, "Batalla");
 			structConfig->Algoritmo = strdup(config_get_string_value(config, "algoritmo"));
 			structConfig->Quantum = config_get_int_value(config, "quantum");
@@ -1419,7 +1420,7 @@ void signal_termination_handler(int signum) {
 
 void chequearDeadlock() {
 	//CORRO EL ALGORITMO SEGUN EL TIEMPO QUE ESTÁ SETEADO EN LA CONFIGURACIÓN
-	usleep(configMapa.TiempoChequeoDeadlock);
+	//usleep(configMapa.TiempoChequeoDeadlock);
 
 	log_info(logger, "Se realiza el chequeo");
 

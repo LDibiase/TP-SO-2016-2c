@@ -55,8 +55,13 @@ int main(int argc, char **argv) {
 	// Se crea la lista de pokémones atrapados
 	pokemonesAtrapados = list_create();
 
+	char* rutaLog;
+
+	rutaLog = strdup(rutaDirectorioEntrenador);
+	string_append(&rutaLog, LOG_FILE_PATH);
+
 	// Se crea el archivo de log
-	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
+	logger = log_create(rutaLog, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
 	void _obtenerObjetivo(char* objetivo) {
 		if(!victima)
@@ -126,7 +131,7 @@ int main(int argc, char **argv) {
 		victima = 0;
 		nombreCiudad = strdup(ciudad->Nombre);
 
-		log_info(logger, "Se recuperan los datos de conexión del mapa.");
+		log_info(logger, "Se recuperan los datos de conexión del mapa %s.", nombreCiudad);
 
 		// Obtener datos de conexión del mapa
 		obtenerDatosConexion(ciudad->Nombre);
@@ -147,6 +152,8 @@ int main(int argc, char **argv) {
 			// Determinar la ubicación inicial del entrenador en el mapa
 			ubicacion.x = 1;
 			ubicacion.y = 1;
+
+			log_info(logger, "La ubicación del entrenador es (%c,%c).", ubicacion.x, ubicacion.y);
 
 			// Determinar el eje de movimiento anterior arbitrariamente
 			ejeAnterior = 'x';
@@ -190,6 +197,8 @@ int main(int argc, char **argv) {
 				string_append(&sysCall, rutaDestino);
 
 				system(sysCall);
+
+				log_info(logger, "Se copia la medalla %s al directorio del entrenador.");
 
 				free(rutaEntrenador);
 				free(rutaMedalla);

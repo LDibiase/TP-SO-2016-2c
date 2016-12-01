@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
 	string_append(&rutaDirectorioMapa, argv[1]);
 	string_append(&rutaDirectorioMapa, "/");
 
-	nombreMapa = argv[1];
+	nombreMapa = strdup(argv[1]);
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -104,8 +104,13 @@ int main(int argc, char** argv) {
 	colaReady = queue_create();
 	colaBlocked = queue_create();
 
+	char* rutaLog;
+
+	rutaLog = strdup(rutaDirectorioMapa);
+	string_append(&rutaLog, LOG_FILE_PATH);
+
 	//CREACIÓN DEL ARCHIVO DE LOG
-	logger = log_create(LOG_FILE_PATH, "MAPA", false, LOG_LEVEL_INFO);
+	logger = log_create(rutaLog, "MAPA", false, LOG_LEVEL_INFO);
 
 	//CONFIGURACIÓN DEL MAPA
 	pthread_mutex_lock(&mutexLog);
@@ -207,7 +212,7 @@ int main(int argc, char** argv) {
 
 						eliminarEntrenadorMapa(entrenadorAEjecutar);
 						BorrarItem(items, entrenadorAEjecutar->id);
-						nivel_gui_dibujar(items, "Test Chamber 04");
+						nivel_gui_dibujar(items, nombreMapa);
 						eliminarEntrenador(entrenadorAEjecutar);
 						entrenadorAEjecutar = NULL;
 
@@ -294,7 +299,7 @@ int main(int argc, char** argv) {
 
 							eliminarEntrenadorMapa(entrenadorAEjecutar);
 							BorrarItem(items, entrenadorAEjecutar->id);
-							nivel_gui_dibujar(items, "Test Chamber 04");
+							nivel_gui_dibujar(items, nombreMapa);
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
@@ -396,7 +401,7 @@ int main(int argc, char** argv) {
 
 							eliminarEntrenadorMapa(entrenadorAEjecutar);
 							BorrarItem(items, entrenadorAEjecutar->id);
-							nivel_gui_dibujar(items, "Test Chamber 04");
+							nivel_gui_dibujar(items, nombreMapa);
 							eliminarEntrenador(entrenadorAEjecutar);
 							entrenadorAEjecutar = NULL;
 
@@ -1414,6 +1419,8 @@ void chequearDeadlock() {
 	//CORRO EL ALGORITMO SEGUN EL TIEMPO QUE ESTÁ SETEADO EN LA CONFIGURACIÓN
 	sleep(configMapa.TiempoChequeoDeadlock);
 
+	log_info(logger, "Se realiza el chequeo");
+
 	if(algoritmoDeteccion())
 	{
 		t_pkmn_factory* pokemon_factory = create_pkmn_factory();
@@ -1503,7 +1510,7 @@ void chequearDeadlock() {
 
 				eliminarEntrenadorMapa(entrenadorAux);
 				BorrarItem(items, entrenadorAux->id);
-				nivel_gui_dibujar(items, "Test Chamber 04");
+				nivel_gui_dibujar(items, nombreMapa);
 				eliminarEntrenador(entrenadorAux);
 				entrenadorAux = NULL;
 
@@ -1708,7 +1715,7 @@ void capturarPokemon(t_entrenador* entrenador) {
 
 				eliminarEntrenadorMapa(entrenador);
 				BorrarItem(items, entrenador->id);
-				nivel_gui_dibujar(items, "Test Chamber 04");
+				nivel_gui_dibujar(items, nombreMapa);
 				eliminarEntrenador(entrenador);
 				entrenador = NULL;
 

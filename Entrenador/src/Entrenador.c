@@ -57,7 +57,7 @@ int main(int argc, char **argv) {
 
 	char* nombreLog;
 
-	nombreLog = strdup(configEntrenador.Nombre);
+	nombreLog = strdup(argv[1]);
 	string_append(&nombreLog, LOG_FILE_PATH);
 
 	// Se crea el archivo de log

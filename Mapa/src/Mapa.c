@@ -112,6 +112,8 @@ int main(int argc, char** argv) {
 	//CREACIÓN DEL ARCHIVO DE LOG
 	logger = log_create(nombreLog, "MAPA", false, LOG_LEVEL_INFO);
 
+	free(nombreLog);
+
 	//CONFIGURACIÓN DEL MAPA
 	pthread_mutex_lock(&mutexLog);
 	log_info(logger, "Cargando archivo de configuración");

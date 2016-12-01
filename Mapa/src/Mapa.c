@@ -136,6 +136,9 @@ int main(int argc, char** argv) {
 
 	//INICIALIZACIÓN DEL MAPA
 	items = cargarPokenests(); //Carga de las Pokénest del mapa
+
+//	informarEstadoRecursos();
+
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
 	nivel_gui_dibujar(items, nombreMapa);
@@ -850,7 +853,6 @@ int cargarConfiguracion(t_mapa_config* structConfig) {
 				&& config_has_property(config, "Puerto"))
 		{
 			structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
-			structConfig->TiempoChequeoDeadlock = structConfig->TiempoChequeoDeadlock * 1000;
 			structConfig->Batalla = config_get_int_value(config, "Batalla");
 			structConfig->Algoritmo = strdup(config_get_string_value(config, "algoritmo"));
 			structConfig->Quantum = config_get_int_value(config, "quantum");
@@ -1419,125 +1421,127 @@ void signal_termination_handler(int signum) {
 }
 
 void chequearDeadlock() {
-	//CORRO EL ALGORITMO SEGUN EL TIEMPO QUE ESTÁ SETEADO EN LA CONFIGURACIÓN
-	//usleep(configMapa.TiempoChequeoDeadlock);
+	while(activo) {
+		//EL ALGORITMO SE EJECUTA CADA CIERTA CANTIDAD DE TIEMPO DETERMINADA EN EL ARCHIVO DE CONFIGURACIÓN
+		//usleep(configMapa.TiempoChequeoDeadlock * 1000);
 
-	log_info(logger, "Se realiza el chequeo");
+		log_info(logger, "Se realiza el chequeo");
 
-	if(algoritmoDeteccion())
-	{
-		t_pkmn_factory* pokemon_factory = create_pkmn_factory();
-		t_list* entrenadoresConPokemonesAPelear;
-		entrenadoresConPokemonesAPelear = list_create();
-
-		//LISTA AUXILIAR DE ENTRENADORES
-		t_list* entrenadoresBloqueadosAux;
-		entrenadoresBloqueadosAux = list_create();
-		list_add_all(entrenadoresBloqueadosAux, colaBlocked->elements);
-
-		//LOS ORDENO POR FECHA DE INGRESO
-		bool _comparadorFechas(t_entrenador* entrenador1, t_entrenador* entrenador2)
+		if(algoritmoDeteccion())
 		{
-			double seconds = difftime(entrenador1->fechaIngreso, entrenador2->fechaIngreso);
-			return seconds < 0;
-		}
+			t_pkmn_factory* pokemon_factory = create_pkmn_factory();
+			t_list* entrenadoresConPokemonesAPelear;
+			entrenadoresConPokemonesAPelear = list_create();
 
-		list_sort(entrenadoresBloqueadosAux, (void*) _comparadorFechas);
+			//LISTA AUXILIAR DE ENTRENADORES
+			t_list* entrenadoresBloqueadosAux;
+			entrenadoresBloqueadosAux = list_create();
+			list_add_all(entrenadoresBloqueadosAux, colaBlocked->elements);
 
-		//CREO UN POKEMON POR CADA ENTRENADOR BLOQUEADO
-		int i;
-		for(i=0; i < list_size(entrenadoresBloqueadosAux); i++)
-		{
-			//OBTENGO POKMEON DE MAYOR NIVEL DEL ENTRENADOR PARA PELEAR
-			t_pokemonEntrenador* pokemonConEntrenador;
-			pokemonConEntrenador = malloc(sizeof(t_pokemonEntrenador));
+			//LOS ORDENO POR FECHA DE INGRESO
+			bool _comparadorFechas(t_entrenador* entrenador1, t_entrenador* entrenador2)
+			{
+				double seconds = difftime(entrenador1->fechaIngreso, entrenador2->fechaIngreso);
+				return seconds < 0;
+			}
 
-			pthread_mutex_lock(&mutexBlocked);
-			t_entrenador* entrenadorAux = list_get(entrenadoresBloqueadosAux, i);
-			pthread_mutex_unlock(&mutexBlocked);
-			*pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
+			list_sort(entrenadoresBloqueadosAux, (void*) _comparadorFechas);
 
-			//CREO EL POKEMON DE LA "CLASE" DE LA BIBLIOTECA
-			t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
-			pokemonConEntrenador->pokemon = pokemon;
+			//CREO UN POKEMON POR CADA ENTRENADOR BLOQUEADO
+			int i;
+			for(i=0; i < list_size(entrenadoresBloqueadosAux); i++)
+			{
+				//OBTENGO POKMEON DE MAYOR NIVEL DEL ENTRENADOR PARA PELEAR
+				t_pokemonEntrenador* pokemonConEntrenador;
+				pokemonConEntrenador = malloc(sizeof(t_pokemonEntrenador));
+
+				pthread_mutex_lock(&mutexBlocked);
+				t_entrenador* entrenadorAux = list_get(entrenadoresBloqueadosAux, i);
+				pthread_mutex_unlock(&mutexBlocked);
+				*pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
+
+				//CREO EL POKEMON DE LA "CLASE" DE LA BIBLIOTECA
+				t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
+				pokemonConEntrenador->pokemon = pokemon;
+
+				list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
+			}
 			
-			list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
-		}
-		
-		//YA TENGO TODOS LOS POKEMON DE CADA ENTRENADOR, AHORA A PELEAR
-		t_pokemonEntrenador* entrenadorAEliminar;
-		entrenadorAEliminar = malloc(sizeof(t_pokemonEntrenador));
-		entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
+			//YA TENGO TODOS LOS POKEMON DE CADA ENTRENADOR, AHORA A PELEAR
+			t_pokemonEntrenador* entrenadorAEliminar;
+			entrenadorAEliminar = malloc(sizeof(t_pokemonEntrenador));
+			entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
 
-		//ARMO EL MENSAJE PARA MANDAR A LIBERAR RECURSOS
-		mensaje_t mensajeLiberaRecursos;
-		mensajeLiberaRecursos.tipoMensaje = INFORMA_MUERTE;
+			//ARMO EL MENSAJE PARA MANDAR A LIBERAR RECURSOS
+			mensaje_t mensajeLiberaRecursos;
+			mensajeLiberaRecursos.tipoMensaje = INFORMA_MUERTE;
 
-		paquete_t paqueteEliminarRecursos;
-		crearPaquete((void*) &mensajeLiberaRecursos, &paqueteEliminarRecursos);
+			paquete_t paqueteEliminarRecursos;
+			crearPaquete((void*) &mensajeLiberaRecursos, &paqueteEliminarRecursos);
 
-		if(paqueteEliminarRecursos.tamanioPaquete == 0)
-		{
-			activo = 0;
-			eliminarSocket(mi_socket_s);
-
-			pthread_mutex_lock(&mutexLog);
-			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-			log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-			pthread_mutex_unlock(&mutexLog);
-
-			liberarMemoriaAlocada();
-			nivel_gui_terminar();
-			abort();
-		}
-
-		bool _esElEntrenador(t_entrenador* entrenador)
-		{
-			return entrenador->id == entrenadorAEliminar->id;
-		}
-
-		t_entrenador* entrenadorAux;
-		entrenadorAux = list_find(entrenadoresBloqueadosAux, (void*) _esElEntrenador);
-
-		enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
-		free(paqueteEliminarRecursos.paqueteSerializado);
-
-		if(entrenadorAux->socket->errorCode != NO_ERROR)
-		{
-			switch(entrenadorAux->socket->errorCode) {
-			case ERR_PEER_DISCONNECTED:
-				pthread_mutex_lock(&mutexLog);
-				log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAux->socket->descriptor);
-				log_info(logger, entrenadorAux->socket->error);
-				pthread_mutex_unlock(&mutexLog);
-
-				eliminarEntrenadorMapa(entrenadorAux);
-				BorrarItem(items, entrenadorAux->id);
-				nivel_gui_dibujar(items, nombreMapa);
-				eliminarEntrenador(entrenadorAux);
-				entrenadorAux = NULL;
-
-				informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
-				informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
-
-				desbloquearJugadores();
-
-				break;
-			case ERR_MSG_CANNOT_BE_SENT:
+			if(paqueteEliminarRecursos.tamanioPaquete == 0)
+			{
 				activo = 0;
 				eliminarSocket(mi_socket_s);
 
 				pthread_mutex_lock(&mutexLog);
-				log_info(logger, "No se ha podido enviar un mensaje");
-				log_info(logger, entrenadorAux->socket->error);
+				log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 				log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
 				pthread_mutex_unlock(&mutexLog);
 
-				eliminarEntrenador(entrenadorAux);
 				liberarMemoriaAlocada();
 				nivel_gui_terminar();
+				abort();
+			}
 
-				break;
+			bool _esElEntrenador(t_entrenador* entrenador)
+			{
+				return entrenador->id == entrenadorAEliminar->id;
+			}
+
+			t_entrenador* entrenadorAux;
+			entrenadorAux = list_find(entrenadoresBloqueadosAux, (void*) _esElEntrenador);
+
+			enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
+			free(paqueteEliminarRecursos.paqueteSerializado);
+
+			if(entrenadorAux->socket->errorCode != NO_ERROR)
+			{
+				switch(entrenadorAux->socket->errorCode) {
+				case ERR_PEER_DISCONNECTED:
+					pthread_mutex_lock(&mutexLog);
+					log_info(logger, "Conexión mediante socket %d finalizada", entrenadorAux->socket->descriptor);
+					log_info(logger, entrenadorAux->socket->error);
+					pthread_mutex_unlock(&mutexLog);
+
+					eliminarEntrenadorMapa(entrenadorAux);
+					BorrarItem(items, entrenadorAux->id);
+					nivel_gui_dibujar(items, nombreMapa);
+					eliminarEntrenador(entrenadorAux);
+					entrenadorAux = NULL;
+
+					informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
+					informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
+
+					desbloquearJugadores();
+
+					break;
+				case ERR_MSG_CANNOT_BE_SENT:
+					activo = 0;
+					eliminarSocket(mi_socket_s);
+
+					pthread_mutex_lock(&mutexLog);
+					log_info(logger, "No se ha podido enviar un mensaje");
+					log_info(logger, entrenadorAux->socket->error);
+					log_info(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+					pthread_mutex_unlock(&mutexLog);
+
+					eliminarEntrenador(entrenadorAux);
+					liberarMemoriaAlocada();
+					nivel_gui_terminar();
+
+					break;
+				}
 			}
 		}
 	}

@@ -50,5 +50,8 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo);
 void signal_handler();
 void signal_termination_handler(int signum);
 void obtenerDatosConexion(char* nombreCiudad);
+void eliminarPokemon(t_metadataPokemon* pokemon);
+void eliminarEntrenador(t_entrenador_config* entrenador);
+void liberarRecursos();
 
 #endif /* ENTRENADOR_H_ */

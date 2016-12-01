@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
 	string_append(&rutaDirectorioMapa, argv[1]);
 	string_append(&rutaDirectorioMapa, "/");
 
-	nombreMapa = argv[2];
+	nombreMapa = argv[1];
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -1670,6 +1670,7 @@ void capturarPokemon(t_entrenador* entrenador) {
 		mensaje9_t mensajeConfirmaCaptura;
 
 		mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
+		mensajeConfirmaCaptura.nivel = metadata->nivel;
 		mensajeConfirmaCaptura.tamanioNombreArchivoMetadata = strlen(metadata->rutaArchivo) + 1;
 		mensajeConfirmaCaptura.nombreArchivoMetadata = strdup(metadata->rutaArchivo);
 

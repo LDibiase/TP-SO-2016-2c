@@ -29,15 +29,11 @@ t_entrenador_config configEntrenador;	// Datos de configuración
 int activo;							 	// Flag de actividad del entrenador
 char* puntoMontajeOsada;         	  	// Punto de montaje del FS
 char* rutaDirectorioEntrenador;         // Ruta del directorio del entrenador
-
-socket_t* mapa_s;
-char* ip;
-char* puerto;
-char* nombreCiudad;
-t_list* pokemonesAtrapados;
-
-//SEMÁFORO PARA SINCRONIZAR EL ARCHIVO DE LOG
-pthread_mutex_t mutexLog;
+socket_t* mapa_s;						// Socket del mapa
+char* ip;								// IP del mapa
+char* puerto;							// Puerto del mapa
+char* nombreCiudad;						// Nombre del mapa
+t_list* pokemonesAtrapados;				// Pokémones atrapados
 
 int main(int argc, char **argv) {
 	t_ubicacion ubicacion;
@@ -45,14 +41,22 @@ int main(int argc, char **argv) {
 	int objetivosCompletados;
 	int victima;
 
-	pokemonesAtrapados = list_create();
+	// Variables para la creación del hilo para el manejo de señales
+	pthread_t hiloSignalHandler;
+	pthread_attr_t atributosHiloSignalHandler;
 
-	//DANDOLE FORMA A LOS PARAMETROS RECIBIDOS
+	// Se almacenan los parámetros recibidos
 	puntoMontajeOsada = strdup(argv[2]);
 	rutaDirectorioEntrenador = strdup(argv[2]);
 	string_append(&rutaDirectorioEntrenador, "/Entrenadores/");
 	string_append(&rutaDirectorioEntrenador, argv[1]);
 	string_append(&rutaDirectorioEntrenador, "/");
+
+	// Se crea la lista de pokémones atrapados
+	pokemonesAtrapados = list_create();
+
+	// Se crea el archivo de log
+	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
 	void _obtenerObjetivo(char* objetivo) {
 		if(!victima)
@@ -72,9 +76,9 @@ int main(int argc, char **argv) {
 					if(mapa_s->error != NULL)
 					{
 						eliminarSocket(mapa_s);
-						log_destroy(logger);
 						free(nombreCiudad);
-						pthread_mutex_destroy(&mutexLog);
+
+						liberarRecursos();
 						abort();
 					}
 				}
@@ -85,9 +89,9 @@ int main(int argc, char **argv) {
 					if(mapa_s->error != NULL)
 					{
 						eliminarSocket(mapa_s);
-						log_destroy(logger);
 						free(nombreCiudad);
-						pthread_mutex_destroy(&mutexLog);
+
+						liberarRecursos();
 						abort();
 					}
 				}
@@ -98,9 +102,9 @@ int main(int argc, char **argv) {
 				log_info(logger, "El jugador ha abandonado el juego");
 
 				eliminarSocket(mapa_s);
-				log_destroy(logger);
 				free(nombreCiudad);
-				pthread_mutex_destroy(&mutexLog);
+
+				liberarRecursos();
 				abort();
 			}
 
@@ -109,18 +113,20 @@ int main(int argc, char **argv) {
 			if(mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
-				log_destroy(logger);
 				free(nombreCiudad);
-				pthread_mutex_destroy(&mutexLog);
+
+				liberarRecursos();
 				abort();
 			}
 		}
 	}
 
-	void _obtenerObjetivosCiudad(t_ciudad_objetivos* ciudad) {
+	void _cumplirObjetivosCiudad(t_ciudad_objetivos* ciudad) {
 		objetivosCompletados = 0;
 		victima = 0;
 		nombreCiudad = strdup(ciudad->Nombre);
+
+		log_info(logger, "Se recuperan los datos de conexión del mapa.");
 
 		// Obtener datos de conexión del mapa
 		obtenerDatosConexion(ciudad->Nombre);
@@ -133,8 +139,8 @@ int main(int argc, char **argv) {
 			{
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
-				log_destroy(logger);
-				pthread_mutex_destroy(&mutexLog);
+
+				liberarRecursos();
 				abort();
 			}
 
@@ -152,9 +158,9 @@ int main(int argc, char **argv) {
 				log_info(logger, "El jugador ha abandonado el juego");
 
 				eliminarSocket(mapa_s);
-				log_destroy(logger);
 				free(nombreCiudad);
-				pthread_mutex_destroy(&mutexLog);
+
+				liberarRecursos();
 				abort();
 			}
 
@@ -165,7 +171,7 @@ int main(int argc, char **argv) {
 				char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
 				string_append(&rutaEntrenador, "medallas/");
 
-				//SE LE OTORGA LA MEDALLA
+				//SE COPIA LA MEDALLA DEL MAPA AL DIRECTORIO DEL ENTRENADOR
 				char* rutaMedalla = strdup(puntoMontajeOsada);
 				string_append(&rutaMedalla, "/Mapas/");
 				string_append(&rutaMedalla, ciudad->Nombre);
@@ -185,20 +191,11 @@ int main(int argc, char **argv) {
 
 				system(sysCall);
 
-				//SE BORRA EL DIR DE BILL
-				char* rutaBorrado = strdup("rm -rf ");
-				string_append(&rutaBorrado, rutaDirectorioEntrenador);
-				string_append(&rutaBorrado, "\"Dir de Bill\"");
-				string_append(&rutaBorrado, "/*");
-
-				system(rutaBorrado);
-
 				free(rutaEntrenador);
 				free(rutaMedalla);
 				free(rutaOrigen);
 				free(rutaDestino);
 				free(sysCall);
-				free(rutaBorrado);
 
 				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
 				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
@@ -217,9 +214,9 @@ int main(int argc, char **argv) {
 				log_info(logger, "El jugador ha abandonado el juego");
 
 				eliminarSocket(mapa_s);
-				log_destroy(logger);
 				free(nombreCiudad);
-				pthread_mutex_destroy(&mutexLog);
+
+				liberarRecursos();
 				abort();
 			}
 
@@ -240,9 +237,9 @@ int main(int argc, char **argv) {
 						log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 
 						eliminarSocket(mapa_s);
-						log_destroy(logger);
 						free(nombreCiudad);
-						pthread_mutex_destroy(&mutexLog);
+
+						liberarRecursos();
 						abort();
 					}
 				}
@@ -261,7 +258,7 @@ int main(int argc, char **argv) {
 
 				free(rutaBorrado);
 
-				//SE BORRA EL CONTENIDO DE MEDALLAS
+				//SE BORRA EL CONTENIDO DEL DIRECTORIO DE MEDALLAS
 				rutaBorrado = strdup("rm -rf ");
 				string_append(&rutaBorrado, rutaDirectorioEntrenador);
 				string_append(&rutaBorrado, "medallas");
@@ -276,52 +273,42 @@ int main(int argc, char **argv) {
 			log_info(logger, "El jugador ha abandonado el juego");
 
 			eliminarSocket(mapa_s);
-			log_destroy(logger);
-			pthread_mutex_destroy(&mutexLog);
+
+			liberarRecursos();
 			abort();
 		}
 	}
 
-	// Variables para la creación del hilo para el manejo de señales
-	pthread_t hiloSignalHandler;
-	pthread_attr_t atributosHiloSignalHandler;
-
-	//INICIALIZACIÓN DE LOS SEMÁFOROS
-	pthread_mutex_init(&mutexLog, NULL);
-
-	// Creación del archivo de log
-	logger = log_create(LOG_FILE_PATH, "ENTRENADOR", true, LOG_LEVEL_INFO);
-
-	// Cargar configuración
-	log_info(logger, "Cargando archivo de configuración");
-
+	// Se carga el archivo de configuración
 	if (cargarConfiguracion(&configEntrenador) == 1)
 	{
-		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
-		log_destroy(logger);
-		pthread_mutex_destroy(&mutexLog);
+		log_info(logger, "Se ha producido un error. El entrenador se cerrará.");
+
+		liberarRecursos();
 		return EXIT_FAILURE;
 	}
 
-	log_info(logger, "Nombre: %s", configEntrenador.Nombre);
-	log_info(logger, "Símbolo: %s", configEntrenador.Simbolo);
+	log_info(logger, "Nombre del entrenador: %s", configEntrenador.Nombre);
+	log_info(logger, "Símbolo del entrenador: %s", configEntrenador.Simbolo);
 	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
 	// Se setea en 1 (on) el flag de actividad
 	activo = 1;
 
-	// Creación del hilo para el manejo de señales
+	// Se crea el hilo para el manejo de señales
 	pthread_attr_init(&atributosHiloSignalHandler);
 	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
 	pthread_attr_destroy(&atributosHiloSignalHandler);
 
-	// Obtención de los objetivos propios de cada mapa (ciudad) incluido en la Hoja de Viaje del entrenador
-	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _obtenerObjetivosCiudad);
+	// Se cumple con los objetivos de cada ciudad incluida en la Hoja de Viaje
+	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _cumplirObjetivosCiudad);
 
-	log_info(logger, "La ejecución del proceso Entrenador ha finalizado correctamente");
+	log_info(logger, "El entrenador ha cumplido con todos los objetivos especificados en su Hoja de Viaje.");
+	log_info(logger, "Es ahora un Maestro Pokémon.");
 
-	log_destroy(logger);
-	pthread_mutex_destroy(&mutexLog);
+	log_info(logger, "Tiempo total que le ha tomado completar la aventura: %d.");
+
+	liberarRecursos();
 	return EXIT_SUCCESS;
 }
 
@@ -780,6 +767,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 		list_add(pokemonesAtrapados, pokemon);
 
+		//SE COPIA EL ARCHIVO DE METADATA DEL POKEMON AL DIRECTORIO DEL ENTRENADOR
 		char* rutaPokemon = strdup(puntoMontajeOsada);
 		string_append(&rutaPokemon, mensajeConfirmaCaptura.nombreArchivoMetadata);
 
@@ -812,18 +800,33 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		}
 
 		void _borrarArchivoMetadata(t_metadataPokemon* pokemon) {
+			bool _esPokemon(t_metadataPokemon* pokemonABorrar) {
+				return (string_equals_ignore_case(pokemonABorrar->ciudad, pokemon->ciudad) &&
+						pokemonABorrar->nivel == pokemon->nivel &&
+						string_equals_ignore_case(pokemonABorrar->rutaArchivo, pokemon->rutaArchivo));
+			}
+
+			//SE BORRA EL ARCHIVO DE METADATA DEL POKEMON DEL DIRECTORIO DEL ENTRENADOR
+			char* archivo;
+			archivo = strdup(strrchr(pokemon->rutaArchivo, '/'));
+
 			char* rutaBorrado = strdup("rm -rf ");
 			string_append(&rutaBorrado, rutaDirectorioEntrenador);
 			string_append(&rutaBorrado, "\"Dir de Bill\"");
-			string_append(&rutaBorrado, "/*");
+			string_append(&rutaBorrado, "/");
+			string_append(&rutaBorrado, archivo);
 
 			system(rutaBorrado);
 
+			free(archivo);
 			free(rutaBorrado);
+
+			list_remove_and_destroy_by_condition(pokemonesAtrapados, (void*) _esPokemon, (void*) eliminarPokemon);
 		}
 
 		pokemonesCiudad = list_filter(pokemonesAtrapados, (void*) _pokemonCiudad);
 		list_iterate(pokemonesCiudad, (void*) _borrarArchivoMetadata);
+		list_destroy_and_destroy_elements(pokemonesCiudad, (void*) eliminarPokemon);
 
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
 
@@ -925,4 +928,33 @@ void obtenerDatosConexion(char* nombreCiudad) {
 
 		log_error(logger, "La ruta de archivo de metadata indicada no existe");
 	}
+}
+
+void eliminarPokemon(t_metadataPokemon* pokemon) {
+	free(pokemon->ciudad);
+	free(pokemon->rutaArchivo);
+	free(pokemon);
+}
+
+void eliminarEntrenador(t_entrenador_config* entrenador) {
+	void _eliminarCiudadObjetivo(t_ciudad_objetivos* ciudad) {
+		free(ciudad->Nombre);
+		string_iterate_lines(ciudad->Objetivos, (void*) free);
+		free(ciudad->Objetivos);
+	}
+
+	if(entrenador != NULL)
+	{
+		free(entrenador->Nombre);
+		free(entrenador->Simbolo);
+		list_destroy_and_destroy_elements(entrenador->CiudadesYObjetivos, (void*) _eliminarCiudadObjetivo);
+	}
+}
+
+void liberarRecursos() {
+	eliminarEntrenador(&configEntrenador);
+	free(puntoMontajeOsada);
+	free(rutaDirectorioEntrenador);
+	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
+	log_destroy(logger);
 }

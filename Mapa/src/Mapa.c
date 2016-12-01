@@ -18,6 +18,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <pthread.h>
+#include <time.h>
 #include <commons/config.h>
 #include <commons/collections/list.h>
 #include <commons/collections/dictionary.h>
@@ -47,6 +48,7 @@ int activo;						// Flag de actividad del mapa
 int configuracionActualizada;   // Flag de actualización de la configuración
 char* puntoMontajeOsada;        // Punto de montaje del FS
 char* rutaDirectorioMapa;		// Ruta del directorio del mapa
+char* nombreMapa;				// Nombre del mapa
 
 //COLAS DE PLANIFICACIÓN
 t_queue* colaReady; 			// Cola de entrenadores listos
@@ -71,6 +73,8 @@ int main(int argc, char** argv) {
 	string_append(&rutaDirectorioMapa, "/Mapas/");
 	string_append(&rutaDirectorioMapa, argv[1]);
 	string_append(&rutaDirectorioMapa, "/");
+
+	nombreMapa = argv[2];
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -127,7 +131,7 @@ int main(int argc, char** argv) {
 	items = cargarPokenests(); //Carga de las Pokénest del mapa
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
-	nivel_gui_dibujar(items, "CodeTogether");
+	nivel_gui_dibujar(items, nombreMapa);
 
 	// Se setea en 1 (on) el flag de actividad
 	activo = 1;
@@ -348,7 +352,7 @@ int main(int argc, char** argv) {
 						break;
 					}
 
-					realizar_movimiento(items, *entrenadorAEjecutar, "CodeTogether");
+					realizar_movimiento(items, *entrenadorAEjecutar, nombreMapa);
 
 					//LE ENVÍO AL ENTRENADOR SU NUEVA UBICACIÓN
 					mensajeConfirmaDesplazamiento.tipoMensaje = CONFIRMA_DESPLAZAMIENTO;
@@ -593,7 +597,7 @@ void insertarAlFinal(t_entrenador* entrenador, t_queue* cola, pthread_mutex_t* m
 void realizar_movimiento(t_list* items, t_entrenador personaje, char* mapa) {
 	MoverPersonaje(items, personaje.id, personaje.ubicacion.x, personaje.ubicacion.y);
 	nivel_gui_dibujar(items, mapa);
-	usleep(configMapa.Retardo);
+	usleep(configMapa.Retardo * 1000);
 }
 
 ITEM_NIVEL* find_by_id(t_list* items, char idToFind) {
@@ -1066,6 +1070,7 @@ void aceptarConexiones() {
 		entrenador->ubicacion.x = 1;
 		entrenador->ubicacion.y = 1;
 		entrenador->utEjecutadas = 0;
+		entrenador->fechaIngreso = obtenerFechaIngreso();
 
 		// Enviar mensaje ACEPTA_CONEXION
 		paquete_t paquete;
@@ -1415,16 +1420,30 @@ void chequearDeadlock() {
 		t_list* entrenadoresConPokemonesAPelear;
 		entrenadoresConPokemonesAPelear = list_create();
 
+		//LISTA AUXILIAR DE ENTRENADORES
+		t_list* entrenadoresBloqueadosAux;
+		entrenadoresBloqueadosAux = list_create();
+		list_add_all(entrenadoresBloqueadosAux, colaBlocked->elements);
+
+		//LOS ORDENO POR FECHA DE INGRESO
+		bool _comparadorFechas(t_entrenador* entrenador1, t_entrenador* entrenador2)
+		{
+			double seconds = difftime(entrenador1->fechaIngreso, entrenador2->fechaIngreso);
+			return seconds < 0;
+		}
+
+		list_sort(entrenadoresBloqueadosAux, (void*) _comparadorFechas);
+
 		//CREO UN POKEMON POR CADA ENTRENADOR BLOQUEADO
 		int i;
-		for(i=0; i < list_size(colaBlocked->elements); i++)
+		for(i=0; i < list_size(entrenadoresBloqueadosAux); i++)
 		{
 			//OBTENGO POKMEON DE MAYOR NIVEL DEL ENTRENADOR PARA PELEAR
 			t_pokemonEntrenador* pokemonConEntrenador;
 			pokemonConEntrenador = malloc(sizeof(t_pokemonEntrenador));
 
 			pthread_mutex_lock(&mutexBlocked);
-			t_entrenador* entrenadorAux = list_get(colaBlocked->elements, i);
+			t_entrenador* entrenadorAux = list_get(entrenadoresBloqueadosAux, i);
 			pthread_mutex_unlock(&mutexBlocked);
 			*pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
 
@@ -1468,7 +1487,7 @@ void chequearDeadlock() {
 		}
 
 		t_entrenador* entrenadorAux;
-		entrenadorAux = list_find(colaBlocked->elements, (void*) _esElEntrenador);
+		entrenadorAux = list_find(entrenadoresBloqueadosAux, (void*) _esElEntrenador);
 
 		enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
 		free(paqueteEliminarRecursos.paqueteSerializado);
@@ -1769,4 +1788,18 @@ void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex) 
 	}
 	else
 		log_info(logger, "%s: se encuentra vacía", nombreCola);
+}
+
+time_t obtenerFechaIngreso()
+{
+	time_t current_time;
+	current_time = time(NULL);
+
+	if (current_time == ((time_t)-1))
+	{
+		log_error(logger, "Error al obtener fecha del sistema");
+		exit(EXIT_FAILURE);
+	}
+
+	return current_time;
 }

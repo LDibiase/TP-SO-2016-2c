@@ -104,5 +104,6 @@ void desbloquearJugadores();
 void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar);
 void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex);
 time_t obtenerFechaIngreso();
+char* obtenerNombrePokemon(char idPokemon);
 
 #endif /* MAPA_H_ */

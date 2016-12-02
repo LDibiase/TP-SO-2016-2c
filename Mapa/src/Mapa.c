@@ -1463,7 +1463,11 @@ void chequearDeadlock() {
 
 						t_entrenador* entrenadorAux = list_get(entrenadoresEnInterbloqueo, i);
 
-						pokemonConEntrenador->nombre = strdup("Pikachu");
+						char* nombrePokemon;
+
+						nombrePokemon = obtenerNombrePokemon(entrenadorAux->idPokenestActual);
+
+						pokemonConEntrenador->nombre = nombrePokemon;
 						pokemonConEntrenador->nivel = obtenerPokemonMayorNivel(entrenadorAux).nivel;
 
 						//CREO EL POKÉMON DE LA "CLASE" DE LA BIBLIOTECA
@@ -1477,7 +1481,7 @@ void chequearDeadlock() {
 					t_pokemonEntrenador* entrenadorAEliminar;
 					entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
 
-					log_info(logger, "El jugador víctima es %s (%c)", entrenadorAEliminar->nombre, entrenadorAEliminar->id);
+
 
 					//ARMO EL MENSAJE PARA MANDAR A LIBERAR RECURSOS
 					mensaje_t mensajeLiberaRecursos;
@@ -1512,6 +1516,8 @@ void chequearDeadlock() {
 
 					t_entrenador* entrenadorAux;
 					entrenadorAux = list_find(entrenadoresEnInterbloqueo, (void*) _esElEntrenador);
+
+					log_info(logger, "El jugador víctima es %s (%c)", entrenadorAux->nombre, entrenadorAux->id);
 
 					enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
 					free(paqueteEliminarRecursos.paqueteSerializado);
@@ -1567,6 +1573,36 @@ void chequearDeadlock() {
 
 	destroy_pkmn_factory(pokemon_factory);
 	list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) eliminarEntrenador);
+}
+
+char* obtenerNombrePokemon(char idPokemon)
+{
+	char* nombrePokemon = string_new();
+	char* pathPokenestRevert = string_new();
+	char* pathPokenestRevertAndCut = string_new();
+	char* pathPokenestSinExtension = string_new();
+	t_mapa_pokenest* pokenestAux;
+	t_metadataPokemon* metadataPokemon;
+
+	bool _recursoBuscado(t_mapa_pokenest* recursoBuscado)
+	{
+		return recursoBuscado->id == idPokemon;
+	}
+
+	pokenestAux = list_find(recursosTotales, (void*) _recursoBuscado);
+	metadataPokemon = list_get(pokenestAux->metadatasPokemones, 0);
+
+	pathPokenestRevert = string_reverse(metadataPokemon->rutaArchivo);
+	pathPokenestRevertAndCut = string_substring_from(pathPokenestRevert, 7);
+	pathPokenestSinExtension = string_reverse(pathPokenestRevertAndCut);
+
+	nombrePokemon = string_substring_from(strrchr(pathPokenestSinExtension, '/'), 1);
+
+	free(pathPokenestRevert);
+	free(pathPokenestRevertAndCut);
+	free(pathPokenestSinExtension);
+
+	return nombrePokemon;
 }
 
 t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador) {

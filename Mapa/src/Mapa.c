@@ -1466,12 +1466,14 @@ void chequearDeadlock() {
 
 						t_entrenador* entrenadorAux = list_get(entrenadoresEnInterbloqueo, i);
 
+						char* nombrePokemon = obtenerNombrePokemon(entrenadorAux->idPokenestActual);
+
 						pokemonConEntrenador->idEntrenador = entrenadorAux->id;
 						pokemonConEntrenador->nivel = obtenerPokemonMayorNivel(entrenadorAux).nivel;
-						pokemonConEntrenador->nombre = obtenerNombrePokemon(entrenadorAux->idPokenestActual);
+						pokemonConEntrenador->nombre = strdup(nombrePokemon);
 
 						//CREO EL POKÉMON DE LA "CLASE" DE LA BIBLIOTECA
-						t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
+						t_pokemon* pokemon = create_pokemon(pokemon_factory, nombrePokemon, pokemonConEntrenador->nivel);
 						pokemonConEntrenador->pokemon = pokemon;
 
 						list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
@@ -1509,7 +1511,7 @@ void chequearDeadlock() {
 
 					bool _esElEntrenador(t_entrenador* entrenador)
 					{
-						return entrenador->id == entrenadorAEliminar->id;
+						return entrenador->id == entrenadorAEliminar->idEntrenador;
 					}
 
 					t_entrenador* entrenadorAux;
@@ -1625,8 +1627,8 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 				t_pokemonEntrenador* entrenador1;
 				t_pokemonEntrenador* entrenador2;
 
-				entrenador1 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
-				entrenador2 = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+				entrenador1 = list_remove(entrenadoresConPokemonesAPelear, 0);
+				entrenador2 = list_remove(entrenadoresConPokemonesAPelear, 0);
 
 				//HACER PELEAR A LOS ENTRENADORES
 				t_pokemon* loser = pkmn_battle(entrenador1->pokemon, entrenador2->pokemon);
@@ -1635,6 +1637,7 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 				{
 					entrenadorPerdedor = entrenador1;
 
+					free(entrenador2->nombre);
 					free(entrenador2->pokemon->species);
 					free(entrenador2->pokemon);
 					free(entrenador2);
@@ -1643,6 +1646,7 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 				{
 					entrenadorPerdedor = entrenador2;
 
+					free(entrenador1->nombre);
 					free(entrenador1->pokemon->species);
 					free(entrenador1->pokemon);
 					free(entrenador1);
@@ -1658,6 +1662,7 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 
 				if(entrenadorRestante->pokemon == loser)
 				{
+					free(entrenadorPerdedor->nombre);
 					free(entrenadorPerdedor->pokemon->species);
 					free(entrenadorPerdedor->pokemon);
 					free(entrenadorPerdedor);

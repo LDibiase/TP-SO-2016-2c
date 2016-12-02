@@ -1224,7 +1224,6 @@ bool algoritmoDeteccion() {
 	//LISTA AUXILIAR DE ENTRENADORES
 	t_list* entrenadoresAux;
 	entrenadoresAux = list_create();
-	list_add_all(entrenadoresAux, colaBlocked->elements);
 
 	//LISTA AUXILIAR SOLICITUDES
 	t_list* solicitudesAux;
@@ -1237,20 +1236,16 @@ bool algoritmoDeteccion() {
 	list_add_all(disponiblesAux, recursosDisponibles);
 
 	//VERIFICO QUE CADA ENTRENADOR TENGA ALGO ASIGNADO
-	void _verificarAsignaciones(t_entrenador* entrenador)
+	bool _tienenRecursos(t_entrenador* entrenador)
 	{
-		bool _esEntrenadorBuscado(t_entrenador* entrenadorABuscar) {
+		bool _esEntrenadorBuscado(t_entrenador* entrenadorABuscar)
+		{
 			return entrenadorABuscar->id == entrenador->id;
 		}
 
 		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _esEntrenadorBuscado);
 
-		//DESCARTO DE LA LISTA DE ENTRENADORES Y DE SOLICITUDES AQUELLOS ENTRENADORES QUE NO RETIENEN RECURSOS
-		if(entrenadorConRecursos == NULL)
-		{
-			list_remove_by_condition(entrenadoresAux, (void*) _esEntrenadorBuscado);
-			list_remove_by_condition(solicitudesAux, (void*) _esEntrenadorBuscado);
-		}
+		return entrenadorConRecursos != NULL;
 	}
 
 	//VERIFICO QUE LAS SOLICITUDES SEAN POSIBLES
@@ -1312,7 +1307,7 @@ bool algoritmoDeteccion() {
 	}
 
 	//VERIFICO LOS ENTRENADORES QUE TIENEN ASIGNADO ALGO.
-	list_iterate(entrenadoresAux, (void*) _verificarAsignaciones);
+	entrenadoresAux = list_filter(colaBlocked->elements, (void*) _tienenRecursos);
 
 	//CON LOS ENTRENADORES QUE QUEDARON, CHEQUEO QUE SE PUEDAN CUMPLIR SUS PETICIONES
 	list_iterate(entrenadoresAux, (void*) _verificarSolicitudes);

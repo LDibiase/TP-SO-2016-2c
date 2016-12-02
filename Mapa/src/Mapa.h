@@ -105,5 +105,6 @@ void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar);
 void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex);
 time_t obtenerFechaIngreso();
 void informarEstadoRecursos();
+char* obtenerNombrePokemon(char idPokemon);
 
 #endif /* MAPA_H_ */

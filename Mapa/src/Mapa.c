@@ -137,7 +137,7 @@ int main(int argc, char** argv) {
 	//INICIALIZACIÓN DEL MAPA
 	items = cargarPokenests(); //Carga de las Pokénest del mapa
 
-//	informarEstadoRecursos();
+	informarEstadoRecursos();
 
 	nivel_gui_inicializar();
 	nivel_gui_get_area_nivel(&rows, &cols);
@@ -1819,4 +1819,103 @@ time_t obtenerFechaIngreso()
 	}
 
 	return current_time;
+}
+
+void informarEstadoRecursos() {
+	char* cabecera;
+	char* estadoFila;
+
+	void _informarEstadoVector(t_mapa_pokenest* recurso) {
+		char* numero;
+
+		numero = string_itoa(recurso->id);
+		string_append(&cabecera, "	");
+		string_append(&cabecera, numero);
+
+		free(numero);
+
+		numero = string_itoa(recurso->cantidad);
+		string_append(&estadoFila, "	");
+		string_append(&estadoFila, numero);
+
+		free(numero);
+	}
+
+	void _informarEstadoTabla(t_recursosEntrenador* recursos) {
+		free(estadoFila);
+		estadoFila = string_new();
+
+		char* numero;
+
+		numero = string_itoa(recursos->id);
+		string_append(&estadoFila, numero);
+
+		free(numero);
+
+		list_iterate(recursos->recursos, (void*) _informarEstadoVector);
+		log_info(logger, "%s", estadoFila);
+	}
+
+	cabecera = string_new();
+	estadoFila = string_new();
+
+//	pthread_mutex_lock(mutex);
+	list_iterate(recursosTotales, (void*) _informarEstadoVector);
+//	pthread_mutex_unlock(mutex);
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Recursos Totales");
+
+	log_info(logger, "%s", cabecera);
+	log_info(logger, "--------------------------------------------------------------");
+	log_info(logger, "%s", estadoFila);
+	pthread_mutex_unlock(&mutexLog);
+
+	free(estadoFila);
+	estadoFila = string_new();
+
+//	pthread_mutex_lock(mutex);
+	list_iterate(recursosDisponibles, (void*) _informarEstadoVector);
+//	pthread_mutex_unlock(mutex);
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Recursos Disponibles");
+
+	log_info(logger, "%s", cabecera);
+	log_info(logger, "--------------------------------------------------------------");
+	log_info(logger, "%s", estadoFila);
+	pthread_mutex_unlock(&mutexLog);
+
+	free(estadoFila);
+	estadoFila = string_new();
+
+	if(list_size(recursosSolicitados) > 0)
+	{
+		pthread_mutex_lock(&mutexLog);
+		log_info(logger, "Recursos Solicitados");
+		log_info(logger, " %s", cabecera);
+		log_info(logger, "--------------------------------------------------------------");
+
+//		pthread_mutex_lock(mutex);
+		list_iterate(recursosSolicitados, (void*) _informarEstadoTabla);
+//		pthread_mutex_unlock(mutex);
+
+		pthread_mutex_unlock(&mutexLog);
+	}
+
+	if(list_size(recursosAsignados) > 0)
+	{
+		pthread_mutex_lock(&mutexLog);
+		log_info(logger, "Recursos Asignados");
+		log_info(logger, " %s", cabecera);
+		log_info(logger, "--------------------------------------------------------------");
+
+//		pthread_mutex_lock(mutex);
+		list_iterate(recursosSolicitados, (void*) _informarEstadoTabla);
+//		pthread_mutex_unlock(mutex);
+
+		pthread_mutex_unlock(&mutexLog);
+	}
+
+	free(estadoFila);
 }

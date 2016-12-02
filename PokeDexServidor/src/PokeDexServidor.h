@@ -19,6 +19,7 @@ typedef struct pokedex_cliente {
 typedef struct getattr {
 	int tipoArchivo;
 	int tamanioArchivo;
+	int lastModif;
 } t_getattr;
 
 typedef struct block {
@@ -60,6 +61,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 int truncate_callback(const char *path, int size);
 int rename_callback(const char *from, const char *to);
 int buscarTablaAchivos(int dirPadre, char* fname);
+int utimens_callback(const char *path, int time);
 
 // Acepta múltiples conexiones de clientes
 void aceptarConexiones();

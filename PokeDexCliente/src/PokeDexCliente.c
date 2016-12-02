@@ -65,10 +65,13 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 
 	memset(stbuf, 0, sizeof(struct stat));
 
+	struct timespec lastModif;
+	lastModif.tv_sec = mensajeGETATTR_RESPONSE.lastModif;
 
 	if (mensajeGETATTR_RESPONSE.tipoArchivo == 2) {
 		stbuf->st_mode = S_IFDIR | 0777;
 	    stbuf->st_nlink = 2;
+	    stbuf->st_mtim = lastModif;
 	    return 0;
 	}
 
@@ -76,6 +79,7 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 	    stbuf->st_mode = S_IFREG | 0777;
 	    stbuf->st_nlink = 1;
 	    stbuf->st_size = mensajeGETATTR_RESPONSE.tamanioArchivo;
+	    stbuf->st_mtim = lastModif;
 	    return 0;
 	}
 
@@ -485,7 +489,7 @@ static int fuse_rename(const char* from, const char* to) {
 
 static int fuse_truncate(const char *path, off_t size)
 {
-	// Enviar mensaje WRITE
+	// Enviar mensaje TRUNCATE
 			paquete_t paqueteLectura;
 			mensaje10_t mensajeQuieroTRUNCATE;
 
@@ -530,6 +534,43 @@ static int fuse_release(const char* path, struct fuse_file_info* fi)
     return 0;
 }
 
+static int fuse_utimens(const char* path, const struct timespec ts[2])
+{
+	paquete_t paqueteLectura;
+	mensaje10_t mensajeQuieroTIME;
+
+	mensajeQuieroTIME.tipoMensaje = UTIMENS;
+	mensajeQuieroTIME.path = (char *)path;
+	mensajeQuieroTIME.tamanioPath = strlen(mensajeQuieroTIME.path) + 1;
+	mensajeQuieroTIME.size = ts->tv_sec;
+
+	crearPaquete((void*) &mensajeQuieroTIME, &paqueteLectura);
+	log_info(logger, "MENSAJE UTIMENS PATH: %s TIME: %d ", mensajeQuieroTIME.path, mensajeQuieroTIME.size);
+	if(paqueteLectura.tamanioPaquete == 0) {
+		pokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+		log_info(logger, pokedex->error);
+		log_info(logger, "Conexión mediante socket %d finalizada", pokedex->descriptor);
+		exit(EXIT_FAILURE);
+	}
+
+	enviarMensaje(pokedex, paqueteLectura);
+
+	// Recibir mensaje RESPUESTA
+		mensaje7_t mensajeTIME_RESPONSE;
+		mensajeTIME_RESPONSE.tipoMensaje = UTIMENS_RESPONSE;
+
+		recibirMensaje(pokedex, &mensajeTIME_RESPONSE);
+
+		int res = mensajeTIME_RESPONSE.res;
+		log_info(logger, "MENSAJE mensajeTRUNCATE_RESPONSE %d", mensajeTIME_RESPONSE.res);
+
+		if(res == -1)
+			return -errno;
+
+		return 0;
+}
+
+
 static struct fuse_opt fuse_options[] = {
 		// Este es un parametro definido por nosotros
 		//CUSTOM_FUSE_OPT_KEY("--welcome-msg %s", welcome_msg, 0),
@@ -557,7 +598,7 @@ static struct fuse_operations fuse_oper = {
 		.flush = fuse_flush,
 		.release = fuse_release,
 		.rename = fuse_rename,
-		//utimens(const char* path, const struct timespec ts[2]
+		.utimens = fuse_utimens,
 };
 
 int main(int argc, char *argv[]) {

@@ -88,7 +88,7 @@ t_mapa_pokenest leerPokenest(char* metadata);
 int cargarConfiguracion(t_mapa_config* structConfig);
 void aceptarConexiones();
 void eliminarEntrenador(t_entrenador* entrenador);
-bool algoritmoDeteccion();
+t_list* algoritmoDeteccion();
 void eliminarRecursosEntrenador(t_recursosEntrenador* recursosEntrenador);
 void liberarMemoriaAlocada();
 void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar);

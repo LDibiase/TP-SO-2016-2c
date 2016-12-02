@@ -16,6 +16,7 @@
 #include <commons/string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/time.h>
 #include <fcntl.h>
 #include <commons/log.h>
 #include "socket.h" // BORRAR
@@ -225,6 +226,7 @@ int main(void) {
 			mensajeGETATTR_RESPONSE.tipoMensaje = GETATTR_RESPONSE;
 			mensajeGETATTR_RESPONSE.tipoArchivo = getattr.tipoArchivo;
 			mensajeGETATTR_RESPONSE.tamanioArchivo = getattr.tamanioArchivo;
+			mensajeGETATTR_RESPONSE.lastModif = getattr.lastModif;
 
 
 			crearPaquete((void*) &mensajeGETATTR_RESPONSE, &paqueteGetAttr);
@@ -423,6 +425,29 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteTRUNCATE);
 				break;
+			case UTIMENS:
+				log_info(logger, "Solicito UTIMENS PATH: %s TIME: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
+
+				// Enviar mensaje UTIMENS
+				paquete_t paqueteUTIMENS;
+				mensaje7_t mensajeUTIMENS_RESPONSE;
+
+
+				mensajeUTIMENS_RESPONSE.tipoMensaje = TRUNCATE_RESPONSE;
+				mensajeUTIMENS_RESPONSE.res = utimens_callback(((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
+
+
+				crearPaquete((void*) &mensajeUTIMENS_RESPONSE, &paqueteUTIMENS);
+				if(paqueteGetAttr.tamanioPaquete == 0) {
+					socketPokedex->error = strdup("No se ha podido alocar memoria para el mensaje a enviarse");
+					log_info(logger, socketPokedex->error);
+					log_info(logger, "Conexión mediante socket %d finalizada", socketPokedex->descriptor);
+					exit(EXIT_FAILURE);
+				}
+
+				enviarMensaje(socketPokedex, paqueteUTIMENS);
+				break;
+
 			}
 
 			//Luego de cada operaciones sinconizo los datos a disco
@@ -477,6 +502,16 @@ int getFirstBit() {
 	return -1;
 }
 
+int utimens_callback(const char *path, int time) {
+
+	int archivoID = getDirPadre(path);
+
+	if (archivoID != -1) {
+		tablaArchivos[archivoID].lastmod = time;
+	}
+	return archivoID;
+}
+
 int truncate_callback(const char *path, int size) {
 
 	int archivoID = getDirPadre(path);
@@ -485,32 +520,67 @@ int truncate_callback(const char *path, int size) {
 		int primerBloque = tablaArchivos[archivoID].first_block;
 
 		int sumOffset = 0;
+		int sumSize = 0;
 		int bloque = primerBloque;
 		int bloqueAnterior = bloque;
 
-		//Movimientos hasta el size
-		while (sumOffset<size) {
-			bloqueAnterior = bloque;
-			bloque = tablaAsignaciones[bloque];
-			sumOffset = sumOffset + OSADA_BLOCK_SIZE;
-		}
+		if (size > tablaArchivos[archivoID].file_size) {
+			//Movimientos hasta el size
+				while (sumSize<tablaArchivos[archivoID].file_size) {
+					bloqueAnterior = bloque;
+					bloque = tablaAsignaciones[bloque];
+					sumSize = sumSize + OSADA_BLOCK_SIZE;
+				}
 
-		while (bloque != -1) {
-			//Limpio el bitmap
-			bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
-			//log_info(logger," Limpiando bitarray %d", bloque);
+			//Agrego bloques faltantes
+			while (size > tablaArchivos[archivoID].file_size) {
+					int nuevoBloque = getFirstBit();
+					if (nuevoBloque == -1) { //Disco lleno
+							tablaArchivos[archivoID].file_size = OSADA_BLOCK_SIZE + tablaArchivos[archivoID].file_size;
+							return -1;
 
-			bloqueAnterior = bloque;
-			bloque = tablaAsignaciones[bloque];
+						} else {
+							bloqueAnterior = bloque;
+							bloque = nuevoBloque - inicioBloqueDatos;
 
-			//Limpio tabla de asignaciones
-			tablaAsignaciones[bloqueAnterior] = -1;
-			//log_info(logger,"Limpiando bloque: %d /n", bloqueAnterior);
-		}
+							if (tablaArchivos[archivoID].first_block == -1) { //Archivo vacio
+								tablaArchivos[archivoID].first_block = bloque;
+							} else {
+								tablaAsignaciones[bloqueAnterior] = bloque;
+							}
+							tablaAsignaciones[bloque] = -1;
+							bitarray_set_bit(bitarray,bloque + inicioBloqueDatos);
+							tablaArchivos[archivoID].file_size = OSADA_BLOCK_SIZE + tablaArchivos[archivoID].file_size;
+						}
+			}
+		} else {
 
-		tablaArchivos[archivoID].file_size = size;
-		if (size==0) {
-			tablaArchivos[archivoID].first_block = -1;
+			//Borro bloques
+			//Movimientos hasta el sizebloque
+			while (sumOffset<size) {
+				bloqueAnterior = bloque;
+				bloque = tablaAsignaciones[bloque];
+				sumOffset = sumOffset + OSADA_BLOCK_SIZE;
+			}
+
+			while (bloque != -1) {
+				//Limpio el bitmap
+				bitarray_clean_bit(bitarray, bloque + inicioBloqueDatos);
+				//log_info(logger," Limpiando bitarray %d", bloque);
+
+				bloqueAnterior = bloque;
+				bloque = tablaAsignaciones[bloque];
+
+				//Limpio tabla de asignaciones
+				tablaAsignaciones[bloqueAnterior] = -1;
+				//log_info(logger,"Limpiando bloque: %d /n", bloqueAnterior);
+			}
+
+			tablaArchivos[archivoID].file_size = size;
+
+			if (size==0) {
+				tablaArchivos[archivoID].first_block = -1;
+			}
 		}
 	}
 
@@ -536,12 +606,13 @@ int rename_callback(const char *from, const char *to) {
 	int archivoID = getDirPadre(from);
 
 	int n = string_length((char *)array[i]);
-		if (n > 17) {
-			return -2; }
+	if (n > 17) {
+		return -2; }
 
 	if (archivoID != -1) {
 		tablaArchivos[archivoID].parent_directory=res;
 		strcpy((char *)tablaArchivos[archivoID].fname, (const char *)array[i]);
+		tablaArchivos[archivoID].lastmod = (int)time(NULL);
 	}
 
 	return archivoID;
@@ -635,6 +706,8 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 
 	//Asigno nuevo tamaño
 	tablaArchivos[archivoID].file_size = sum + offset;
+	tablaArchivos[archivoID].lastmod = (int)time(NULL);
+
 	return 1;
 }
 
@@ -689,7 +762,7 @@ int mkdir_callback(const char *path) {
 	newDir.parent_directory = res;
 	newDir.file_size = 0;
 	newDir.first_block = -1;
-	newDir.lastmod = 1475075773;
+	newDir.lastmod = (int)time(NULL);
 	tablaArchivos[id] = newDir;
 
 	return id;
@@ -726,7 +799,7 @@ int mknod_callback(const char *path) {
 	newDir.parent_directory = res;
 	newDir.file_size = 0;
 	newDir.first_block = -1;
-	newDir.lastmod = 1475075773;
+	newDir.lastmod = (int)time(NULL);
 	tablaArchivos[id] = newDir;
 	return id;
 }
@@ -806,9 +879,11 @@ t_getattr getattr_callback(const char *path) {
 		if (tablaArchivos[id].state == 1) {
 			res.tipoArchivo = 1;
 			res.tamanioArchivo = tablaArchivos[id].file_size;
+			res.lastModif = tablaArchivos[id].lastmod;
 		}
 		if (tablaArchivos[id].state == 2) {
 			res.tipoArchivo = 2;
+			res.lastModif = tablaArchivos[id].lastmod;
 		}
 	} else {
 		res.tipoArchivo = 2;

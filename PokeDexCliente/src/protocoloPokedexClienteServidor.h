@@ -44,7 +44,9 @@ typedef enum tipoMensaje {
 	RENAME,
 	RENAME_RESPONSE,
 	TRUNCATE,
-	TRUNCATE_RESPONSE
+	TRUNCATE_RESPONSE,
+	UTIMENS,
+	UTIMENS_RESPONSE
 } tipoMensaje_t;
 
 
@@ -73,6 +75,7 @@ typedef struct mensaje3 {
 	uint32_t tipoMensaje;
 	int tipoArchivo;
 	int tamanioArchivo;
+	int lastModif;
 } mensaje3_t;
 
 typedef struct mensaje4 {

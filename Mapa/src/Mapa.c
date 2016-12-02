@@ -1420,6 +1420,7 @@ void chequearDeadlock() {
 	t_pkmn_factory* pokemon_factory = create_pkmn_factory();
 
 	void _eliminarEntrenador(t_pokemonEntrenador* entrenador) {
+		free(entrenador->nombre);
 		free(entrenador->pokemon->species);
 		free(entrenador->pokemon);
 		free(entrenador);
@@ -1465,12 +1466,9 @@ void chequearDeadlock() {
 
 						t_entrenador* entrenadorAux = list_get(entrenadoresEnInterbloqueo, i);
 
-						char* nombrePokemon;
-
-						nombrePokemon = obtenerNombrePokemon(entrenadorAux->idPokenestActual);
-
-						pokemonConEntrenador->nombre = nombrePokemon;
+						pokemonConEntrenador->idEntrenador = entrenadorAux->id;
 						pokemonConEntrenador->nivel = obtenerPokemonMayorNivel(entrenadorAux).nivel;
+						pokemonConEntrenador->nombre = obtenerNombrePokemon(entrenadorAux->idPokenestActual);
 
 						//CREO EL POKÉMON DE LA "CLASE" DE LA BIBLIOTECA
 						t_pokemon* pokemon = create_pokemon(pokemon_factory, pokemonConEntrenador->nombre, pokemonConEntrenador->nivel);
@@ -1482,8 +1480,6 @@ void chequearDeadlock() {
 					//YA TENGO LOS POKÉMONES DE CADA ENTRENADOR, AHORA A PELEAR
 					t_pokemonEntrenador* entrenadorAEliminar;
 					entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
-
-
 
 					//ARMO EL MENSAJE PARA MANDAR A LIBERAR RECURSOS
 					mensaje_t mensajeLiberaRecursos;

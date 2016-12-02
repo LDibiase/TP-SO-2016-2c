@@ -1210,6 +1210,8 @@ void aceptarConexiones() {
 		list_add(recursosAsignados, (void*) recursosAsignadosEntrenador);
 		list_add(recursosSolicitados, (void*) recursosSolicitadosEntrenador);
 
+		informarEstadoRecursos();
+
 		log_info(logger, "Se planificó al entrenador %s (%c)", entrenadorPlanificado->nombre, entrenadorPlanificado->id);
 	}
 }
@@ -1665,6 +1667,8 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 	eliminarRecursosEntrenador(recursosEntrenador);
 
 	list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
+
+	informarEstadoRecursos();
 }
 
 void desbloquearJugadores() {
@@ -1709,6 +1713,8 @@ void capturarPokemon(t_entrenador* entrenador) {
 
 		actualizarMatriz(recursosSolicitados, entrenador, 0);
 		actualizarMatriz(recursosAsignados, entrenador, 1);
+
+		informarEstadoRecursos();
 
 		recurso = list_find(recursosTotales, (void*) _recursoBuscado);
 
@@ -1860,13 +1866,14 @@ void informarEstadoRecursos() {
 	char* estadoFila;
 
 	void _informarEstadoVector(t_mapa_pokenest* recurso) {
-		char* numero;
+		char caracter[2];
 
-		numero = string_itoa(recurso->id);
+		caracter[0] = recurso->id;
+		caracter[1] = '\0';
 		string_append(&cabecera, "	");
-		string_append(&cabecera, numero);
+		string_append(&cabecera, caracter);
 
-		free(numero);
+		char* numero;
 
 		numero = string_itoa(recurso->cantidad);
 		string_append(&estadoFila, "	");
@@ -1879,14 +1886,14 @@ void informarEstadoRecursos() {
 		free(estadoFila);
 		estadoFila = string_new();
 
-		char* numero;
+		char caracter[2];
 
-		numero = string_itoa(recursos->id);
-		string_append(&estadoFila, numero);
-
-		free(numero);
+		caracter[0] = recursos->id;
+		caracter[1] = '\0';
+		string_append(&estadoFila, caracter);
 
 		list_iterate(recursos->recursos, (void*) _informarEstadoVector);
+
 		log_info(logger, "%s", estadoFila);
 	}
 
@@ -1901,9 +1908,11 @@ void informarEstadoRecursos() {
 	log_info(logger, "Recursos Totales");
 
 	log_info(logger, "%s", cabecera);
-	log_info(logger, "--------------------------------------------------------------");
+	log_info(logger, "-----------------------------------------------------------------");
 	log_info(logger, "%s", estadoFila);
 	pthread_mutex_unlock(&mutexLog);
+
+	char* cabeceraAux = strdup(cabecera);
 
 	free(estadoFila);
 	estadoFila = string_new();
@@ -1915,8 +1924,8 @@ void informarEstadoRecursos() {
 	pthread_mutex_lock(&mutexLog);
 	log_info(logger, "Recursos Disponibles");
 
-	log_info(logger, "%s", cabecera);
-	log_info(logger, "--------------------------------------------------------------");
+	log_info(logger, "%s", cabeceraAux);
+	log_info(logger, "-----------------------------------------------------------------");
 	log_info(logger, "%s", estadoFila);
 	pthread_mutex_unlock(&mutexLog);
 
@@ -1927,8 +1936,8 @@ void informarEstadoRecursos() {
 	{
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Recursos Solicitados");
-		log_info(logger, " %s", cabecera);
-		log_info(logger, "--------------------------------------------------------------");
+		log_info(logger, " %s", cabeceraAux);
+		log_info(logger, "-----------------------------------------------------------------");
 
 //		pthread_mutex_lock(mutex);
 		list_iterate(recursosSolicitados, (void*) _informarEstadoTabla);
@@ -1941,8 +1950,8 @@ void informarEstadoRecursos() {
 	{
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Recursos Asignados");
-		log_info(logger, " %s", cabecera);
-		log_info(logger, "--------------------------------------------------------------");
+		log_info(logger, " %s", cabeceraAux);
+		log_info(logger, "-----------------------------------------------------------------");
 
 //		pthread_mutex_lock(mutex);
 		list_iterate(recursosSolicitados, (void*) _informarEstadoTabla);
@@ -1951,5 +1960,7 @@ void informarEstadoRecursos() {
 		pthread_mutex_unlock(&mutexLog);
 	}
 
+	free(cabeceraAux);
+	free(cabecera);
 	free(estadoFila);
 }

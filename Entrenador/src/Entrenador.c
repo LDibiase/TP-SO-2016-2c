@@ -985,7 +985,7 @@ void liberarRecursos() {
 	eliminarEntrenador(&configEntrenador);
 	free(puntoMontajeOsada);
 	free(rutaDirectorioEntrenador);
-	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
+//	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
 	log_destroy(logger);
 }
 

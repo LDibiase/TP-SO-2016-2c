@@ -1626,7 +1626,7 @@ void chequearDeadlock() {
 						eliminarSocket(mi_socket_s);
 
 						eliminarPokemonEntrenador(entrenadorAEliminar);
-//						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
+						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
 						list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) eliminarEntrenador);
 
 						pthread_mutex_lock(&mutexLog);
@@ -1714,7 +1714,7 @@ void chequearDeadlock() {
 							eliminarSocket(mi_socket_s);
 
 							eliminarPokemonEntrenador(entrenadorAEliminar);
-//							list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
+							list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
 							list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) eliminarEntrenador);
 
 							pthread_mutex_lock(&mutexLog);

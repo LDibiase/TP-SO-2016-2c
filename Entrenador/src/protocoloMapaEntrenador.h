@@ -38,6 +38,12 @@
  *
  *	Mensaje 9: Informa al entrenador que el mapa ha confirmado la captura del Pokémon solicitado
  *	-->	mensaje9_t
+ *
+ *	Mensaje 10: Informa al entrenador que el mapa lo ha declarado víctima en un combate Pokémon
+ *	-->	mensaje_t
+ *
+ *	Mensaje 11: Informa al mapa que el entrenador se ha desconectado
+ *	-->	mensaje_t
  */
 
 
@@ -56,7 +62,8 @@ typedef enum tipoMensaje {
 	CONFIRMA_DESPLAZAMIENTO,
 	SOLICITA_CAPTURA,
 	CONFIRMA_CAPTURA,
-	INFORMA_MUERTE
+	INFORMA_MUERTE,
+	DESCONEXION_ENTRENADOR
 } tipoMensaje_t;
 
 // Mensaje genérico (sin operandos)

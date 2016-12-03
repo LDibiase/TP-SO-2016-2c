@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 
 			if(activo == 0)
 			{
-				log_info(logger, "El jugador ha abandonado el juego");
+				log_info(logger, "El entrenador ha abandonado el juego");
 
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
@@ -129,103 +129,130 @@ int main(int argc, char **argv) {
 	}
 
 	void _cumplirObjetivosCiudad(t_ciudad_objetivos* ciudad) {
-		objetivosCompletados = 0;
-		victima = 0;
-		nombreCiudad = strdup(ciudad->Nombre);
+		if(objetivosCompletados)
+		{
+			objetivosCompletados = 0;
+			victima = 0;
+			nombreCiudad = strdup(ciudad->Nombre);
 
-		log_info(logger, "Se recuperan los datos de conexión del mapa %s.", nombreCiudad);
+			log_info(logger, "Se recuperan los datos de conexión del mapa %s.", nombreCiudad);
 
-		// Obtener datos de conexión del mapa
-		obtenerDatosConexion(ciudad->Nombre);
+			// Obtener datos de conexión del mapa
+			obtenerDatosConexion(ciudad->Nombre);
 
-		while(configEntrenador.Vidas > 0 && activo && !objetivosCompletados) {
-			// Conexión al mapa
-			mapa_s = conectarAMapa(ip, puerto);
+			while(configEntrenador.Vidas > 0 && activo && !objetivosCompletados) {
+				// Conexión al mapa
+				mapa_s = conectarAMapa(ip, puerto);
 
-			if(mapa_s->errorCode != NO_ERROR)
-			{
-				eliminarSocket(mapa_s);
-				free(nombreCiudad);
+				if(mapa_s->errorCode != NO_ERROR)
+				{
+					eliminarSocket(mapa_s);
+					free(nombreCiudad);
 
-				liberarRecursos();
-				abort();
+					liberarRecursos();
+					abort();
+				}
+
+				// Determinar la ubicación inicial del entrenador en el mapa
+				ubicacion.x = 1;
+				ubicacion.y = 1;
+
+				log_info(logger, "La ubicación del entrenador es (%d,%d).", ubicacion.x, ubicacion.y);
+
+				// Determinar el eje de movimiento anterior arbitrariamente
+				ejeAnterior = 'x';
+
+				string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
+
+				if(activo == 0)
+				{
+					log_info(logger, "El jugador ha abandonado el juego");
+
+					eliminarSocket(mapa_s);
+					free(nombreCiudad);
+
+					liberarRecursos();
+					abort();
+				}
+
+				if(victima == 0)
+				{
+					objetivosCompletados = 1;
+
+					char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
+					string_append(&rutaEntrenador, "medallas/");
+
+					//SE COPIA LA MEDALLA DEL MAPA AL DIRECTORIO DEL ENTRENADOR
+					char* rutaMedalla = strdup(puntoMontajeOsada);
+					string_append(&rutaMedalla, "/Mapas/");
+					string_append(&rutaMedalla, ciudad->Nombre);
+					string_append(&rutaMedalla, "/");
+					string_append(&rutaMedalla, "medalla-");
+					string_append(&rutaMedalla, ciudad->Nombre);
+					string_append(&rutaMedalla, ".jpg");
+
+					char* rutaOrigen = strdup("cp ");
+					string_append(&rutaOrigen, rutaMedalla);
+					string_append(&rutaOrigen, " ");
+
+					char* rutaDestino = strdup(rutaEntrenador);
+
+					char* sysCall = strdup(rutaOrigen);
+					string_append(&sysCall, rutaDestino);
+
+					system(sysCall);
+
+					log_info(logger, "Se copia la medalla %s al directorio del entrenador.", rutaMedalla);
+
+					free(rutaEntrenador);
+					free(rutaMedalla);
+					free(rutaOrigen);
+					free(rutaDestino);
+					free(sysCall);
+
+					// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
+					log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
+					log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
+
+					free(ip);
+					free(puerto);
+
+					eliminarSocket(mapa_s);
+					free(nombreCiudad);
+				}
+				else
+					configEntrenador.Vidas--;
+
+				if(activo == 0)
+				{
+					log_info(logger, "El entrenador ha abandonado el juego");
+
+					eliminarSocket(mapa_s);
+					free(nombreCiudad);
+
+					liberarRecursos();
+					abort();
+				}
+
+				if(!objetivosCompletados)
+				{
+					char* rutaBorrado;
+
+					//SE BORRA EL CONTENIDO DEL DIR DE BILL
+					rutaBorrado = strdup("rm -rf ");
+					string_append(&rutaBorrado, rutaDirectorioEntrenador);
+					string_append(&rutaBorrado, "\"Dir de Bill\"");
+					string_append(&rutaBorrado, "/*");
+
+					free(rutaBorrado);
+				}
 			}
-
-			// Determinar la ubicación inicial del entrenador en el mapa
-			ubicacion.x = 1;
-			ubicacion.y = 1;
-
-			log_info(logger, "La ubicación del entrenador es (%d,%d).", ubicacion.x, ubicacion.y);
-
-			// Determinar el eje de movimiento anterior arbitrariamente
-			ejeAnterior = 'x';
-
-			string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
 
 			if(activo == 0)
 			{
 				log_info(logger, "El jugador ha abandonado el juego");
 
 				eliminarSocket(mapa_s);
-				free(nombreCiudad);
-
-				liberarRecursos();
-				abort();
-			}
-
-			if(victima == 0)
-			{
-				objetivosCompletados = 1;
-
-				char* rutaEntrenador = strdup(rutaDirectorioEntrenador);
-				string_append(&rutaEntrenador, "medallas/");
-
-				//SE COPIA LA MEDALLA DEL MAPA AL DIRECTORIO DEL ENTRENADOR
-				char* rutaMedalla = strdup(puntoMontajeOsada);
-				string_append(&rutaMedalla, "/Mapas/");
-				string_append(&rutaMedalla, ciudad->Nombre);
-				string_append(&rutaMedalla, "/");
-				string_append(&rutaMedalla, "medalla-");
-				string_append(&rutaMedalla, ciudad->Nombre);
-				string_append(&rutaMedalla, ".jpg");
-
-				char* rutaOrigen = strdup("cp ");
-				string_append(&rutaOrigen, rutaMedalla);
-				string_append(&rutaOrigen, " ");
-
-				char* rutaDestino = strdup(rutaEntrenador);
-
-				char* sysCall = strdup(rutaOrigen);
-				string_append(&sysCall, rutaDestino);
-
-				system(sysCall);
-
-				log_info(logger, "Se copia la medalla %s al directorio del entrenador.", rutaMedalla);
-
-				free(rutaEntrenador);
-				free(rutaMedalla);
-				free(rutaOrigen);
-				free(rutaDestino);
-				free(sysCall);
-
-				// Al finalizar la recolección de objetivos dentro del mapa, el entrenador se desconecta
-				log_info(logger, "Se han completado todos los objetivos dentro del mapa %s", ciudad->Nombre);
-				log_info(logger, "Conexión mediante socket %d finalizada", mapa_s->descriptor);
-
-				free(ip);
-				free(puerto);
-
-				eliminarSocket(mapa_s);
-			}
-			else
-				configEntrenador.Vidas--;
-
-			if(activo == 0)
-			{
-				log_info(logger, "El jugador ha abandonado el juego");
-
-				eliminarSocket(mapa_s);
-				free(nombreCiudad);
 
 				liberarRecursos();
 				abort();
@@ -236,38 +263,50 @@ int main(int argc, char **argv) {
 				char respuesta;
 
 				log_info(logger, "¿Desea reiniciar el juego? (Y/N)");
+				log_info(logger, "ACTIVO: %d", activo);
 
-				respuesta = getchar();
+				while(activo) {
+					respuesta = getchar();
 
-				if(respuesta == 'Y')
-				{
-					activo = 1;
-
-					if (cargarConfiguracion(&configEntrenador) == 1)
+					if(respuesta == 'Y')
 					{
-						log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+						activo = 1;
 
-						eliminarSocket(mapa_s);
-						free(nombreCiudad);
+						if (cargarConfiguracion(&configEntrenador) == 1)
+						{
+							log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 
-						liberarRecursos();
-						abort();
+							eliminarSocket(mapa_s);
+							free(nombreCiudad);
+
+							liberarRecursos();
+							abort();
+						}
+
+						break;
 					}
+					else if (respuesta == 'N')
+					{
+						activo = 0;
+
+						break;
+					}
+					else
+						log_info(logger, "Ingrese una de las siguientes respuestas: Y (Yes) / N (No)");
 				}
-				else if (respuesta == 'N')
-					activo = 0;
-				else
-					log_info(logger, "Ingrese una de las siguientes respuestas:/n Yes (Y)/n No (N)");
+
+				if(activo == 0)
+				{
+					log_info(logger, "El entrenador ha abandonado el juego");
+
+					eliminarSocket(mapa_s);
+					free(nombreCiudad);
+
+					liberarRecursos();
+					abort();
+				}
 
 				char* rutaBorrado;
-
-				//SE BORRA EL CONTENIDO DEL DIR DE BILL
-				rutaBorrado = strdup("rm -rf ");
-				string_append(&rutaBorrado, rutaDirectorioEntrenador);
-				string_append(&rutaBorrado, "\"Dir de Bill\"");
-				string_append(&rutaBorrado, "/*");
-
-				free(rutaBorrado);
 
 				//SE BORRA EL CONTENIDO DEL DIRECTORIO DE MEDALLAS
 				rutaBorrado = strdup("rm -rf ");
@@ -276,17 +315,8 @@ int main(int argc, char **argv) {
 				string_append(&rutaBorrado, "/*");
 
 				free(rutaBorrado);
+				free(nombreCiudad);
 			}
-		}
-
-		if(activo == 0)
-		{
-			log_info(logger, "El jugador ha abandonado el juego");
-
-			eliminarSocket(mapa_s);
-
-			liberarRecursos();
-			abort();
 		}
 	}
 
@@ -311,8 +341,15 @@ int main(int argc, char **argv) {
 	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
 	pthread_attr_destroy(&atributosHiloSignalHandler);
 
-	// Se cumple con los objetivos de cada ciudad incluida en la Hoja de Viaje
-	list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _cumplirObjetivosCiudad);
+	// Se inicializa el flag de objetivos completados
+	objetivosCompletados = 0;
+
+	while(!objetivosCompletados) {
+		objetivosCompletados = 1; // Se activa el flag únicamente para entrar a la iteración
+
+		// Se cumple con los objetivos de cada ciudad incluida en la Hoja de Viaje
+		list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _cumplirObjetivosCiudad);
+	}
 
 	log_info(logger, "El entrenador ha cumplido con todos los objetivos especificados en su Hoja de Viaje.");
 	log_info(logger, "Es ahora un Maestro Pokémon.");
@@ -745,6 +782,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	mensaje9_t mensajeConfirmaCaptura;
 
 	mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
+
 	recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
 	if(mapa_s->errorCode != NO_ERROR)
 	{
@@ -831,8 +869,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 			free(archivo);
 			free(rutaBorrado);
-
-			list_remove_and_destroy_by_condition(pokemonesAtrapados, (void*) _esPokemon, (void*) eliminarPokemon);
 		}
 
 		pokemonesCiudad = list_filter(pokemonesAtrapados, (void*) _pokemonCiudad);
@@ -840,6 +876,49 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		list_destroy_and_destroy_elements(pokemonesCiudad, (void*) eliminarPokemon);
 
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
+
+		// Enviar mensaje DESCONEXION_ENTRENADOR
+		paquete_t paquete;
+		mensaje_t mensajeDesconexionEntrenador;
+
+		mensajeDesconexionEntrenador.tipoMensaje = DESCONEXION_ENTRENADOR;
+
+		crearPaquete((void*) &mensajeDesconexionEntrenador, &paquete);
+		if(paquete.tamanioPaquete == 0)
+		{
+			mapa_s->errorCode = ERR_MSG_CANNOT_BE_SENT;
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+			return;
+		}
+
+		enviarMensaje(mapa_s, paquete);
+
+		free(paquete.paqueteSerializado);
+
+		if(mapa_s->errorCode != NO_ERROR)
+		{
+			switch(mapa_s->errorCode) {
+			case ERR_PEER_DISCONNECTED:
+				log_info(logger, "El socket del servidor se encuentra desconectado");
+
+				break;
+			case ERR_MSG_CANNOT_BE_SENT:
+				log_info(logger, "No se ha podido enviar un mensaje");
+
+				break;
+			}
+
+			log_info(logger, mapa_s->error);
+			log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+			return;
+		}
+
+		eliminarSocket(mapa_s);
+
+		log_info(logger, "El entrenador se ha desconectado del mapa");
 
 		// Se activa el flag Víctima
 		*victima = 1;

@@ -717,6 +717,8 @@ t_list* cargarPokenests() {
 	        recursoDisponibles->cantidad = cantidadDeRecursos;
 	        recursoDisponibles->id = pokenestLeida.id;
 	        recursoDisponibles->tipo = NULL;
+	        recursoDisponibles->ubicacion.x = pokenestLeida.ubicacion.x;
+			recursoDisponibles->ubicacion.y = pokenestLeida.ubicacion.y;
 
 	        pthread_mutex_lock(&mutexTotales);
 	        list_add(recursosTotales, recursoTotales);
@@ -1924,7 +1926,10 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 		recursoAActualizar = list_find(recursosDisponibles, (void*) _recursoBuscado);
 
 		if(recursoAActualizar != NULL)
+		{
 			recursoAActualizar->cantidad = recursoAActualizar->cantidad + recurso->cantidad;
+	        CrearCaja(items, recursoAActualizar->id, recursoAActualizar->ubicacion.x, recursoAActualizar->ubicacion.y, recursoAActualizar->cantidad);
+		}
 		pthread_mutex_unlock(&mutexDisponibles);
 
 		pthread_mutex_lock(&mutexTotales);

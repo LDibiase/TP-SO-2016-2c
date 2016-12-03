@@ -815,7 +815,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 		pokemonesCiudad = list_filter(pokemonesAtrapados, (void*) _pokemonCiudad);
 		list_iterate(pokemonesCiudad, (void*) _borrarArchivoMetadata);
-		list_destroy_and_destroy_elements(pokemonesCiudad, (void*) eliminarPokemon);
+//		list_destroy_and_destroy_elements(pokemonesCiudad, (void*) eliminarPokemon);
 
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
 

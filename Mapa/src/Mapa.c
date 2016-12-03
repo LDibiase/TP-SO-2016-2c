@@ -765,7 +765,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 
 				metadataPokemon->nivel = config_get_int_value(config, "Nivel");
 				metadataPokemon->rutaArchivo = string_substring_from(nombreArchivoPokemon, strlen(puntoMontajeOsada));
-				metadataPokemon->libre = 1;
+				metadataPokemon->entrenador = ' ';
 
 				list_add(metadatasPokemones, metadataPokemon);
 				list_sort(metadatasPokemones, (void*) _mayorAMenorNivel);
@@ -1663,9 +1663,9 @@ void chequearDeadlock() {
 
 							eliminarPokemonEntrenador(entrenadorAEliminar);
 							eliminarEntrenadorMapa(entrenadorAux);
-							eliminarEntrenador(entrenadorAux);
 							BorrarItem(items, entrenadorAux->id);
 							nivel_gui_dibujar(items, nombreMapa);
+							eliminarEntrenador(entrenadorAux);
 
 							informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
 							informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
@@ -1731,11 +1731,13 @@ void chequearDeadlock() {
 						}
 					}
 
+					log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
+
 					eliminarPokemonEntrenador(entrenadorAEliminar);
 					eliminarEntrenadorMapa(entrenadorAux);
-					eliminarEntrenador(entrenadorAux);
 					BorrarItem(items, entrenadorAux->id);
 					nivel_gui_dibujar(items, nombreMapa);
+					eliminarEntrenador(entrenadorAux);
 
 					informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
 					informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
@@ -1868,6 +1870,10 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 			return recursoBuscado->id == recurso->id;
 		}
 
+		bool _retenidoPorEntrenador(t_metadataPokemon* metadata) {
+			return metadata->entrenador == entrenador->id;
+		}
+
 		t_mapa_pokenest* recursoAActualizar;
 		pthread_mutex_lock(&mutexDisponibles);
 		recursoAActualizar = list_find(recursosDisponibles, (void*) _recursoBuscado);
@@ -1875,6 +1881,18 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 		if(recursoAActualizar != NULL)
 			recursoAActualizar->cantidad = recursoAActualizar->cantidad + recurso->cantidad;
 		pthread_mutex_unlock(&mutexDisponibles);
+
+		pthread_mutex_lock(&mutexTotales);
+		recursoAActualizar = list_find(recursosTotales, (void*) _recursoBuscado);
+
+		if(recursoAActualizar != NULL)
+		{
+			t_metadataPokemon* metadata = list_find(recursoAActualizar->metadatasPokemones, (void*) _retenidoPorEntrenador);
+
+			if(metadata != NULL)
+				metadata->entrenador = ' ';
+		}
+		pthread_mutex_unlock(&mutexTotales);
 	}
 
 	t_recursosEntrenador* recursosEntrenador;
@@ -1922,19 +1940,20 @@ void desbloquearJugadores() {
 
 void capturarPokemon(t_entrenador* entrenador) {
 	bool _recursoLibre(t_metadataPokemon* recurso) {
-		return recurso->libre;
+		return recurso->entrenador == ' ';
 	}
 
 	bool _recursoBuscado(t_mapa_pokenest* recursoBuscado) {
 		return recursoBuscado->id == entrenador->idPokenestActual;
 	}
 
+	pthread_mutex_lock(&mutexDisponibles);
 	t_mapa_pokenest* recurso;
 	recurso = list_find(recursosDisponibles, (void*) _recursoBuscado);
 
 	if(recurso->cantidad >= 1)
 	{
-		pthread_mutex_lock(&mutexDisponibles);
+		log_info(logger, "Recurso %c, cantidad %d", recurso->id, recurso->cantidad);
 		recurso->cantidad--;
 		pthread_mutex_unlock(&mutexDisponibles);
 
@@ -1949,7 +1968,7 @@ void capturarPokemon(t_entrenador* entrenador) {
 		recurso = list_find(recursosTotales, (void*) _recursoBuscado);
 		t_metadataPokemon* metadata;
 		metadata = list_find(recurso->metadatasPokemones, (void*) _recursoLibre);
-		metadata->libre = 0;
+		metadata->entrenador = entrenador->id;
 		pthread_mutex_unlock(&mutexTotales);
 
 		mensaje9_t mensajeConfirmaCaptura;
@@ -2028,6 +2047,8 @@ void capturarPokemon(t_entrenador* entrenador) {
 		//VUELVO A ENCOLAR AL ENTRENADOR
 		reencolarEntrenador(entrenador);
 	}
+	else
+		pthread_mutex_unlock(&mutexDisponibles);
 }
 
 void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar, pthread_mutex_t* mutex) {
@@ -2158,6 +2179,11 @@ void informarEstadoRecursos() {
 	log_info(logger, "%s", estadoFila);
 	pthread_mutex_unlock(&mutexLog);
 
+
+	free(cabecera);
+	cabecera = strdup(" ");
+	string_append(&cabecera, cabeceraAux);
+
 	free(estadoFila);
 	estadoFila = string_new();
 
@@ -2188,6 +2214,7 @@ void informarEstadoRecursos() {
 	}
 
 	free(cabeceraAux);
+
 	free(cabecera);
 	free(estadoFila);
 }

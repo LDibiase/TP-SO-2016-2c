@@ -58,7 +58,7 @@ typedef struct pokemonEntrenador {
 typedef struct metadataPokemon {
 	char* rutaArchivo;
 	int nivel;
-	int libre;
+	char entrenador;
 } t_metadataPokemon;
 
 

@@ -106,7 +106,7 @@ int main(int argc, char **argv) {
 
 			if(activo == 0)
 			{
-				log_info(logger, "El jugador ha abandonado el juego");
+				log_info(logger, "El entrenador ha abandonado el juego");
 
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
@@ -831,8 +831,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 			free(archivo);
 			free(rutaBorrado);
-
-			list_remove_and_destroy_by_condition(pokemonesAtrapados, (void*) _esPokemon, (void*) eliminarPokemon);
 		}
 
 		pokemonesCiudad = list_filter(pokemonesAtrapados, (void*) _pokemonCiudad);
@@ -840,6 +838,49 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		list_destroy_and_destroy_elements(pokemonesCiudad, (void*) eliminarPokemon);
 
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
+
+		// Enviar mensaje DESCONEXION_ENTRENADOR
+		paquete_t paquete;
+		mensaje_t mensajeDesconexionEntrenador;
+
+		mensajeDesconexionEntrenador.tipoMensaje = DESCONEXION_ENTRENADOR;
+
+		crearPaquete((void*) &mensajeDesconexionEntrenador, &paquete);
+		if(paquete.tamanioPaquete == 0)
+		{
+			mapa_s->errorCode = ERR_MSG_CANNOT_BE_SENT;
+			log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+			log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+			return;
+		}
+
+		enviarMensaje(mapa_s, paquete);
+
+		free(paquete.paqueteSerializado);
+
+		if(mapa_s->errorCode != NO_ERROR)
+		{
+			switch(mapa_s->errorCode) {
+			case ERR_PEER_DISCONNECTED:
+				log_info(logger, "El socket del servidor se encuentra desconectado");
+
+				break;
+			case ERR_MSG_CANNOT_BE_SENT:
+				log_info(logger, "No se ha podido enviar un mensaje");
+
+				break;
+			}
+
+			log_info(logger, mapa_s->error);
+			log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+			return;
+		}
+
+		eliminarSocket(mapa_s);
+
+		log_info(logger, "El entrenador se ha desconectado del mapa");
 
 		// Se activa el flag Víctima
 		*victima = 1;

@@ -50,8 +50,6 @@ typedef struct recursosEntrenador {
 typedef struct pokemonEntrenador {
 	char id;
 	char* nombre;
-	char* tipo;
-	int poder;
 	int nivel;
 	char idEntrenador;
 	t_pokemon* pokemon;
@@ -95,7 +93,7 @@ void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar);
 void signal_handler();
 void signal_termination_handler(int signum);
 void chequearDeadlock();
-t_pokemonEntrenador obtenerPokemonMayorNivel(t_entrenador* entrenador);
+t_pokemonEntrenador* obtenerPokemonMayorNivel(t_entrenador* entrenador);
 t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear);
 int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* metadatasPokemones);
 void liberarRecursosEntrenador(t_entrenador* entrenador);
@@ -106,5 +104,7 @@ void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex);
 time_t obtenerFechaIngreso();
 void informarEstadoRecursos();
 char* obtenerNombrePokemon(char idPokemon);
+void eliminarPokemonEntrenador(t_pokemonEntrenador* entrenador);
+void eliminarRecurso(t_mapa_pokenest* recurso);
 
 #endif /* MAPA_H_ */

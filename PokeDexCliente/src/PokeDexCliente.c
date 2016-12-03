@@ -542,7 +542,7 @@ static int fuse_utimens(const char* path, const struct timespec ts[2])
 	mensajeQuieroTIME.tipoMensaje = UTIMENS;
 	mensajeQuieroTIME.path = (char *)path;
 	mensajeQuieroTIME.tamanioPath = strlen(mensajeQuieroTIME.path) + 1;
-	mensajeQuieroTIME.size = ts->tv_sec;
+	mensajeQuieroTIME.size = (int)ts[1].tv_sec;
 
 	crearPaquete((void*) &mensajeQuieroTIME, &paqueteLectura);
 	log_info(logger, "MENSAJE UTIMENS PATH: %s TIME: %d ", mensajeQuieroTIME.path, mensajeQuieroTIME.size);
@@ -562,7 +562,7 @@ static int fuse_utimens(const char* path, const struct timespec ts[2])
 		recibirMensaje(pokedex, &mensajeTIME_RESPONSE);
 
 		int res = mensajeTIME_RESPONSE.res;
-		log_info(logger, "MENSAJE mensajeTRUNCATE_RESPONSE %d", mensajeTIME_RESPONSE.res);
+		log_info(logger, "MENSAJE mensajeUTIMENS_RESPONSE %d", mensajeTIME_RESPONSE.res);
 
 		if(res == -1)
 			return -errno;

@@ -433,7 +433,7 @@ int main(void) {
 				mensaje7_t mensajeUTIMENS_RESPONSE;
 
 
-				mensajeUTIMENS_RESPONSE.tipoMensaje = TRUNCATE_RESPONSE;
+				mensajeUTIMENS_RESPONSE.tipoMensaje = UTIMENS_RESPONSE;
 				mensajeUTIMENS_RESPONSE.res = utimens_callback(((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
 
 

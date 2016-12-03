@@ -348,7 +348,11 @@ int main(int argc, char** argv) {
 					if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
 						solicitoUbicacion = 1;
 					else if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
+					{
 						entrenadorAEjecutar->utEjecutadas++;
+						log_info(logger, "EL ENTRENADOR %c EJECUTÓ %d", entrenadorAEjecutar->id, entrenadorAEjecutar->utEjecutadas);
+					}
+
 
 					break;
 				case SOLICITA_DESPLAZAMIENTO:
@@ -447,8 +451,11 @@ int main(int argc, char** argv) {
 					log_info(logger, "Se le informa al entrenador su nueva posición: (%d,%d)", entrenadorAEjecutar->ubicacion.x, entrenadorAEjecutar->ubicacion.y);
 					free(mensajeSolicitud);
 
-					if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
+					if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
+					{
 						entrenadorAEjecutar->utEjecutadas++;
+						log_info(logger, "EL ENTRENADOR %c EJECUTÓ %d", entrenadorAEjecutar->id, entrenadorAEjecutar->utEjecutadas);
+					}
 
 					break;
 				case SOLICITA_CAPTURA:

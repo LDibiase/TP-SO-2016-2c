@@ -901,7 +901,6 @@ void signal_termination_handler(int signum) {
 
  		 log_info(logger, "SIGUSR1: Se ha obtenido una vida");
  		 log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
-
  		 break;
  	 case SIGTERM:
  		 configEntrenador.Vidas--;
@@ -909,19 +908,11 @@ void signal_termination_handler(int signum) {
  		 log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
  		 validarVidas();
-
  		 break;
  	 case SIGINT:
- 		 activo = 0;
-
- 		 eliminarSocket(mapa_s);
- 		 free(nombreCiudad);
- 		 liberarRecursos();
-
  		 abort();
  	 default:
  		 log_info(logger, "Código inválido: %d", signum);
-
  		 return;
  	}
 }

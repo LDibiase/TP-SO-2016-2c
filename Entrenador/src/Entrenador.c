@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
 
 			if(activo == 0)
 			{
-				log_info(logger, "El jugador ha abandonado el juego");
+				log_info(logger, "El entrenador ha abandonado el juego");
 
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
@@ -745,6 +745,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	mensaje9_t mensajeConfirmaCaptura;
 
 	mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
+
 	recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
 	if(mapa_s->errorCode != NO_ERROR)
 	{

@@ -58,6 +58,7 @@ typedef struct pokemonEntrenador {
 typedef struct metadataPokemon {
 	char* rutaArchivo;
 	int nivel;
+	int libre;
 } t_metadataPokemon;
 
 
@@ -99,7 +100,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 void liberarRecursosEntrenador(t_entrenador* entrenador);
 void capturarPokemon(t_entrenador* entrenador);
 void desbloquearJugadores();
-void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar);
+void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar, pthread_mutex_t* mutex);
 void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex);
 time_t obtenerFechaIngreso();
 void informarEstadoRecursos();

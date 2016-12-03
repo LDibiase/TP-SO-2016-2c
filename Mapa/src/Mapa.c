@@ -348,11 +348,7 @@ int main(int argc, char** argv) {
 					if(string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))
 						solicitoUbicacion = 1;
 					else if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
-					{
 						entrenadorAEjecutar->utEjecutadas++;
-						log_info(logger, "EL ENTRENADOR %c EJECUTÓ %d", entrenadorAEjecutar->id, entrenadorAEjecutar->utEjecutadas);
-					}
-
 
 					break;
 				case SOLICITA_DESPLAZAMIENTO:
@@ -454,7 +450,6 @@ int main(int argc, char** argv) {
 					if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
 					{
 						entrenadorAEjecutar->utEjecutadas++;
-						log_info(logger, "EL ENTRENADOR %c EJECUTÓ %d", entrenadorAEjecutar->id, entrenadorAEjecutar->utEjecutadas);
 					}
 
 					break;
@@ -463,7 +458,7 @@ int main(int argc, char** argv) {
 
 					solicitoCaptura = 1;
 
-					actualizarMatriz(recursosSolicitados, entrenadorAEjecutar, 1);
+					actualizarMatriz(recursosSolicitados, entrenadorAEjecutar, 1, &mutexSolicitados);
 					insertarAlFinal(entrenadorAEjecutar, colaBlocked, &mutexBlocked);
 					informarEstadoCola("Cola Blocked", colaBlocked->elements, &mutexBlocked);
 					informarEstadoCola("Cola Ready", colaReady->elements, &mutexReady);
@@ -770,6 +765,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 
 				metadataPokemon->nivel = config_get_int_value(config, "Nivel");
 				metadataPokemon->rutaArchivo = string_substring_from(nombreArchivoPokemon, strlen(puntoMontajeOsada));
+				metadataPokemon->libre = 1;
 
 				list_add(metadatasPokemones, metadataPokemon);
 				list_sort(metadatasPokemones, (void*) _mayorAMenorNivel);
@@ -811,7 +807,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 		}
 	}
 
-	list_remove(metadatasPokemones, 0); // TODO Arreglar
+	list_remove(metadatasPokemones, 0); // TODO Mejora en lectura
 
 	free(numeroPokemon);
 	free(nombreArchivoPokemon);
@@ -1266,6 +1262,16 @@ t_list* algoritmoDeteccion() {
 	//LISTA AUXILIAR DE DISPONIBLES
 	t_list* disponiblesAux;
 
+	void _eliminarEntrenador(t_entrenador* entrenador) {
+		free(entrenador->nombre);
+
+		if(entrenador->socket->error != NULL)
+			free(entrenador->socket->error);
+
+		free(entrenador->socket);
+		free(entrenador);
+	}
+
 	void _copiarRecursosSolicitados(t_recursosEntrenador* recursos) {
 		t_recursosEntrenador* recursosAux;
 
@@ -1358,7 +1364,9 @@ t_list* algoritmoDeteccion() {
 			return entrenadorABuscar->id == entrenador->id;
 		}
 
+		pthread_mutex_lock(&mutexAsignados);
 		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _esEntrenadorBuscado);
+		pthread_mutex_unlock(&mutexAsignados);
 
 		return entrenadorConRecursos != NULL;
 	}
@@ -1423,7 +1431,7 @@ t_list* algoritmoDeteccion() {
 	if(list_size(entrenadoresAux2) >= 2)
 		list_iterate(entrenadoresAux2, (void*) _copiarEntrenadorInterbloqueado);
 
-	list_destroy_and_destroy_elements(entrenadoresBloqueados, (void*) eliminarEntrenador);
+	list_destroy_and_destroy_elements(entrenadoresBloqueados, (void*) _eliminarEntrenador);
 	list_destroy(entrenadoresAux1);
 	list_destroy(entrenadoresAux2);
 
@@ -1543,6 +1551,16 @@ void chequearDeadlock() {
 	t_list* entrenadoresEnInterbloqueo;
 	t_pkmn_factory* pokemon_factory = create_pkmn_factory();
 
+	void _eliminarEntrenador(t_entrenador* entrenador) {
+		free(entrenador->nombre);
+
+		if(entrenador->socket->error != NULL)
+			free(entrenador->socket->error);
+
+		free(entrenador->socket);
+		free(entrenador);
+	}
+
 	while(activo) {
 		//EL ALGORITMO SE EJECUTA CADA CIERTA CANTIDAD DE TIEMPO DETERMINADA EN EL ARCHIVO DE CONFIGURACIÓN
 		usleep(configMapa.TiempoChequeoDeadlock * 1000);
@@ -1561,6 +1579,7 @@ void chequearDeadlock() {
 					t_list* entrenadoresConPokemonesAPelear;
 					entrenadoresConPokemonesAPelear = list_create();
 
+					/*
 					//ORDENO LOS ENTRENADORES EN INTERBLOQUEO POR FECHA DE INGRESO AL MAPA
 					bool _comparadorFechas(t_entrenador* entrenador1, t_entrenador* entrenador2)
 					{
@@ -1569,6 +1588,7 @@ void chequearDeadlock() {
 					}
 
 					list_sort(entrenadoresEnInterbloqueo, (void*) _comparadorFechas);
+					 */
 
 					//CREO UN POKÉMON POR CADA ENTRENADOR BLOQUEADO
 					int i;
@@ -1627,7 +1647,7 @@ void chequearDeadlock() {
 					t_entrenador* entrenadorAux;
 					entrenadorAux = list_remove_by_condition(colaBlocked->elements, (void*) _esElEntrenador);
 
-					log_info(logger, "El jugador víctima es %s (%c)", entrenadorAux->nombre, entrenadorAux->id);
+					log_info(logger, "El entrenador víctima es %s (%c) - socket %d", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
 
 					enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
 					free(paqueteEliminarRecursos.paqueteSerializado);
@@ -1726,7 +1746,7 @@ void chequearDeadlock() {
 				}
 			}
 
-			list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) eliminarEntrenador);
+			list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) _eliminarEntrenador);
 		}
 	}
 
@@ -1747,8 +1767,10 @@ char* obtenerNombrePokemon(char idPokemon)
 		return recursoBuscado->id == idPokemon;
 	}
 
+	pthread_mutex_lock(&mutexTotales);
 	pokenestAux = list_find(recursosTotales, (void*) _recursoBuscado);
 	metadataPokemon = list_get(pokenestAux->metadatasPokemones, 0);
+	pthread_mutex_unlock(&mutexTotales);
 
 	pathPokenestRevert = string_reverse(metadataPokemon->rutaArchivo);
 	pathPokenestRevertAndCut = string_substring_from(pathPokenestRevert, 7);
@@ -1770,7 +1792,7 @@ t_pokemonEntrenador* obtenerPokemonMayorNivel(t_entrenador* entrenador) {
 	entrenadorYPokemon->id = entrenador->idPokenestActual;
 	entrenadorYPokemon->idEntrenador = entrenador->id;
 	entrenadorYPokemon->nivel = 30; // TODO: Agregar mensaje
-	entrenadorYPokemon->nombre = obtenerNombrePokemon(entrenador->id);
+	entrenadorYPokemon->nombre = obtenerNombrePokemon(entrenador->idPokenestActual);
 
 	return entrenadorYPokemon;
 }
@@ -1849,10 +1871,10 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 		t_mapa_pokenest* recursoAActualizar;
 		pthread_mutex_lock(&mutexDisponibles);
 		recursoAActualizar = list_find(recursosDisponibles, (void*) _recursoBuscado);
-		pthread_mutex_unlock(&mutexDisponibles);
 
 		if(recursoAActualizar != NULL)
 			recursoAActualizar->cantidad = recursoAActualizar->cantidad + recurso->cantidad;
+		pthread_mutex_unlock(&mutexDisponibles);
 	}
 
 	t_recursosEntrenador* recursosEntrenador;
@@ -1862,6 +1884,7 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 	pthread_mutex_unlock(&mutexAsignados);
 	list_iterate(recursosEntrenador->recursos, (void*) _actualizarDisponibilidad);
 	eliminarRecursosEntrenador(recursosEntrenador);
+
 
 	pthread_mutex_lock(&mutexSolicitados);
 	list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
@@ -1898,6 +1921,10 @@ void desbloquearJugadores() {
 }
 
 void capturarPokemon(t_entrenador* entrenador) {
+	bool _recursoLibre(t_metadataPokemon* recurso) {
+		return recurso->libre;
+	}
+
 	bool _recursoBuscado(t_mapa_pokenest* recursoBuscado) {
 		return recursoBuscado->id == entrenador->idPokenestActual;
 	}
@@ -1913,15 +1940,17 @@ void capturarPokemon(t_entrenador* entrenador) {
 
 		restarRecurso(items, entrenador->idPokenestActual);
 
-		actualizarMatriz(recursosSolicitados, entrenador, 0);
-		actualizarMatriz(recursosAsignados, entrenador, 1);
+		actualizarMatriz(recursosSolicitados, entrenador, 0, &mutexSolicitados);
+		actualizarMatriz(recursosAsignados, entrenador, 1, &mutexAsignados);
 
 		informarEstadoRecursos();
 
+		pthread_mutex_lock(&mutexTotales);
 		recurso = list_find(recursosTotales, (void*) _recursoBuscado);
-
 		t_metadataPokemon* metadata;
-		metadata = list_get(recurso->metadatasPokemones, 0);
+		metadata = list_find(recurso->metadatasPokemones, (void*) _recursoLibre);
+		metadata->libre = 0;
+		pthread_mutex_unlock(&mutexTotales);
 
 		mensaje9_t mensajeConfirmaCaptura;
 
@@ -2001,7 +2030,7 @@ void capturarPokemon(t_entrenador* entrenador) {
 	}
 }
 
-void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar) {
+void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar, pthread_mutex_t* mutex) {
 	bool _recursosEntrenador(t_recursosEntrenador* recursos) {
 		return recursos->id == entrenador->id;
 	}
@@ -2013,6 +2042,7 @@ void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar) {
 	t_recursosEntrenador* recursosEntrenador;
 	t_mapa_pokenest* recursoAActualizar;
 
+	pthread_mutex_lock(mutex);
 	recursosEntrenador = list_find(matriz, (void*) _recursosEntrenador);
 	recursoAActualizar = list_find(recursosEntrenador->recursos, (void*) _recursoBuscado);
 
@@ -2020,6 +2050,7 @@ void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar) {
 		recursoAActualizar->cantidad++;
 	else
 		recursoAActualizar->cantidad--;
+	pthread_mutex_unlock(mutex);
 }
 
 void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex) {
@@ -2102,18 +2133,13 @@ void informarEstadoRecursos() {
 	cabecera = string_new();
 	estadoFila = string_new();
 
-//	pthread_mutex_lock(mutex);
+	pthread_mutex_lock(&mutexTotales);
 	list_iterate(recursosTotales, (void*) _informarEstadoVector);
-//	pthread_mutex_unlock(mutex);
+	pthread_mutex_unlock(&mutexTotales);
 
 	pthread_mutex_lock(&mutexLog);
-
-	log_info(logger, "Recursos Totales: %d", list_size(recursosTotales));
-
 	log_info(logger, "Recursos Totales");
-
 	log_info(logger, "%s", cabecera);
-	log_info(logger, "-----------------------------------------------------------------");
 	log_info(logger, "%s", estadoFila);
 	pthread_mutex_unlock(&mutexLog);
 
@@ -2122,52 +2148,41 @@ void informarEstadoRecursos() {
 	free(estadoFila);
 	estadoFila = string_new();
 
-//	pthread_mutex_lock(mutex);
+	pthread_mutex_lock(&mutexDisponibles);
 	list_iterate(recursosDisponibles, (void*) _informarEstadoVector);
-//	pthread_mutex_unlock(mutex);
+	pthread_mutex_unlock(&mutexDisponibles);
 
 	pthread_mutex_lock(&mutexLog);
-
-	log_info(logger, "Recursos Disponibles: %d", list_size(recursosDisponibles));
-
 	log_info(logger, "Recursos Disponibles");
-
 	log_info(logger, "%s", cabeceraAux);
-	log_info(logger, "-----------------------------------------------------------------");
 	log_info(logger, "%s", estadoFila);
 	pthread_mutex_unlock(&mutexLog);
 
 	free(estadoFila);
 	estadoFila = string_new();
 
-	if(list_size(recursosSolicitados) > 0)
+	if(!list_is_empty(recursosSolicitados))
 	{
-		log_info(logger, "Recursos Solicitados: %d", list_size(recursosSolicitados));
-
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Recursos Solicitados");
 		log_info(logger, " %s", cabeceraAux);
-		log_info(logger, "-----------------------------------------------------------------");
 
-//		pthread_mutex_lock(mutex);
+		pthread_mutex_lock(&mutexSolicitados);
 		list_iterate(recursosSolicitados, (void*) _informarEstadoTabla);
-//		pthread_mutex_unlock(mutex);
+		pthread_mutex_unlock(&mutexSolicitados);
 
 		pthread_mutex_unlock(&mutexLog);
 	}
 
-	if(list_size(recursosAsignados) > 0)
+	if(!list_is_empty(recursosAsignados))
 	{
-		log_info(logger, "Recursos Asignados: %d", list_size(recursosAsignados));
-
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Recursos Asignados");
 		log_info(logger, " %s", cabeceraAux);
-		log_info(logger, "-----------------------------------------------------------------");
 
-//		pthread_mutex_lock(mutex);
-		list_iterate(recursosSolicitados, (void*) _informarEstadoTabla);
-//		pthread_mutex_unlock(mutex);
+		pthread_mutex_lock(&mutexAsignados);
+		list_iterate(recursosAsignados, (void*) _informarEstadoTabla);
+		pthread_mutex_unlock(&mutexAsignados);
 
 		pthread_mutex_unlock(&mutexLog);
 	}

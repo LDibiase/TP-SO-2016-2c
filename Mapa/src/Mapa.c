@@ -1769,6 +1769,8 @@ char* obtenerNombrePokemon(char idPokemon)
 		return recursoBuscado->id == idPokemon;
 	}
 
+	log_info(logger, "ID: %c", idPokemon);
+
 	pthread_mutex_lock(&mutexTotales);
 	pokenestAux = list_find(recursosTotales, (void*) _recursoBuscado);
 	metadataPokemon = list_get(pokenestAux->metadatasPokemones, 0);
@@ -1788,13 +1790,56 @@ char* obtenerNombrePokemon(char idPokemon)
 }
 
 t_pokemonEntrenador* obtenerPokemonMayorNivel(t_entrenador* entrenador) {
-	t_pokemonEntrenador* entrenadorYPokemon = malloc(sizeof(t_pokemonEntrenador));
+	t_pokemonEntrenador* entrenadorYPokemon = NULL;
 
-	//ME GUARDO EL ID DEL ENTRENADOR DEL POKEMON, PARA SABER CUAL ES EL PERDEDOR
-	entrenadorYPokemon->id = entrenador->idPokenestActual;
-	entrenadorYPokemon->idEntrenador = entrenador->id;
-	entrenadorYPokemon->nivel = 30; // TODO: Agregar mensaje
-	entrenadorYPokemon->nombre = obtenerNombrePokemon(entrenador->idPokenestActual);
+	t_list* pokemones = list_create();
+
+	void _eliminarMetadata(t_metadataPokemon* metadata) {
+		free(metadata->rutaArchivo);
+		free(metadata);
+	}
+
+	bool _mayorAMenorNivel(t_metadataPokemon* pokemonMayorNivel, t_metadataPokemon* pokemonMenorNivel) {
+		return pokemonMayorNivel->nivel > pokemonMenorNivel->nivel;
+	}
+
+	void _recursosEntrenador(t_mapa_pokenest* recurso) {
+		void _recursoEntrenador (t_metadataPokemon* metadata) {
+			t_metadataPokemon* metadataAux;
+
+			if(metadata->entrenador == entrenador->id)
+			{
+				metadataAux = malloc(sizeof(t_metadataPokemon));
+
+				metadataAux->entrenador = metadata->entrenador;
+				metadataAux->nivel = metadata->nivel;
+				metadataAux->rutaArchivo = strdup(metadata->rutaArchivo);
+				metadataAux->id = recurso->id;
+
+				list_add(pokemones, metadataAux);
+			}
+		}
+
+		list_iterate(recurso->metadatasPokemones, (void*) _recursoEntrenador);
+	}
+
+	list_iterate(recursosTotales, (void*) _recursosEntrenador);
+	list_sort(pokemones, (void*) _mayorAMenorNivel);
+
+	if(!list_is_empty(pokemones))
+	{
+		t_metadataPokemon* pokemonAux = list_get(pokemones, 0);
+
+		entrenadorYPokemon = malloc(sizeof(t_pokemonEntrenador));
+
+		//ME GUARDO EL ID DEL ENTRENADOR DEL POKEMON, PARA SABER CUAL ES EL PERDEDOR
+		entrenadorYPokemon->id = pokemonAux->id;
+		entrenadorYPokemon->idEntrenador = entrenador->id;
+		entrenadorYPokemon->nivel = pokemonAux->nivel;
+		entrenadorYPokemon->nombre = obtenerNombrePokemon(pokemonAux->id);
+	}
+
+	list_destroy_and_destroy_elements(pokemones, (void*) _eliminarMetadata);
 
 	return entrenadorYPokemon;
 }

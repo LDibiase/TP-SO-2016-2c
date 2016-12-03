@@ -258,65 +258,7 @@ int main(int argc, char **argv) {
 				abort();
 			}
 
-			if(configEntrenador.Vidas == 0)
-			{
-				char respuesta;
-
-				log_info(logger, "¿Desea reiniciar el juego? (Y/N)");
-				log_info(logger, "ACTIVO: %d", activo);
-
-				while(activo) {
-					respuesta = getchar();
-
-					if(respuesta == 'Y')
-					{
-						activo = 1;
-
-						if (cargarConfiguracion(&configEntrenador) == 1)
-						{
-							log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
-
-							eliminarSocket(mapa_s);
-							free(nombreCiudad);
-
-							liberarRecursos();
-							abort();
-						}
-
-						break;
-					}
-					else if (respuesta == 'N')
-					{
-						activo = 0;
-
-						break;
-					}
-					else
-						log_info(logger, "Ingrese una de las siguientes respuestas: Y (Yes) / N (No)");
-				}
-
-				if(activo == 0)
-				{
-					log_info(logger, "El entrenador ha abandonado el juego");
-
-					eliminarSocket(mapa_s);
-					free(nombreCiudad);
-
-					liberarRecursos();
-					abort();
-				}
-
-				char* rutaBorrado;
-
-				//SE BORRA EL CONTENIDO DEL DIRECTORIO DE MEDALLAS
-				rutaBorrado = strdup("rm -rf ");
-				string_append(&rutaBorrado, rutaDirectorioEntrenador);
-				string_append(&rutaBorrado, "medallas");
-				string_append(&rutaBorrado, "/*");
-
-				free(rutaBorrado);
-				free(nombreCiudad);
-			}
+			validarVidas();
 		}
 	}
 
@@ -955,25 +897,32 @@ void signal_handler() {
 void signal_termination_handler(int signum) {
  	switch (signum) {
  	 case SIGUSR1:
- 	   	configEntrenador.Vidas++;
- 	   	log_info(logger, "SIGUSR1: Se ha obtenido una vida");
- 	   	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
+ 		 configEntrenador.Vidas++;
 
- 	   	break;
- 	 case SIGTERM:
-  		configEntrenador.Vidas--;
-  	    log_info(logger, "SIGTERM: Se ha perdido una vida");
-  	    log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
-
-  	    break;
- 	 case SIGINT:
- 		activo = 0;
+ 		 log_info(logger, "SIGUSR1: Se ha obtenido una vida");
+ 		 log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
  		 break;
- 	 default:
- 	    log_info(logger, "Código inválido: %d", signum);
+ 	 case SIGTERM:
+ 		 configEntrenador.Vidas--;
+ 		 log_info(logger, "SIGTERM: Se ha perdido una vida");
+ 		 log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
- 	    return;
+ 		 validarVidas();
+
+ 		 break;
+ 	 case SIGINT:
+ 		 activo = 0;
+
+ 		 eliminarSocket(mapa_s);
+ 		 free(nombreCiudad);
+ 		 liberarRecursos();
+
+ 		 abort();
+ 	 default:
+ 		 log_info(logger, "Código inválido: %d", signum);
+
+ 		 return;
  	}
 }
 
@@ -1047,4 +996,65 @@ void liberarRecursos() {
 	free(rutaDirectorioEntrenador);
 	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
 	log_destroy(logger);
+}
+
+void validarVidas() {
+	if(configEntrenador.Vidas == 0)
+	{
+		char respuesta;
+
+		log_info(logger, "¿Desea reiniciar el juego? (Y/N)");
+
+		while(activo) {
+			respuesta = getchar();
+
+			if(respuesta == 'Y')
+			{
+				activo = 1;
+
+				if (cargarConfiguracion(&configEntrenador) == 1)
+				{
+					log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+					eliminarSocket(mapa_s);
+					free(nombreCiudad);
+
+					liberarRecursos();
+					abort();
+				}
+
+				break;
+			}
+			else if (respuesta == 'N')
+			{
+				activo = 0;
+
+				break;
+			}
+			else
+				log_info(logger, "Ingrese una de las siguientes respuestas: Y (Yes) / N (No)");
+		}
+
+		if(activo == 0)
+		{
+			log_info(logger, "El entrenador ha abandonado el juego");
+
+			eliminarSocket(mapa_s);
+			free(nombreCiudad);
+
+			liberarRecursos();
+			abort();
+		}
+
+		char* rutaBorrado;
+
+		//SE BORRA EL CONTENIDO DEL DIRECTORIO DE MEDALLAS
+		rutaBorrado = strdup("rm -rf ");
+		string_append(&rutaBorrado, rutaDirectorioEntrenador);
+		string_append(&rutaBorrado, "medallas");
+		string_append(&rutaBorrado, "/*");
+
+		free(rutaBorrado);
+		free(nombreCiudad);
+	}
 }

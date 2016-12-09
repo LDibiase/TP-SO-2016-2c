@@ -53,5 +53,6 @@ void obtenerDatosConexion(char* nombreCiudad);
 void eliminarPokemon(t_metadataPokemon* pokemon);
 void eliminarEntrenador(t_entrenador_config* entrenador);
 void liberarRecursos();
+void validarVidas();
 
 #endif /* ENTRENADOR_H_ */

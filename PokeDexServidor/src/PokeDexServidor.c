@@ -43,6 +43,7 @@ unsigned int * tablaAsignaciones;	// TABLA DE ASIGNACIONES
 t_bitarray * bitarray;				// ARRAY BITMAP
 char* pmapFS; 						//Puntero de mmap
 int inicioBloqueDatos;				//INICIO BLOQUE DE DATOS
+int ultimoBloqueEncontrado;
 
 pthread_mutex_t mutex;				//SEMAFORO PARA SINCRONIZAR OPERACIONES
 /* Logger */
@@ -148,6 +149,7 @@ int main(void) {
 	log_info(logger,"	BLOQUE DE DATOS	");
 	log_info(logger,"---------------------------");*/
 	inicioBloqueDatos = cabeceraFS.fs_blocks - cabeceraFS.data_blocks;
+	ultimoBloqueEncontrado = inicioBloqueDatos;
 	log_info(logger,"Inicio bloques de datos: %d (bloque)", inicioBloqueDatos);
 
 
@@ -490,16 +492,33 @@ int main(void) {
 	return EXIT_SUCCESS;
 }
 
+
+
+
+
 int getFirstBit() {
+	pthread_mutex_lock(&mutex);
 	int j = bitarray_get_max_bit(bitarray);
 	int i;
+	for (i = ultimoBloqueEncontrado; i < j; i++) {
+		if (bitarray_test_bit(bitarray, i) == 0) {
+			bitarray_set_bit(bitarray, i);
+			ultimoBloqueEncontrado = i;
+			pthread_mutex_unlock(&mutex);
+			return i;
+		}
+	}
 	for (i = inicioBloqueDatos; i < j; i++) {
 		if (bitarray_test_bit(bitarray, i) == 0) {
+			bitarray_set_bit(bitarray, i);
+			ultimoBloqueEncontrado = i;
+			pthread_mutex_unlock(&mutex);
 			return i;
 		}
 	}
 	log_info(logger, "Disco lleno");
-	return -1;
+	pthread_mutex_unlock(&mutex);
+	return -2;
 }
 
 int utimens_callback(const char *path, int time) {
@@ -533,24 +552,25 @@ int truncate_callback(const char *path, int size) {
 				}
 
 			//Agrego bloques faltantes
-			while (size > tablaArchivos[archivoID].file_size) {
+			while (size > sumSize) {
 					int nuevoBloque = getFirstBit();
-					if (nuevoBloque == -1) { //Disco lleno
-							tablaArchivos[archivoID].file_size = OSADA_BLOCK_SIZE + tablaArchivos[archivoID].file_size;
-							return -1;
-
+					if (nuevoBloque == -2) { //Disco lleno
+							tablaArchivos[archivoID].file_size = sumSize;
+							//log_info(logger, "Salio del truncate por disco lleno, size: %d ", tablaArchivos[archivoID].file_size);
+							return -2;
 						} else {
 							bloqueAnterior = bloque;
 							bloque = nuevoBloque - inicioBloqueDatos;
 
 							if (tablaArchivos[archivoID].first_block == -1) { //Archivo vacio
 								tablaArchivos[archivoID].first_block = bloque;
+								//log_info(logger, "Primer bloque: %d ", bloque);
 							} else {
 								tablaAsignaciones[bloqueAnterior] = bloque;
+								//log_info(logger, "bloqueAnterior %d bloque: %d ", bloqueAnterior,bloque);
 							}
 							tablaAsignaciones[bloque] = -1;
-							bitarray_set_bit(bitarray,bloque + inicioBloqueDatos);
-							tablaArchivos[archivoID].file_size = OSADA_BLOCK_SIZE + tablaArchivos[archivoID].file_size;
+							sumSize = sumSize + OSADA_BLOCK_SIZE;
 						}
 			}
 		} else {
@@ -576,14 +596,12 @@ int truncate_callback(const char *path, int size) {
 				//log_info(logger,"Limpiando bloque: %d /n", bloqueAnterior);
 			}
 
-			tablaArchivos[archivoID].file_size = size;
-
 			if (size==0) {
 				tablaArchivos[archivoID].first_block = -1;
 			}
 		}
 	}
-
+	tablaArchivos[archivoID].file_size = size;
 	return archivoID;
 }
 
@@ -632,28 +650,22 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 		bloqueAnterior = bloque;
 		bloque = tablaAsignaciones[bloque];
 		sumOffset = sumOffset + OSADA_BLOCK_SIZE;
-		//log_info(logger,"write sumoffset: %d", sumOffset);
-		//log_info(logger,"write bloque: %d", bloque);
-		//log_info(logger, "Bloque offset: %d sum: %d", bloque, sumOffset);
 	}
 
-	//log_info(logger," sumOffset %d", sumOffset);
-	//log_info(logger," tamanioBuffer %d", tamanioBuffer);
 
 	//Si estamos en el final del archivo
-
 	//Si es un archivo vacio
 	if (bloque == -1) {
-		//log_info(logger," firstbit: %d , iniciobloquedatos: %d",getFirstBit(),inicioBloqueDatos);
 		bloque = getFirstBit() - inicioBloqueDatos;
-		if (tablaArchivos[archivoID].first_block == -1) {
-			tablaArchivos[archivoID].first_block = bloque;
+		if (bloque == -2) { //Disco lleno
+				return -2;
 		} else {
-			tablaAsignaciones[bloqueAnterior] = bloque;
-			//log_info(logger, "Bloqueoffset anterior: %d nuevo: %d", bloqueAnterior, bloque);
+			if (tablaArchivos[archivoID].first_block == -1) {
+				tablaArchivos[archivoID].first_block = bloque;
+			} else {
+				tablaAsignaciones[bloqueAnterior] = bloque;
+			}
 		}
-
-		//log_info(logger," primer bloque %d", tablaArchivos[archivoID].first_block);
 	}
 
 	while (sum<tamanioBuffer) {
@@ -673,31 +685,22 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 			pthread_mutex_unlock(&mutex);
 		}
 
-
-		//Actualizo bitarray
-		bitarray_set_bit(bitarray,bloque + inicioBloqueDatos);
-		//log_info(logger," Escribiendo bloque %d", bloque);
-		//log_info(logger," Cantidad Bytes restantes %d", (tamanioBuffer - sum));
-
 		int bloqueAnterior = bloque;
 
 		//Actualizo tabla de asignaciones si corresponde
 		if (sum<tamanioBuffer) {
 			if (tablaAsignaciones[bloqueAnterior] != -1) {
 				bloque = tablaAsignaciones[bloqueAnterior];
-				//log_info(logger," Siguiente bloque reutilizado %d", bloque);
 			} else { //Busco un nuevo bloque si corresponde
 				int nuevoBloque = getFirstBit();
-				if (nuevoBloque == -1) { //Disco lleno
+				if (nuevoBloque == -2) { //Disco lleno
 					tablaArchivos[archivoID].file_size = sum + offset;
-					return -1;
+					return -2;
 				} else {
 					bloque = nuevoBloque - inicioBloqueDatos;
 					tablaAsignaciones[bloqueAnterior] = bloque;
 					tablaAsignaciones[bloque] = -1;
 				}
-				//log_info(logger," Siguiente bloque nuevo %d", bloque);
-				//log_info(logger, "Bloques anterior: %d nuevo: %d", bloqueAnterior, bloque);
 			}
 		} else { //Finalizo la escritura
 			tablaAsignaciones[bloqueAnterior] = -1;

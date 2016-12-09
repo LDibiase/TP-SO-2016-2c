@@ -518,8 +518,8 @@ static int fuse_truncate(const char *path, off_t size)
 				int res = mensajeTRUNCATE_RESPONSE.res;
 				log_info(logger, "MENSAJE mensajeTRUNCATE_RESPONSE %d", mensajeTRUNCATE_RESPONSE.res);
 
-				if(res == -1)
-					return -errno;
+				if(res == -2)
+					return -EFBIG;
 
 				return 0;
 }

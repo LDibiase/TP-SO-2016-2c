@@ -25,6 +25,7 @@
 #include <commons/bitarray.h>
 #include <sys/mman.h>
 #include <commons/collections/queue.h>
+#include <semaphore.h>
 
 #include "protocoloPokedexClienteServidor.h"
 
@@ -46,6 +47,11 @@ int inicioBloqueDatos;				//INICIO BLOQUE DE DATOS
 int ultimoBloqueEncontrado;
 
 pthread_mutex_t mutex;				//SEMAFORO PARA SINCRONIZAR OPERACIONES
+pthread_mutex_t mutexReady;
+pthread_mutex_t mutexOper;
+sem_t semReady;
+
+
 /* Logger */
 t_log* logger;
 t_queue* colaOperaciones;
@@ -58,6 +64,9 @@ int main(void) {
 	char * bitmapS;					// BITMAP
 	int bloquesTablaAsignaciones;	// CANTIDAD DE BLOQUES DE LA TABLA DE ASIGNACIONES
 	pthread_mutex_init(&mutex, NULL);
+	pthread_mutex_init(&mutexReady, NULL);
+	pthread_mutex_init(&mutexOper, NULL);
+	sem_init(&semReady, 0, 0);
 
 	// Variables para la creación del hilo en escucha
 	pthread_t hiloEnEscucha;
@@ -67,7 +76,7 @@ int main(void) {
 	const char* rutaFS = getenv("osadaFile");
 
 	logger = log_create(LOG_FILE_PATH, "POKEDEX_SERVIDOR", true, LOG_LEVEL_INFO);
-
+	log_info(logger,"Cargando archivo: %s", rutaFS);
 
 	// CARGA DE FS EN MEMORIA CON MMAP
 	fileFS = open(rutaFS,O_RDWR);
@@ -108,15 +117,6 @@ int main(void) {
 	bitarray = bitarray_create(bitmapS,cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
 	log_info(logger,"Cargando Bitmap");
 
-	// INFORMACION BITMAP
-	/*log_info(logger,"---------------------------");
-	log_info(logger,"	BITMAP	");
-	log_info(logger,"---------------------------");
-	log_info(logger,"Pos %d = %d", 0, bitarray_test_bit(bitarray, 0));
-	log_info(logger,"Pos %d = %d", 11501, bitarray_test_bit(bitarray, 11501));
-	log_info(logger,"Pos %d = %d", 11502, bitarray_test_bit(bitarray, 11502));
-	log_info(logger,"Pos %d = %d", 11551, bitarray_test_bit(bitarray, 11551));
-	log_info(logger,"Pos %d = %d", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));*/
 
 	// Lee tabla de archivos
 	memcpy(&tablaArchivos, &pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], 1024 * OSADA_BLOCK_SIZE);
@@ -153,6 +153,21 @@ int main(void) {
 	log_info(logger,"Inicio bloques de datos: %d (bloque)", inicioBloqueDatos);
 
 
+	// INFORMACION BITMAP
+	/*
+	log_info(logger,"---------------------------");
+	log_info(logger,"	BITMAP	");
+	log_info(logger,"---------------------------");
+	log_info(logger,"Pos %d = %d", inicioBloqueDatos - 4, bitarray_test_bit(bitarray, inicioBloqueDatos - 4));
+	log_info(logger,"Pos %d = %d", inicioBloqueDatos - 3, bitarray_test_bit(bitarray, inicioBloqueDatos - 3));
+	log_info(logger,"Pos %d = %d", inicioBloqueDatos - 2, bitarray_test_bit(bitarray, inicioBloqueDatos - 2));
+	log_info(logger,"Pos %d = %d", inicioBloqueDatos - 1, bitarray_test_bit(bitarray, inicioBloqueDatos - 1));
+	log_info(logger,"Pos %d = %d", inicioBloqueDatos, 	bitarray_test_bit(bitarray, inicioBloqueDatos));
+	log_info(logger,"Pos %d = %d", inicioBloqueDatos + 1, bitarray_test_bit(bitarray, inicioBloqueDatos + 1));
+	log_info(logger,"Pos %d = %d", bitarray_get_max_bit(bitarray), bitarray_test_bit(bitarray, bitarray_get_max_bit(bitarray)));
+	 */
+
+
 	// Calculo bloques
 	bloquesTablaAsignaciones = cabeceraFS.fs_blocks - 1 - cabeceraFS.bitmap_blocks - 1024 - cabeceraFS.data_blocks;
 
@@ -181,12 +196,13 @@ int main(void) {
 	colaOperaciones = queue_create();
 
 	while(1) {
+		sem_wait(&semReady);
 		if(queue_size(colaOperaciones)> 0)
 		{
 			operacionOSADA *operacionActual;
 			socket_t* socketPokedex;
 
-			void* mensajeRespuesta = malloc(TAMANIO_MAXIMO_MENSAJE);
+			void* mensajeRespuesta;
 
 			pthread_mutex_lock(&mutex);
 			operacionActual = queue_pop(colaOperaciones);
@@ -216,6 +232,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteLectura);
+				free(paqueteLectura.paqueteSerializado);
 				break;
 			case GETATTR: ;
 			log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
@@ -240,6 +257,7 @@ int main(void) {
 			}
 
 			enviarMensaje(socketPokedex, paqueteGetAttr);
+			free(paqueteGetAttr.paqueteSerializado);
 			break;
 			case READ:
 				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
@@ -255,7 +273,7 @@ int main(void) {
 				mensajeREAD_RESPONSE.buffer = READ_RES.block;
 				mensajeREAD_RESPONSE.tamanioBuffer = READ_RES.size;
 
-				//log_info(logger, "READRESPONSE: Cantidad de bytes: %d", mensajeREAD_RESPONSE.tamanioBuffer);
+				//log_info(logger, "READRESPONSE: Cantidad de bytes: %d, buffer: ", mensajeREAD_RESPONSE.tamanioBuffer, mensajeREAD_RESPONSE.buffer);
 
 				crearPaquete((void*) &mensajeREAD_RESPONSE, &paqueteREAD);
 				if(paqueteGetAttr.tamanioPaquete == 0) {
@@ -266,6 +284,8 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteREAD);
+				free(paqueteREAD.paqueteSerializado);
+				free(READ_RES.block);
 				break;
 			case MKDIR:
 				log_info(logger, "Solicito MKDIR del path: %s", ((mensaje6_t*) mensajeRespuesta)->path);
@@ -287,6 +307,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteMKDIR);
+				free(paqueteMKDIR.paqueteSerializado);
 
 				break;
 			case RMDIR:
@@ -331,6 +352,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteUNLINK);
+				free(paqueteUNLINK.paqueteSerializado);
 
 				break;
 			case MKNOD:
@@ -355,6 +377,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteMKNOD);
+				free(paqueteMKNOD.paqueteSerializado);
 
 				break;
 			case WRITE:
@@ -379,7 +402,9 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteWRITE);
-
+				free(paqueteWRITE.paqueteSerializado);
+				free(((mensaje8_t*) mensajeRespuesta)->buffer);
+				free(((mensaje8_t*) mensajeRespuesta)->path);
 				break;
 			case RENAME:
 				log_info(logger, "Solicito RENAME FROM: %s TO: %s", ((mensaje9_t*) mensajeRespuesta)->pathFrom, ((mensaje9_t*) mensajeRespuesta)->pathTo);
@@ -403,6 +428,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteRENAME);
+				free(paqueteRENAME.paqueteSerializado);
 				break;
 			case TRUNCATE:
 				log_info(logger, "Solicito TRUNCATE PATH: %s SIZE: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
@@ -426,6 +452,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteTRUNCATE);
+				free(paqueteTRUNCATE.paqueteSerializado);
 				break;
 			case UTIMENS:
 				log_info(logger, "Solicito UTIMENS PATH: %s TIME: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
@@ -448,10 +475,12 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteUTIMENS);
+				free(paqueteUTIMENS.paqueteSerializado);
 				break;
 
 			}
-
+			free(operacionActual->operacion);
+			free(operacionActual);
 			//Luego de cada operaciones sinconizo los datos a disco
 			// Copio el BITMAP a memoria
 			memcpy(&pmapFS[1 * OSADA_BLOCK_SIZE], bitmapS, cabeceraFS.bitmap_blocks * OSADA_BLOCK_SIZE);
@@ -497,14 +526,14 @@ int main(void) {
 
 
 int getFirstBit() {
-	pthread_mutex_lock(&mutex);
+	pthread_mutex_lock(&mutexOper);
 	int j = bitarray_get_max_bit(bitarray);
 	int i;
 	for (i = ultimoBloqueEncontrado; i < j; i++) {
 		if (bitarray_test_bit(bitarray, i) == 0) {
 			bitarray_set_bit(bitarray, i);
 			ultimoBloqueEncontrado = i;
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutexOper);
 			return i;
 		}
 	}
@@ -512,12 +541,12 @@ int getFirstBit() {
 		if (bitarray_test_bit(bitarray, i) == 0) {
 			bitarray_set_bit(bitarray, i);
 			ultimoBloqueEncontrado = i;
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutexOper);
 			return i;
 		}
 	}
 	log_info(logger, "Disco lleno");
-	pthread_mutex_unlock(&mutex);
+	pthread_mutex_unlock(&mutexOper);
 	return -2;
 }
 
@@ -545,33 +574,33 @@ int truncate_callback(const char *path, int size) {
 
 		if (size > tablaArchivos[archivoID].file_size) {
 			//Movimientos hasta el size
-				while (sumSize<tablaArchivos[archivoID].file_size) {
-					bloqueAnterior = bloque;
-					bloque = tablaAsignaciones[bloque];
-					sumSize = sumSize + OSADA_BLOCK_SIZE;
-				}
+			while (sumSize<tablaArchivos[archivoID].file_size) {
+				bloqueAnterior = bloque;
+				bloque = tablaAsignaciones[bloque];
+				sumSize = sumSize + OSADA_BLOCK_SIZE;
+			}
 
 			//Agrego bloques faltantes
 			while (size > sumSize) {
-					int nuevoBloque = getFirstBit();
-					if (nuevoBloque == -2) { //Disco lleno
-							tablaArchivos[archivoID].file_size = sumSize;
-							//log_info(logger, "Salio del truncate por disco lleno, size: %d ", tablaArchivos[archivoID].file_size);
-							return -2;
-						} else {
-							bloqueAnterior = bloque;
-							bloque = nuevoBloque - inicioBloqueDatos;
+				int nuevoBloque = getFirstBit();
+				if (nuevoBloque == -2) { //Disco lleno
+					tablaArchivos[archivoID].file_size = sumSize;
+					//log_info(logger, "Salio del truncate por disco lleno, size: %d ", tablaArchivos[archivoID].file_size);
+					return -2;
+				} else {
+					bloqueAnterior = bloque;
+					bloque = nuevoBloque - inicioBloqueDatos;
 
-							if (tablaArchivos[archivoID].first_block == -1) { //Archivo vacio
-								tablaArchivos[archivoID].first_block = bloque;
-								//log_info(logger, "Primer bloque: %d ", bloque);
-							} else {
-								tablaAsignaciones[bloqueAnterior] = bloque;
-								//log_info(logger, "bloqueAnterior %d bloque: %d ", bloqueAnterior,bloque);
-							}
-							tablaAsignaciones[bloque] = -1;
-							sumSize = sumSize + OSADA_BLOCK_SIZE;
-						}
+					if (tablaArchivos[archivoID].first_block == -1) { //Archivo vacio
+						tablaArchivos[archivoID].first_block = bloque;
+						//log_info(logger, "Primer bloque: %d ", bloque);
+					} else {
+						tablaAsignaciones[bloqueAnterior] = bloque;
+						//log_info(logger, "bloqueAnterior %d bloque: %d ", bloqueAnterior,bloque);
+					}
+					tablaAsignaciones[bloque] = -1;
+					sumSize = sumSize + OSADA_BLOCK_SIZE;
+				}
 			}
 		} else {
 
@@ -633,6 +662,12 @@ int rename_callback(const char *from, const char *to) {
 		tablaArchivos[archivoID].lastmod = (int)time(NULL);
 	}
 
+	int j = 0;
+	while (array[j]) {
+		free(array[j]);
+			j++;
+	}
+
 	return archivoID;
 }
 
@@ -658,7 +693,7 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	if (bloque == -1) {
 		bloque = getFirstBit() - inicioBloqueDatos;
 		if (bloque == -2) { //Disco lleno
-				return -2;
+			return -2;
 		} else {
 			if (tablaArchivos[archivoID].first_block == -1) {
 				tablaArchivos[archivoID].first_block = bloque;
@@ -670,19 +705,19 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 
 	while (sum<tamanioBuffer) {
 		if (tamanioBuffer - sum > OSADA_BLOCK_SIZE) {
-			pthread_mutex_lock(&mutex);
+			pthread_mutex_lock(&mutexOper);
 			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], OSADA_BLOCK_SIZE * sizeof(char));
 
 			sum = sum + OSADA_BLOCK_SIZE;
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutexOper);
 			//log_info(logger," Escribio %d", OSADA_BLOCK_SIZE);
 		} else {
-			pthread_mutex_lock(&mutex);
+			pthread_mutex_lock(&mutexOper);
 			memcpy(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], &buffer[sum / sizeof(char)], (tamanioBuffer - sum) * sizeof(char));
 			//log_info(logger," ------Copia Parcial ------ %d", bloque);
 			//log_info(logger," Escribio %d", (tamanioBuffer - sum));
 			sum = sum + (tamanioBuffer - sum);
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutexOper);
 		}
 
 		int bloqueAnterior = bloque;
@@ -768,6 +803,12 @@ int mkdir_callback(const char *path) {
 	newDir.lastmod = (int)time(NULL);
 	tablaArchivos[id] = newDir;
 
+	int j = 0;
+	while (array[j]) {
+		free(array[j]);
+			j++;
+	}
+
 	return id;
 }
 
@@ -804,6 +845,13 @@ int mknod_callback(const char *path) {
 	newDir.first_block = -1;
 	newDir.lastmod = (int)time(NULL);
 	tablaArchivos[id] = newDir;
+
+	int j = 0;
+	while (array[j]) {
+		free(array[j]);
+			j++;
+	}
+
 	return id;
 }
 
@@ -870,6 +918,13 @@ int getDirPadre(const char *path) {
 	} else {
 		res = dirPadre; //Estamos en el root
 	}
+
+	int j = 0;
+	while (j<i) {
+		free(array[j]);
+			j++;
+	}
+
 	return res;
 }
 
@@ -924,31 +979,32 @@ t_block read_callback(const char *path, int offset, int tamanioBuffer){
 
 	while ((bloque != -1) && (sum<limite)) {
 		if (tablaAsignaciones[bloque] != -1) {
-			pthread_mutex_lock(&mutex);
+			pthread_mutex_lock(&mutexOper);
 			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], OSADA_BLOCK_SIZE * sizeof(int));
 			sum = sum + OSADA_BLOCK_SIZE;
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutexOper);
 			//log_info(logger," Escribio %d", OSADA_BLOCK_SIZE);
 		} else {
-			pthread_mutex_lock(&mutex);
+			pthread_mutex_lock(&mutexOper);
 			memcpy(&block[sum / sizeof(int)], &pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], (limite - sum) * sizeof(int));
 			//log_info(logger," ------Copia Parcial ------ %d", bloque);
 			//log_info(logger," Escribio %d", (limite - sum));
 			sum = sum + (limite - sum);
-			pthread_mutex_unlock(&mutex);
+			pthread_mutex_unlock(&mutexOper);
 		}
 
 		//log_info(logger," Escribiendo bloque %d", bloque);
 		//log_info(logger," Cantidad Bytes restantes %d", (limite - sum));
 		//log_info(logger," Siguiente bloque %d", tablaAsignaciones[bloque]);
-		pthread_mutex_lock(&mutex);
+		pthread_mutex_lock(&mutexOper);
 		bloque = tablaAsignaciones[bloque];
-		pthread_mutex_unlock(&mutex);
+		pthread_mutex_unlock(&mutexOper);
 	}
 
 	//log_info(logger," sum %d", sum);
 	res.block = (char*)block;
 	res.size = limite;
+	//free(block);
 	return res;
 }
 
@@ -1136,5 +1192,6 @@ void pokedexCliente(t_pokedex_cliente* pokedex_cliente) {
 		pthread_mutex_lock(&mutex);
 		queue_push(colaOperaciones, operacionEjecutar);
 		pthread_mutex_unlock(&mutex);
+		sem_post(&semReady);
 	}
 }

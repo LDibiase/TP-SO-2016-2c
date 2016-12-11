@@ -249,6 +249,8 @@ int main(int argc, char **argv) {
 					string_append(&rutaBorrado, "\"Dir de Bill\"");
 					string_append(&rutaBorrado, "/*");
 
+					system(rutaBorrado);
+
 					free(rutaBorrado);
 				}
 			}
@@ -1083,6 +1085,8 @@ void validarVidas() {
 		string_append(&rutaBorrado, rutaDirectorioEntrenador);
 		string_append(&rutaBorrado, "medallas");
 		string_append(&rutaBorrado, "/*");
+
+		system(rutaBorrado);
 
 		free(rutaBorrado);
 		free(nombreCiudad);

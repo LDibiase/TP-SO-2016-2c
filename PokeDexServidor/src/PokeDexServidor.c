@@ -232,6 +232,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteLectura);
+				free(paqueteLectura.paqueteSerializado);
 				break;
 			case GETATTR: ;
 			log_info(logger, "Solicito GETATTR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
@@ -256,6 +257,7 @@ int main(void) {
 			}
 
 			enviarMensaje(socketPokedex, paqueteGetAttr);
+			free(paqueteGetAttr.paqueteSerializado);
 			break;
 			case READ:
 				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
@@ -282,6 +284,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteREAD);
+				free(paqueteREAD.paqueteSerializado);
 				free(READ_RES.block);
 				break;
 			case MKDIR:
@@ -304,6 +307,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteMKDIR);
+				free(paqueteMKDIR.paqueteSerializado);
 
 				break;
 			case RMDIR:
@@ -348,6 +352,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteUNLINK);
+				free(paqueteUNLINK.paqueteSerializado);
 
 				break;
 			case MKNOD:
@@ -372,6 +377,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteMKNOD);
+				free(paqueteMKNOD.paqueteSerializado);
 
 				break;
 			case WRITE:
@@ -396,7 +402,9 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteWRITE);
-
+				free(paqueteWRITE.paqueteSerializado);
+				free(((mensaje8_t*) mensajeRespuesta)->buffer);
+				free(((mensaje8_t*) mensajeRespuesta)->path);
 				break;
 			case RENAME:
 				log_info(logger, "Solicito RENAME FROM: %s TO: %s", ((mensaje9_t*) mensajeRespuesta)->pathFrom, ((mensaje9_t*) mensajeRespuesta)->pathTo);
@@ -420,6 +428,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteRENAME);
+				free(paqueteRENAME.paqueteSerializado);
 				break;
 			case TRUNCATE:
 				log_info(logger, "Solicito TRUNCATE PATH: %s SIZE: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
@@ -443,6 +452,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteTRUNCATE);
+				free(paqueteTRUNCATE.paqueteSerializado);
 				break;
 			case UTIMENS:
 				log_info(logger, "Solicito UTIMENS PATH: %s TIME: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
@@ -465,10 +475,10 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteUTIMENS);
+				free(paqueteUTIMENS.paqueteSerializado);
 				break;
 
 			}
-
 			free(operacionActual->operacion);
 			free(operacionActual);
 			//Luego de cada operaciones sinconizo los datos a disco
@@ -652,6 +662,12 @@ int rename_callback(const char *from, const char *to) {
 		tablaArchivos[archivoID].lastmod = (int)time(NULL);
 	}
 
+	int j = 0;
+	while (array[j]) {
+		free(array[j]);
+			j++;
+	}
+
 	return archivoID;
 }
 
@@ -787,6 +803,12 @@ int mkdir_callback(const char *path) {
 	newDir.lastmod = (int)time(NULL);
 	tablaArchivos[id] = newDir;
 
+	int j = 0;
+	while (array[j]) {
+		free(array[j]);
+			j++;
+	}
+
 	return id;
 }
 
@@ -823,6 +845,13 @@ int mknod_callback(const char *path) {
 	newDir.first_block = -1;
 	newDir.lastmod = (int)time(NULL);
 	tablaArchivos[id] = newDir;
+
+	int j = 0;
+	while (array[j]) {
+		free(array[j]);
+			j++;
+	}
+
 	return id;
 }
 
@@ -889,6 +918,13 @@ int getDirPadre(const char *path) {
 	} else {
 		res = dirPadre; //Estamos en el root
 	}
+
+	int j = 0;
+	while (j<i) {
+		free(array[j]);
+			j++;
+	}
+
 	return res;
 }
 

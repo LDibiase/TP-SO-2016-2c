@@ -49,6 +49,7 @@ static int fuse_getattr(const char *path, struct stat *stbuf) {
 	}
 
 	enviarMensaje(pokedex, paqueteLectura);
+	free(paqueteLectura.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 	mensaje3_t mensajeGETATTR_RESPONSE;
@@ -107,6 +108,7 @@ static int fuse_readdir(const char *path, void *buf, fuse_fill_dir_t filler, off
 	}
 
 	enviarMensaje(pokedex, paqueteLectura);
+	free(paqueteLectura.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 	mensaje2_t mensajeREADDIR_RESPONSE;
@@ -152,6 +154,7 @@ static int fuse_open(const char *path, struct fuse_file_info *fi) {
 	}
 
 	enviarMensaje(pokedex, paqueteLectura);
+	free(paqueteLectura.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 	mensaje3_t mensajeGETATTR_RESPONSE;
@@ -200,6 +203,7 @@ static int fuse_read(const char *path, char *buf, size_t size, off_t offset, str
 	}
 
 	enviarMensaje(pokedex, paqueteLectura);
+	free(paqueteLectura.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 		mensaje5_t mensajeREAD_RESPONSE;
@@ -237,6 +241,7 @@ static int fuse_mkdir(const char *path, mode_t mode)
 	}
 
 	enviarMensaje(pokedex, paqueteCrearDirectorio);
+	free(paqueteCrearDirectorio.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 	mensaje7_t mensajeMKDIR_RESPONSE;
@@ -279,6 +284,7 @@ static int fuse_rmdir(const char *path)
 		}
 
 		enviarMensaje(pokedex, paqueteCrearDirectorio);
+		free(paqueteCrearDirectorio.paqueteSerializado);
 
 		// Recibir mensaje RESPUESTA
 		mensaje7_t mensajeRMDIR_RESPONSE;
@@ -317,6 +323,7 @@ static int fuse_unlink(const char *path)
 	}
 
 	enviarMensaje(pokedex, paqueteBorrarArchivo);
+	free(paqueteBorrarArchivo.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 	mensaje7_t mensajeUNLINK_RESPONSE;
@@ -354,6 +361,7 @@ static int fuse_mknod(const char *path, mode_t mode, dev_t rdev)
 	}
 
 	enviarMensaje(pokedex, paqueteLectura);
+	free(paqueteLectura.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 	mensaje7_t mensajeMKNOD_RESPONSE;
@@ -395,6 +403,7 @@ static int fuse_create(const char *path, mode_t mode, struct fuse_file_info* fi)
 		}
 
 		enviarMensaje(pokedex, paqueteLectura);
+		free(paqueteLectura.paqueteSerializado);
 
 		// Recibir mensaje RESPUESTA
 		mensaje7_t mensajeMKNOD_RESPONSE;
@@ -436,6 +445,7 @@ static int fuse_write(const char* path, const char * buf, size_t size, off_t off
 		}
 
 		enviarMensaje(pokedex, paqueteLectura);
+		free(paqueteLectura.paqueteSerializado);
 
 		// Recibir mensaje RESPUESTA
 			mensaje7_t mensajeWRITE_RESPONSE;
@@ -473,6 +483,7 @@ static int fuse_rename(const char* from, const char* to) {
 		}
 
 		enviarMensaje(pokedex, paqueteLectura);
+		free(paqueteLectura.paqueteSerializado);
 
 		// Recibir mensaje RESPUESTA
 			mensaje7_t mensajeRENAME_RESPONSE;
@@ -508,6 +519,7 @@ static int fuse_truncate(const char *path, off_t size)
 			}
 
 			enviarMensaje(pokedex, paqueteLectura);
+			free(paqueteLectura.paqueteSerializado);
 
 			// Recibir mensaje RESPUESTA
 				mensaje7_t mensajeTRUNCATE_RESPONSE;
@@ -554,6 +566,7 @@ static int fuse_utimens(const char* path, const struct timespec ts[2])
 	}
 
 	enviarMensaje(pokedex, paqueteLectura);
+	free(paqueteLectura.paqueteSerializado);
 
 	// Recibir mensaje RESPUESTA
 		mensaje7_t mensajeTIME_RESPONSE;

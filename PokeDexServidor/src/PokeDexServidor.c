@@ -393,7 +393,7 @@ int main(void) {
 				mensajeWRITE_RESPONSE.tipoMensaje = WRITE_RESPONSE;
 				mensajeWRITE_RESPONSE.res = res;
 
-				log_info(logger, "WRITE RES: %d ", res);
+				//log_info(logger, "WRITE RES: %d ", res);
 
 				crearPaquete((void*) &mensajeWRITE_RESPONSE, &paqueteWRITE);
 				if(paqueteWRITE.tamanioPaquete == 0) {

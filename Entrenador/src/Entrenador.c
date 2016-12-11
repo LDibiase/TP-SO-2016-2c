@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
 
 			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
 			solicitarCaptura(mapa_s, &victima, objetivo);
-			if(mapa_s->errorCode != NO_ERROR)
+			if(!victima && mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
@@ -1046,7 +1046,7 @@ void validarVidas() {
 				{
 					log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 
-					eliminarSocket(mapa_s);
+					//eliminarSocket(mapa_s);
 					free(nombreCiudad);
 
 					liberarRecursos();
@@ -1069,7 +1069,7 @@ void validarVidas() {
 		{
 			log_info(logger, "El entrenador ha abandonado el juego");
 
-			eliminarSocket(mapa_s);
+			//eliminarSocket(mapa_s);
 			free(nombreCiudad);
 
 			liberarRecursos();

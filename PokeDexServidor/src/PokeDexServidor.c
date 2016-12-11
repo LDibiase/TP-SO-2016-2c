@@ -286,6 +286,7 @@ int main(void) {
 				enviarMensaje(socketPokedex, paqueteREAD);
 				free(paqueteREAD.paqueteSerializado);
 				free(READ_RES.block);
+				free(((mensaje4_t*) mensajeRespuesta)->path);
 				break;
 			case MKDIR:
 				log_info(logger, "Solicito MKDIR del path: %s", ((mensaje6_t*) mensajeRespuesta)->path);
@@ -308,7 +309,7 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteMKDIR);
 				free(paqueteMKDIR.paqueteSerializado);
-
+				free(((mensaje6_t*) mensajeRespuesta)->path);
 				break;
 			case RMDIR:
 				log_info(logger, "Solicito RMDIR del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
@@ -330,7 +331,7 @@ int main(void) {
 				}
 
 				enviarMensaje(socketPokedex, paqueteRMDIR);
-
+				free(((mensaje1_t*) mensajeRespuesta)->path);
 				break;
 			case UNLINK:
 				log_info(logger, "Solicito UNLINK del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
@@ -353,7 +354,7 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteUNLINK);
 				free(paqueteUNLINK.paqueteSerializado);
-
+				free(((mensaje1_t*) mensajeRespuesta)->path);
 				break;
 			case MKNOD:
 				log_info(logger, "Solicito MKNOD del path: %s", ((mensaje1_t*) mensajeRespuesta)->path);
@@ -378,7 +379,7 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteMKNOD);
 				free(paqueteMKNOD.paqueteSerializado);
-
+				free(((mensaje1_t*) mensajeRespuesta)->path);
 				break;
 			case WRITE:
 				log_info(logger, "Solicito WRITE del path: %s Cantidad de bytes: %d OFFSET: %d", ((mensaje8_t*) mensajeRespuesta)->path, ((mensaje8_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje8_t*) mensajeRespuesta)->offset);
@@ -392,6 +393,7 @@ int main(void) {
 				mensajeWRITE_RESPONSE.tipoMensaje = WRITE_RESPONSE;
 				mensajeWRITE_RESPONSE.res = res;
 
+				log_info(logger, "WRITE RES: %d ", res);
 
 				crearPaquete((void*) &mensajeWRITE_RESPONSE, &paqueteWRITE);
 				if(paqueteWRITE.tamanioPaquete == 0) {
@@ -429,6 +431,8 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteRENAME);
 				free(paqueteRENAME.paqueteSerializado);
+				free(((mensaje9_t*) mensajeRespuesta)->pathFrom);
+				free(((mensaje9_t*) mensajeRespuesta)->pathTo);
 				break;
 			case TRUNCATE:
 				log_info(logger, "Solicito TRUNCATE PATH: %s SIZE: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
@@ -453,6 +457,7 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteTRUNCATE);
 				free(paqueteTRUNCATE.paqueteSerializado);
+				free(((mensaje10_t*) mensajeRespuesta)->path);
 				break;
 			case UTIMENS:
 				log_info(logger, "Solicito UTIMENS PATH: %s TIME: %d", ((mensaje10_t*) mensajeRespuesta)->path, ((mensaje10_t*) mensajeRespuesta)->size);
@@ -476,10 +481,12 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteUTIMENS);
 				free(paqueteUTIMENS.paqueteSerializado);
+				free(((mensaje10_t*) mensajeRespuesta)->path);
 				break;
 
 			}
-			free(operacionActual->operacion);
+			//free(operacionActual->operacion);
+			free(mensajeRespuesta);
 			free(operacionActual);
 			//Luego de cada operaciones sinconizo los datos a disco
 			// Copio el BITMAP a memoria
@@ -691,10 +698,11 @@ int write_callback(const char* path, int offset, char* buffer, int tamanioBuffer
 	//Si estamos en el final del archivo
 	//Si es un archivo vacio
 	if (bloque == -1) {
-		bloque = getFirstBit() - inicioBloqueDatos;
+		bloque = getFirstBit();
 		if (bloque == -2) { //Disco lleno
 			return -2;
 		} else {
+			bloque = bloque - inicioBloqueDatos;
 			if (tablaArchivos[archivoID].first_block == -1) {
 				tablaArchivos[archivoID].first_block = bloque;
 			} else {

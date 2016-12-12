@@ -1647,8 +1647,7 @@ void chequearDeadlock() {
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Se intenta realizar un WAIT a semBlocked (chequeo de interbloqueo)");
 		pthread_mutex_unlock(&mutexLog);
-		sem_wait(&semBlocked);
-/*
+//		sem_wait(&semBlocked);
 		if(sem_trywait(&semBlocked) == -1 && errno == EAGAIN)
 		{
 			pthread_mutex_lock(&mutexLog);
@@ -1657,7 +1656,6 @@ void chequearDeadlock() {
 
 			continue;
 		}
-*/
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Se desbloquea semBlocked (chequeo de interbloqueo)");
 		pthread_mutex_unlock(&mutexLog);
@@ -2426,7 +2424,13 @@ t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo) {
 		pthread_mutex_unlock(&mutexReady);
 
 		if(entrenador != NULL)
+		{
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "El entrenador a ejecutar es %s (%c).", entrenador->nombre, entrenador->id);
+			pthread_mutex_unlock(&mutexLog);
+
 			return entrenador;
+		}
 	}
 
 	pthread_mutex_lock(&mutexReady);
@@ -2438,6 +2442,10 @@ t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo) {
 	log_info(logger, "Cola ready después del pop: %d", list_size(colaReady->elements));
 	pthread_mutex_unlock(&mutexLog);
 	pthread_mutex_unlock(&mutexReady);
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "El entrenador a ejecutar es %s (%c).", entrenador->nombre, entrenador->id);
+	pthread_mutex_unlock(&mutexLog);
 
 	return entrenador;
 }

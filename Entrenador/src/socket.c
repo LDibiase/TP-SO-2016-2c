@@ -82,12 +82,15 @@ socket_t* nuevoSocket() {
 }
 
 void eliminarSocket(socket_t* socket_s) {
-	if(socket_s->error != NULL)
-		free(socket_s->error);
+	if(socket_s != NULL)
+	{
+		if(socket_s->error != NULL)
+			free(socket_s->error);
 
-	close(socket_s->descriptor);
+		close(socket_s->descriptor);
 
-	free(socket_s);
+		free(socket_s);
+	}
 }
 
 socket_t* crearServidor(char* ip, char* puerto) {

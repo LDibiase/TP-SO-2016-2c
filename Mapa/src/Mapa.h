@@ -76,11 +76,11 @@ typedef struct metadataPokemon {
 void encolarEntrenador(t_entrenador* entrenador);
 void reencolarEntrenador(t_entrenador* entrenador);
 void calcularFaltante(t_entrenador entrenador);
-void insertarOrdenado(t_entrenador* entrenador, t_queue* cola, pthread_mutex_t* mutex);
-void insertarAlFinal(t_entrenador* entrenador, t_queue* cola, pthread_mutex_t* mutex);
+void insertarOrdenado(t_entrenador* entrenador, t_queue* cola);
+void insertarAlFinal(t_entrenador* entrenador, t_queue* cola);
 void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa);
 t_ubicacion calcularMovimiento(t_ubicacion ubicacionActual, t_ubicacion ubicacionFinal);
-ITEM_NIVEL* find_by_id(t_list* lista, char idBuscado);
+ITEM_NIVEL* _search_item_by_id(t_list* items, char id);
 t_ubicacion buscarPokenest(t_list* lista, char pokemon);
 t_list* cargarObjetivos();
 t_list* cargarPokenests();
@@ -102,11 +102,12 @@ void liberarRecursosEntrenador(t_entrenador* entrenador);
 void capturarPokemon(t_entrenador* entrenador);
 void desbloquearJugadores();
 void actualizarMatriz(t_list* matriz, t_entrenador* entrenador, int aumentar, pthread_mutex_t* mutex);
-void informarEstadoCola(char* nombreCola, t_list* cola, pthread_mutex_t* mutex);
+void informarEstadoCola(char* nombreCola, t_list* cola);
 time_t obtenerFechaIngreso();
 void informarEstadoRecursos();
 char* obtenerNombrePokemon(char idPokemon);
 void eliminarPokemonEntrenador(t_pokemonEntrenador* entrenador);
 void eliminarRecurso(t_mapa_pokenest* recurso);
+t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo);
 
 #endif /* MAPA_H_ */

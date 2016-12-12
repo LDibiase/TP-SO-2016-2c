@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
 						free(nombreCiudad);
 
 						liberarRecursos();
-						abort();
+						exit(EXIT_FAILURE);
 					}
 				}
 				else
@@ -99,7 +99,7 @@ int main(int argc, char **argv) {
 						free(nombreCiudad);
 
 						liberarRecursos();
-						abort();
+						exit(EXIT_FAILURE);
 					}
 				}
 			}
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
 				free(nombreCiudad);
 
 				liberarRecursos();
-				abort();
+				exit(EXIT_FAILURE);
 			}
 
 			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
@@ -123,7 +123,7 @@ int main(int argc, char **argv) {
 				free(nombreCiudad);
 
 				liberarRecursos();
-				abort();
+				exit(EXIT_FAILURE);
 			}
 		}
 	}
@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
 					free(nombreCiudad);
 
 					liberarRecursos();
-					abort();
+					exit(EXIT_FAILURE);
 				}
 
 				// Determinar la ubicación inicial del entrenador en el mapa
@@ -172,7 +172,7 @@ int main(int argc, char **argv) {
 					free(nombreCiudad);
 
 					liberarRecursos();
-					abort();
+					exit(EXIT_FAILURE);
 				}
 
 				if(victima == 0)
@@ -231,7 +231,7 @@ int main(int argc, char **argv) {
 					free(nombreCiudad);
 
 					liberarRecursos();
-					abort();
+					exit(EXIT_FAILURE);
 				}
 
 				if(!objetivosCompletados)
@@ -255,14 +255,16 @@ int main(int argc, char **argv) {
 				eliminarSocket(mapa_s);
 
 				liberarRecursos();
-				abort();
+				exit(EXIT_FAILURE);
 			}
 
 			validarVidas();
 		}
 	}
 
-	// Se carga el archivo de configuración
+	// Se carga el archivo de metadata
+	log_info(logger, "Cargando archivo de metadata");
+
 	if (cargarConfiguracion(&configEntrenador) == 1)
 	{
 		log_info(logger, "Se ha producido un error. El entrenador se cerrará.");
@@ -910,7 +912,7 @@ void signal_termination_handler(int signum) {
  		 validarVidas();
  		 break;
  	 case SIGINT:
- 		 abort();
+ 		 exit(EXIT_FAILURE);
  	 default:
  		 log_info(logger, "Código inválido: %d", signum);
  		 return;
@@ -1011,7 +1013,7 @@ void validarVidas() {
 					free(nombreCiudad);
 
 					liberarRecursos();
-					abort();
+					exit(EXIT_FAILURE);
 				}
 
 				break;
@@ -1034,7 +1036,7 @@ void validarVidas() {
 			free(nombreCiudad);
 
 			liberarRecursos();
-			abort();
+			exit(EXIT_FAILURE);
 		}
 
 		char* rutaBorrado;

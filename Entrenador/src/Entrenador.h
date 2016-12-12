@@ -22,6 +22,12 @@ typedef struct entrenador {
 	char* Simbolo;
 	t_list* CiudadesYObjetivos;
 	int Vidas;
+	int Muertes;
+	int Intentos;
+	int CantidadInterbloqueos;
+	time_t FechaUltimoBloqueo;
+	time_t FechaIngreso;
+	double TiempoBloqueado;
 } t_entrenador_config;
 
 typedef struct metadataPokemon {
@@ -54,5 +60,7 @@ void eliminarPokemon(t_metadataPokemon* pokemon);
 void eliminarEntrenador(t_entrenador_config* entrenador);
 void liberarRecursos();
 void validarVidas();
+time_t obtenerFechaActual();
+double obtenerDiferenciaTiempo(time_t tiempoInicial);
 
 #endif /* ENTRENADOR_H_ */

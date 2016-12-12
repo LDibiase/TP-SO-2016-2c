@@ -50,7 +50,7 @@ t_getattr getattr_callback(const char *path);
 char* readdir_callback(const char *path);
 void pokedexCliente(t_pokedex_cliente* pokedex_cliente);
 int getDirPadre(const char *path);
-t_block read_callback(const char *path, int offset, int tamanioBuffer);
+void read_callback(char* path, int offset, int tamanioBuffer, int *block, int limite);
 int mkdir_callback(const char *path);
 int get_firstEntry();
 int rmdir_callback(const char *path);

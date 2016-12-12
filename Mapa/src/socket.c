@@ -555,6 +555,8 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 			free(buffer);
 
 			break;
+		default:
+			free(buffer);
 		}
 	}
 

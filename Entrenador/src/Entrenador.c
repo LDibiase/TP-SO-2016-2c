@@ -12,6 +12,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <signal.h>
+#include <time.h>
 #include <commons/config.h>
 #include <commons/collections/dictionary.h>
 #include <commons/string.h>
@@ -117,7 +118,7 @@ int main(int argc, char **argv) {
 
 			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
 			solicitarCaptura(mapa_s, &victima, objetivo);
-			if(mapa_s->errorCode != NO_ERROR)
+			if(!victima && mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
@@ -221,7 +222,11 @@ int main(int argc, char **argv) {
 					free(nombreCiudad);
 				}
 				else
+				{
 					configEntrenador.Vidas--;
+					configEntrenador.Muertes++;
+				}
+
 
 				if(activo == 0)
 				{
@@ -243,6 +248,8 @@ int main(int argc, char **argv) {
 					string_append(&rutaBorrado, rutaDirectorioEntrenador);
 					string_append(&rutaBorrado, "\"Dir de Bill\"");
 					string_append(&rutaBorrado, "/*");
+
+					system(rutaBorrado);
 
 					free(rutaBorrado);
 				}
@@ -291,6 +298,7 @@ int main(int argc, char **argv) {
 	while(!objetivosCompletados) {
 		objetivosCompletados = 1; // Se activa el flag únicamente para entrar a la iteración
 
+		configEntrenador.Intentos++;
 		// Se cumple con los objetivos de cada ciudad incluida en la Hoja de Viaje
 		list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _cumplirObjetivosCiudad);
 	}
@@ -298,7 +306,13 @@ int main(int argc, char **argv) {
 	log_info(logger, "El entrenador ha cumplido con todos los objetivos especificados en su Hoja de Viaje.");
 	log_info(logger, "Es ahora un Maestro Pokémon.");
 
-	log_info(logger, "Tiempo total que le ha tomado completar la aventura: %d.");
+	double tiempoTotal;
+	tiempoTotal = obtenerDiferenciaTiempo(configEntrenador.FechaIngreso);
+
+	log_info(logger, "Tiempo total que le ha tomado completar la aventura: %f segundos.", tiempoTotal);
+	log_info(logger, "Tiempo total que estuvo bloqueado: %f segundos.", configEntrenador.TiempoBloqueado);
+	log_info(logger, "La cantidad de intentos fueron: %d", configEntrenador.Intentos);
+	log_info(logger, "La cantidad de muertes fueron: %d", configEntrenador.Muertes);
 
 	liberarRecursos();
 	return EXIT_SUCCESS;
@@ -344,12 +358,22 @@ int cargarConfiguracion(t_entrenador_config* structConfig) {
 			structConfig->Nombre = strdup(config_get_string_value(config, "nombre"));
 			structConfig->Simbolo = strdup(config_get_string_value(config, "simbolo"));
 			structConfig->Vidas = config_get_int_value(config, "vidas");
+			structConfig->FechaIngreso = obtenerFechaActual();
 
 			//SE BUSCAN LOS OBJETIVOS DE CADA CIUDAD
 			string_iterate_lines(hojaDeViaje, (void*) _auxIterate);
 
 			log_info(logger, "El archivo de configuración se cargó correctamente");
 			config_destroy(config);
+
+			int j=0;
+			while(hojaDeViaje[j])
+			{
+				free(hojaDeViaje[j]);
+				j++;
+			}
+
+			free(hojaDeViaje);
 			return 0;
 		}
 		else
@@ -697,6 +721,8 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		return;
 	}
 
+	configEntrenador.FechaUltimoBloqueo = obtenerFechaActual();
+
 	enviarMensaje(mapa_s, paquete);
 
 	free(paquete.paqueteSerializado);
@@ -760,6 +786,8 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 		list_add(pokemonesAtrapados, pokemon);
 
+		configEntrenador.TiempoBloqueado = configEntrenador.TiempoBloqueado + obtenerDiferenciaTiempo(configEntrenador.FechaUltimoBloqueo);
+
 		//SE COPIA EL ARCHIVO DE METADATA DEL POKEMON AL DIRECTORIO DEL ENTRENADOR
 		char* rutaPokemon = strdup(puntoMontajeOsada);
 		string_append(&rutaPokemon, mensajeConfirmaCaptura.nombreArchivoMetadata);
@@ -783,6 +811,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		free(rutaOrigen);
 		free(rutaDestino);
 		free(sysCall);
+		free(mensajeConfirmaCaptura.nombreArchivoMetadata);
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{
@@ -906,6 +935,7 @@ void signal_termination_handler(int signum) {
  		 break;
  	 case SIGTERM:
  		 configEntrenador.Vidas--;
+ 		 configEntrenador.Muertes++;
  		 log_info(logger, "SIGTERM: Se ha perdido una vida");
  		 log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
@@ -943,6 +973,7 @@ void obtenerDatosConexion(char* nombreCiudad) {
 			puerto = strdup(config_get_string_value(metadata, "Puerto"));
 
 			config_destroy(metadata);
+			free(rutaMetadataMapa);
 		}
 		else
 		{
@@ -951,6 +982,7 @@ void obtenerDatosConexion(char* nombreCiudad) {
 
 			log_error(logger, "El archivo de metadata del mapa tiene un formato inválido");
 			config_destroy(metadata);
+			free(rutaMetadataMapa);
 		}
 	}
 	else
@@ -959,6 +991,7 @@ void obtenerDatosConexion(char* nombreCiudad) {
 		puerto = NULL;
 
 		log_error(logger, "La ruta de archivo de metadata indicada no existe");
+		free(rutaMetadataMapa);
 	}
 }
 
@@ -973,6 +1006,7 @@ void eliminarEntrenador(t_entrenador_config* entrenador) {
 		free(ciudad->Nombre);
 		string_iterate_lines(ciudad->Objetivos, (void*) free);
 		free(ciudad->Objetivos);
+		free(ciudad);
 	}
 
 	if(entrenador != NULL)
@@ -987,8 +1021,29 @@ void liberarRecursos() {
 	eliminarEntrenador(&configEntrenador);
 	free(puntoMontajeOsada);
 	free(rutaDirectorioEntrenador);
-//	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
+	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
 	log_destroy(logger);
+}
+
+time_t obtenerFechaActual()
+{
+	time_t current_time;
+	current_time = time(NULL);
+
+	if (current_time == ((time_t)-1))
+	{
+		log_error(logger, "Error al obtener fecha del sistema");
+		exit(EXIT_FAILURE);
+	}
+
+	return current_time;
+}
+
+double obtenerDiferenciaTiempo(time_t tiempoInicial)
+{
+	double diferencia;
+	diferencia = difftime(obtenerFechaActual(), tiempoInicial);
+	return diferencia;
 }
 
 void validarVidas() {
@@ -1009,7 +1064,7 @@ void validarVidas() {
 				{
 					log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 
-					eliminarSocket(mapa_s);
+					//eliminarSocket(mapa_s);
 					free(nombreCiudad);
 
 					liberarRecursos();
@@ -1032,7 +1087,7 @@ void validarVidas() {
 		{
 			log_info(logger, "El entrenador ha abandonado el juego");
 
-			eliminarSocket(mapa_s);
+			//eliminarSocket(mapa_s);
 			free(nombreCiudad);
 
 			liberarRecursos();
@@ -1046,6 +1101,8 @@ void validarVidas() {
 		string_append(&rutaBorrado, rutaDirectorioEntrenador);
 		string_append(&rutaBorrado, "medallas");
 		string_append(&rutaBorrado, "/*");
+
+		system(rutaBorrado);
 
 		free(rutaBorrado);
 		free(nombreCiudad);

@@ -262,16 +262,28 @@ int main(void) {
 			case READ:
 				log_info(logger, "Solicito READ del path: %s Cantidad de bytes: %d OFFSET: %d", ((mensaje4_t*) mensajeRespuesta)->path, ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, ((mensaje4_t*) mensajeRespuesta)->offset);
 
+				int archivoID = getDirPadre(((mensaje4_t*) mensajeRespuesta)->path);
+				int tamanioArchivo = tablaArchivos[archivoID].file_size;
+				int limite;
+				//Obtengo el bloque de datos correspondiente
+				if ((tamanioArchivo-((mensaje4_t*) mensajeRespuesta)->offset)<((mensaje4_t*) mensajeRespuesta)->tamanioBuffer) {
+					limite = tamanioArchivo-((mensaje4_t*) mensajeRespuesta)->offset;
+				} else {
+					limite = ((mensaje4_t*) mensajeRespuesta)->tamanioBuffer;
+				}
+
+				int *block;
+				block = malloc(limite * sizeof(int));
+
 				// Enviar mensaje READ
 				paquete_t paqueteREAD;
 				mensaje5_t mensajeREAD_RESPONSE;
-				t_block READ_RES;
 
-				READ_RES = read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer);
+				read_callback(((mensaje4_t*) mensajeRespuesta)->path,((mensaje4_t*) mensajeRespuesta)->offset,((mensaje4_t*) mensajeRespuesta)->tamanioBuffer, block, limite);
 
 				mensajeREAD_RESPONSE.tipoMensaje = READ_RESPONSE;
-				mensajeREAD_RESPONSE.buffer = READ_RES.block;
-				mensajeREAD_RESPONSE.tamanioBuffer = READ_RES.size;
+				mensajeREAD_RESPONSE.buffer = (char*)block;
+				mensajeREAD_RESPONSE.tamanioBuffer = limite;
 
 				//log_info(logger, "READRESPONSE: Cantidad de bytes: %d, buffer: ", mensajeREAD_RESPONSE.tamanioBuffer, mensajeREAD_RESPONSE.buffer);
 
@@ -285,7 +297,7 @@ int main(void) {
 
 				enviarMensaje(socketPokedex, paqueteREAD);
 				free(paqueteREAD.paqueteSerializado);
-				free(READ_RES.block);
+				free(block);
 				free(((mensaje4_t*) mensajeRespuesta)->path);
 				break;
 			case MKDIR:
@@ -485,7 +497,6 @@ int main(void) {
 				break;
 
 			}
-			//free(operacionActual->operacion);
 			free(mensajeRespuesta);
 			free(operacionActual);
 			//Luego de cada operaciones sinconizo los datos a disco
@@ -495,8 +506,8 @@ int main(void) {
 			memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks) * OSADA_BLOCK_SIZE], &tablaArchivos, 1024 * OSADA_BLOCK_SIZE);
 			// Copio tabla de ASIGNACIONES a memoria
 			memcpy(&pmapFS[(1 + cabeceraFS.bitmap_blocks + 1024) * OSADA_BLOCK_SIZE], tablaAsignaciones, bloquesTablaAsignaciones * OSADA_BLOCK_SIZE);
-			msync(pmapFS, statFS.st_size, 2); //Sincronizo la memoria a disco
-
+			//Sincronizo la memoria a disco
+			msync(pmapFS, statFS.st_size, 2);
 		}
 	}
 
@@ -957,21 +968,10 @@ t_getattr getattr_callback(const char *path) {
 	return res;
 }
 
-t_block read_callback(const char *path, int offset, int tamanioBuffer){
+void read_callback(char* path, int offset, int tamanioBuffer, int *block, int limite){
 	int archivoID = getDirPadre(path);
 	int primerBloque = tablaArchivos[archivoID].first_block;
-	int tamanioArchivo = tablaArchivos[archivoID].file_size;
-	int limite;
-	t_block res;
-	//Obtengo el bloque de datos correspondiente
-	int* block;
-	if (tamanioArchivo-offset<tamanioBuffer) {
-		limite = tamanioArchivo-offset;
-	} else {
-		limite = tamanioBuffer;
-	}
 
-	block = malloc(limite * sizeof(int));
 	int sum = 0;
 	int sumOffset = 0;
 	int bloque = primerBloque;
@@ -1008,12 +1008,6 @@ t_block read_callback(const char *path, int offset, int tamanioBuffer){
 		bloque = tablaAsignaciones[bloque];
 		pthread_mutex_unlock(&mutexOper);
 	}
-
-	//log_info(logger," sum %d", sum);
-	res.block = (char*)block;
-	res.size = limite;
-	//free(block);
-	return res;
 }
 
 int buscarTablaAchivos(int dirPadre, char* fname) {

@@ -83,6 +83,9 @@ int main(int argc, char **argv) {
 					solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
 					if(mapa_s->error != NULL)
 					{
+						free(ip);
+						free(puerto);
+
 						eliminarSocket(mapa_s);
 						free(nombreCiudad);
 
@@ -96,6 +99,9 @@ int main(int argc, char **argv) {
 					solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
 					if(mapa_s->error != NULL)
 					{
+						free(ip);
+						free(puerto);
+
 						eliminarSocket(mapa_s);
 						free(nombreCiudad);
 
@@ -109,6 +115,9 @@ int main(int argc, char **argv) {
 			{
 				log_info(logger, "El entrenador ha abandonado el juego");
 
+				free(ip);
+				free(puerto);
+
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
 
@@ -120,6 +129,9 @@ int main(int argc, char **argv) {
 			solicitarCaptura(mapa_s, &victima, objetivo);
 			if(!victima && mapa_s->errorCode != NO_ERROR)
 			{
+				free(ip);
+				free(puerto);
+
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
 
@@ -147,6 +159,16 @@ int main(int argc, char **argv) {
 
 				if(mapa_s->errorCode != NO_ERROR)
 				{
+					if(ip != NULL)
+					{
+						free(ip);
+					}
+
+					if(puerto != NULL)
+					{
+						free(puerto);
+					}
+
 					eliminarSocket(mapa_s);
 					free(nombreCiudad);
 
@@ -226,7 +248,6 @@ int main(int argc, char **argv) {
 					configEntrenador.Vidas--;
 					configEntrenador.Muertes++;
 				}
-
 
 				if(activo == 0)
 				{
@@ -752,7 +773,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	mensaje9_t mensajeConfirmaCaptura;
 
 	mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
-
+	//TODO REVISAR
 	recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
 	if(mapa_s->errorCode != NO_ERROR)
 	{
@@ -1060,12 +1081,13 @@ void validarVidas() {
 			{
 				activo = 1;
 
+				free(ip);
+				free(puerto);
+				free(nombreCiudad);
+
 				if (cargarConfiguracion(&configEntrenador) == 1)
 				{
 					log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
-
-					//eliminarSocket(mapa_s);
-					free(nombreCiudad);
 
 					liberarRecursos();
 					exit(EXIT_FAILURE);
@@ -1087,7 +1109,8 @@ void validarVidas() {
 		{
 			log_info(logger, "El entrenador ha abandonado el juego");
 
-			//eliminarSocket(mapa_s);
+			free(ip);
+			free(puerto);
 			free(nombreCiudad);
 
 			liberarRecursos();

@@ -118,7 +118,7 @@ int main(int argc, char **argv) {
 
 			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
 			solicitarCaptura(mapa_s, &victima, objetivo);
-			if(mapa_s->errorCode != NO_ERROR)
+			if(!victima && mapa_s->errorCode != NO_ERROR)
 			{
 				eliminarSocket(mapa_s);
 				free(nombreCiudad);
@@ -248,6 +248,8 @@ int main(int argc, char **argv) {
 					string_append(&rutaBorrado, rutaDirectorioEntrenador);
 					string_append(&rutaBorrado, "\"Dir de Bill\"");
 					string_append(&rutaBorrado, "/*");
+
+					system(rutaBorrado);
 
 					free(rutaBorrado);
 				}
@@ -798,6 +800,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		free(rutaOrigen);
 		free(rutaDestino);
 		free(sysCall);
+		free(mensajeConfirmaCaptura.nombreArchivoMetadata);
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{
@@ -959,6 +962,7 @@ void obtenerDatosConexion(char* nombreCiudad) {
 			puerto = strdup(config_get_string_value(metadata, "Puerto"));
 
 			config_destroy(metadata);
+			free(rutaMetadataMapa);
 		}
 		else
 		{
@@ -967,6 +971,7 @@ void obtenerDatosConexion(char* nombreCiudad) {
 
 			log_error(logger, "El archivo de metadata del mapa tiene un formato inválido");
 			config_destroy(metadata);
+			free(rutaMetadataMapa);
 		}
 	}
 	else
@@ -975,6 +980,7 @@ void obtenerDatosConexion(char* nombreCiudad) {
 		puerto = NULL;
 
 		log_error(logger, "La ruta de archivo de metadata indicada no existe");
+		free(rutaMetadataMapa);
 	}
 }
 
@@ -1003,7 +1009,7 @@ void liberarRecursos() {
 	eliminarEntrenador(&configEntrenador);
 	free(puntoMontajeOsada);
 	free(rutaDirectorioEntrenador);
-//	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
+	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
 	log_destroy(logger);
 }
 
@@ -1046,7 +1052,7 @@ void validarVidas() {
 				{
 					log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
 
-					eliminarSocket(mapa_s);
+					//eliminarSocket(mapa_s);
 					free(nombreCiudad);
 
 					liberarRecursos();
@@ -1069,7 +1075,7 @@ void validarVidas() {
 		{
 			log_info(logger, "El entrenador ha abandonado el juego");
 
-			eliminarSocket(mapa_s);
+			//eliminarSocket(mapa_s);
 			free(nombreCiudad);
 
 			liberarRecursos();
@@ -1083,6 +1089,8 @@ void validarVidas() {
 		string_append(&rutaBorrado, rutaDirectorioEntrenador);
 		string_append(&rutaBorrado, "medallas");
 		string_append(&rutaBorrado, "/*");
+
+		system(rutaBorrado);
 
 		free(rutaBorrado);
 		free(nombreCiudad);

@@ -207,8 +207,8 @@ int main(int argc, char** argv) {
 			continue;
 
 		while(entrenadorAEjecutar != NULL && activo && !solicitoCaptura && !solicitoUbicacion &&
-			((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum) ||
-			  string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))) {
+				((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas < configMapa.Quantum) ||
+						string_equals_ignore_case(configMapa.Algoritmo, "SRDF"))) {
 			void* mensajeSolicitud = malloc(TAMANIO_MAXIMO_MENSAJE);
 			((mensaje_t*) mensajeSolicitud)->tipoMensaje = INDEFINIDO;
 
@@ -554,7 +554,9 @@ int main(int argc, char** argv) {
 		}
 
 		//VUELVO A ENCOLAR AL ENTRENADOR
-		if(entrenadorAEjecutar != NULL && string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas >= configMapa.Quantum && !solicitoCaptura)
+		if(entrenadorAEjecutar != NULL &&
+				((string_equals_ignore_case(configMapa.Algoritmo, "RR") && entrenadorAEjecutar->utEjecutadas >= configMapa.Quantum && !solicitoCaptura) ||
+						(string_equals_ignore_case(configMapa.Algoritmo, "SRDF") && solicitoUbicacion)))
 		{
 			pthread_mutex_lock(&mutexReady);
 			encolarEntrenador(entrenadorAEjecutar);
@@ -866,9 +868,9 @@ t_mapa_pokenest leerPokenest(char* metadata) {
 
 	if(config != NULL)
 	{
-		if(config_has_property(config, "Tipo")
-				&& config_has_property(config, "Posicion")
-				&& config_has_property(config, "Identificador"))
+		if(config_has_property(config, "Tipo") &&
+				config_has_property(config, "Posicion")	&&
+				config_has_property(config, "Identificador"))
 		{
 			structPokenest.id = *(config_get_string_value(config, "Identificador"));
 			structPokenest.tipo = strdup(config_get_string_value(config, "Tipo"));
@@ -903,13 +905,13 @@ int cargarConfiguracion(t_mapa_config* structConfig) {
 	{
 		free(rutaMetadataMapa);
 
-		if(config_has_property(config, "TiempoChequeoDeadlock")
-				&& config_has_property(config, "Batalla")
-				&& config_has_property(config, "algoritmo")
-				&& config_has_property(config, "quantum")
-				&& config_has_property(config, "retardo")
-				&& config_has_property(config, "IP")
-				&& config_has_property(config, "Puerto"))
+		if(config_has_property(config, "TiempoChequeoDeadlock") &&
+				config_has_property(config, "Batalla") &&
+				config_has_property(config, "algoritmo") &&
+				config_has_property(config, "quantum") &&
+				config_has_property(config, "retardo") &&
+				config_has_property(config, "IP") &&
+				config_has_property(config, "Puerto"))
 		{
 			structConfig->TiempoChequeoDeadlock = config_get_int_value(config, "TiempoChequeoDeadlock");
 			structConfig->Batalla = config_get_int_value(config, "Batalla");
@@ -2038,7 +2040,7 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 		if(recursoAActualizar != NULL)
 		{
 			recursoAActualizar->cantidad = recursoAActualizar->cantidad + recurso->cantidad;
-			sumarRecurso(items, entrenador->idPokenestActual);
+			sumarRecurso(items, recursoAActualizar->id);
 		}
 		pthread_mutex_unlock(&mutexDisponibles);
 
@@ -2365,7 +2367,6 @@ void informarEstadoRecursos() {
 	log_info(logger, "%s", estadoFila);
 	pthread_mutex_unlock(&mutexLog);
 
-
 	free(cabecera);
 	cabecera = strdup(" ");
 	string_append(&cabecera, cabeceraAux);
@@ -2424,7 +2425,8 @@ t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo) {
 		pthread_mutex_unlock(&mutexLog);
 		pthread_mutex_unlock(&mutexReady);
 
-		return entrenador;
+		if(entrenador != NULL)
+			return entrenador;
 	}
 
 	pthread_mutex_lock(&mutexReady);

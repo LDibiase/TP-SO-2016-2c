@@ -363,6 +363,15 @@ int cargarConfiguracion(t_entrenador_config* structConfig) {
 
 			log_info(logger, "El archivo de configuración se cargó correctamente");
 			config_destroy(config);
+
+			int j=0;
+			while(hojaDeViaje[j])
+			{
+				free(hojaDeViaje[j]);
+				j++;
+			}
+
+			free(hojaDeViaje);
 			return 0;
 		}
 		else
@@ -995,6 +1004,7 @@ void eliminarEntrenador(t_entrenador_config* entrenador) {
 		free(ciudad->Nombre);
 		string_iterate_lines(ciudad->Objetivos, (void*) free);
 		free(ciudad->Objetivos);
+		free(ciudad);
 	}
 
 	if(entrenador != NULL)

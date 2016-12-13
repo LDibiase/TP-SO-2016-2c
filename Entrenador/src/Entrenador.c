@@ -85,9 +85,9 @@ int main(int argc, char **argv) {
 					{
 						free(ip);
 						free(puerto);
+						free(nombreCiudad);
 
 						eliminarSocket(mapa_s);
-						free(nombreCiudad);
 
 						liberarRecursos();
 						exit(EXIT_FAILURE);
@@ -101,9 +101,9 @@ int main(int argc, char **argv) {
 					{
 						free(ip);
 						free(puerto);
+						free(nombreCiudad);
 
 						eliminarSocket(mapa_s);
-						free(nombreCiudad);
 
 						liberarRecursos();
 						exit(EXIT_FAILURE);
@@ -117,9 +117,9 @@ int main(int argc, char **argv) {
 
 				free(ip);
 				free(puerto);
+				free(nombreCiudad);
 
 				eliminarSocket(mapa_s);
-				free(nombreCiudad);
 
 				liberarRecursos();
 				exit(EXIT_FAILURE);
@@ -131,9 +131,9 @@ int main(int argc, char **argv) {
 			{
 				free(ip);
 				free(puerto);
+				free(nombreCiudad);
 
 				eliminarSocket(mapa_s);
-				free(nombreCiudad);
 
 				liberarRecursos();
 				exit(EXIT_FAILURE);
@@ -160,14 +160,10 @@ int main(int argc, char **argv) {
 				if(mapa_s->errorCode != NO_ERROR)
 				{
 					if(ip != NULL)
-					{
 						free(ip);
-					}
 
 					if(puerto != NULL)
-					{
 						free(puerto);
-					}
 
 					eliminarSocket(mapa_s);
 					free(nombreCiudad);
@@ -239,14 +235,15 @@ int main(int argc, char **argv) {
 
 					free(ip);
 					free(puerto);
+					free(nombreCiudad);
 
 					eliminarSocket(mapa_s);
-					free(nombreCiudad);
 				}
 				else
 				{
 					configEntrenador.Vidas--;
 					configEntrenador.Muertes++;
+					victima = 0;
 				}
 
 				if(activo == 0)
@@ -258,21 +255,6 @@ int main(int argc, char **argv) {
 
 					liberarRecursos();
 					exit(EXIT_FAILURE);
-				}
-
-				if(!objetivosCompletados)
-				{
-					char* rutaBorrado;
-
-					//SE BORRA EL CONTENIDO DEL DIR DE BILL
-					rutaBorrado = strdup("rm -rf ");
-					string_append(&rutaBorrado, rutaDirectorioEntrenador);
-					string_append(&rutaBorrado, "\"Dir de Bill\"");
-					string_append(&rutaBorrado, "/*");
-
-					system(rutaBorrado);
-
-					free(rutaBorrado);
 				}
 			}
 
@@ -726,7 +708,7 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);
 }
 
- void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
+void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 	// Enviar mensaje SOLICITA_CAPTURA
 	paquete_t paquete;
 	mensaje_t mensajeSolicitaCaptura;
@@ -773,7 +755,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	mensaje9_t mensajeConfirmaCaptura;
 
 	mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
-	//TODO REVISAR
 	recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
 	if(mapa_s->errorCode != NO_ERROR)
 	{
@@ -838,20 +819,20 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 	{
 		t_list* pokemonesCiudad;
 
-		bool _pokemonCiudad(t_metadataPokemon* pokemon) {
+		bool _esPokemonCiudad(t_metadataPokemon* pokemon) {
 			return string_equals_ignore_case(pokemon->ciudad, nombreCiudad);
 		}
 
-		void _borrarArchivoMetadata(t_metadataPokemon* pokemon) {
-			bool _esPokemon(t_metadataPokemon* pokemonABorrar) {
-				return (string_equals_ignore_case(pokemonABorrar->ciudad, pokemon->ciudad) &&
-						pokemonABorrar->nivel == pokemon->nivel &&
-						string_equals_ignore_case(pokemonABorrar->rutaArchivo, pokemon->rutaArchivo));
+		void _eliminarPokemonCiudad(t_metadataPokemon* pokemonAEliminar) {
+			bool _esPokemon(t_metadataPokemon* pokemon) {
+				return string_equals_ignore_case(pokemonAEliminar->rutaArchivo, pokemon->rutaArchivo) &&
+						string_equals_ignore_case(pokemonAEliminar->ciudad, pokemon->ciudad) &&
+						pokemonAEliminar->nivel == pokemon->nivel;
 			}
 
 			//SE BORRA EL ARCHIVO DE METADATA DEL POKEMON DEL DIRECTORIO DEL ENTRENADOR
 			char* archivo;
-			archivo = strdup(strrchr(pokemon->rutaArchivo, '/'));
+			archivo = strdup(strrchr(pokemonAEliminar->rutaArchivo, '/'));
 
 			char* rutaBorrado = strdup("rm -rf ");
 			string_append(&rutaBorrado, rutaDirectorioEntrenador);
@@ -863,11 +844,13 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 			free(archivo);
 			free(rutaBorrado);
+
+			list_remove_by_condition(pokemonesAtrapados, (void*) _esPokemon);
 		}
 
-		pokemonesCiudad = list_filter(pokemonesAtrapados, (void*) _pokemonCiudad);
-		list_iterate(pokemonesCiudad, (void*) _borrarArchivoMetadata);
-//		list_destroy_and_destroy_elements(pokemonesCiudad, (void*) eliminarPokemon);
+		pokemonesCiudad = list_filter(pokemonesAtrapados, (void*) _esPokemonCiudad);
+		list_iterate(pokemonesCiudad, (void*) _eliminarPokemonCiudad);
+		list_destroy_and_destroy_elements(pokemonesCiudad, (void*) eliminarPokemon);
 
 		log_info(logger, "Socket %d: ha resultado víctima en un combate Pokémon", mapa_s->descriptor);
 
@@ -1128,6 +1111,15 @@ void validarVidas() {
 		system(rutaBorrado);
 
 		free(rutaBorrado);
-		free(nombreCiudad);
+
+		//SE BORRA EL CONTENIDO DEL DIR DE BILL
+		rutaBorrado = strdup("rm -rf ");
+		string_append(&rutaBorrado, rutaDirectorioEntrenador);
+		string_append(&rutaBorrado, "\"Dir de Bill\"");
+		string_append(&rutaBorrado, "/*");
+
+		system(rutaBorrado);
+
+		free(rutaBorrado);
 	}
 }

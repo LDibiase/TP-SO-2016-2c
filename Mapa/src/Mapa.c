@@ -2067,6 +2067,8 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 		return recursos->id == entrenador->id;
 	}
 
+	log_info(logger, "Se liberan los recursos del entrenador %s", entrenador->nombre);
+
 	void _actualizarDisponibilidad(t_mapa_pokenest* recurso) {
 		bool _recursoBuscado(t_mapa_pokenest* recursoBuscado) {
 			return recursoBuscado->id == recurso->id;
@@ -2083,7 +2085,13 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 		if(recursoAActualizar != NULL)
 		{
 			recursoAActualizar->cantidad = recursoAActualizar->cantidad + recurso->cantidad;
-			sumarRecurso(items, recursoAActualizar->id);
+
+			int i;
+
+			for(i = 0; i < recurso->cantidad; i++) {
+				sumarRecurso(items, recursoAActualizar->id);
+				nivel_gui_dibujar(items, nombreMapa);
+			}
 		}
 		pthread_mutex_unlock(&mutexDisponibles);
 
@@ -2107,7 +2115,6 @@ void liberarRecursosEntrenador(t_entrenador* entrenador) {
 	pthread_mutex_unlock(&mutexAsignados);
 	list_iterate(recursosEntrenador->recursos, (void*) _actualizarDisponibilidad);
 	eliminarRecursosEntrenador(recursosEntrenador);
-
 
 	pthread_mutex_lock(&mutexSolicitados);
 	list_remove_and_destroy_by_condition(recursosSolicitados, (void*) _recursosEntrenador, (void*) eliminarRecursosEntrenador);
@@ -2179,9 +2186,9 @@ void capturarPokemon(t_entrenador* entrenador) {
 	if(recurso->cantidad >= 1)
 	{
 		recurso->cantidad--;
-		pthread_mutex_unlock(&mutexDisponibles);
 
 		restarRecurso(items, entrenador->idPokenestActual);
+		pthread_mutex_unlock(&mutexDisponibles);
 
 		actualizarMatriz(recursosSolicitados, entrenador, 0, &mutexSolicitados);
 		actualizarMatriz(recursosAsignados, entrenador, 1, &mutexAsignados);

@@ -600,7 +600,15 @@ void encolarEntrenador(t_entrenador* entrenador) {
 		pthread_mutex_unlock(&mutexLog);
 	}
 
-	//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Cola ready antes del push: %d", list_size(colaReady->elements));
+	pthread_mutex_unlock(&mutexLog);
+	insertarAlFinal(entrenador, colaReady);
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Cola ready después del push: %d", list_size(colaReady->elements));
+	pthread_mutex_unlock(&mutexLog);
+
+	/*//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
 	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
 	{
 		pthread_mutex_lock(&mutexLog);
@@ -614,7 +622,7 @@ void encolarEntrenador(t_entrenador* entrenador) {
 	//SI ES SRDF, INSERTO ORDENADO DE MENOR A MAYOR, DE ACUERDO A CUÁNTO LE FALTE EJECUTAR AL ENTRENADOR
 	else
 	{
-		calcularFaltante(*entrenador);
+		calcularFaltante(entrenador);
 
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Cola ready antes del add: %d", list_size(colaReady->elements));
@@ -623,17 +631,54 @@ void encolarEntrenador(t_entrenador* entrenador) {
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Cola ready después del add: %d", list_size(colaReady->elements));
 		pthread_mutex_unlock(&mutexLog);
-	}
+	}*/
 
 	pthread_mutex_lock(&mutexLog);
 	log_info(logger, "Se planificó al entrenador %s (%c)", entrenador->nombre, entrenador->id);
 	pthread_mutex_unlock(&mutexLog);
 }
 
-void calcularFaltante(t_entrenador entrenador) {
-	t_ubicacion pokenest = buscarPokenest(items, entrenador.idPokenestActual);
+t_entrenador* obtenerEntrenadorPlanificado()
+{
+	t_entrenador* entrenadorPlanificado;
+	t_list* estructurasPlanificador;
+	list_create(estructurasPlanificador);
+	int countIndex = 0;
 
-	entrenador.faltaEjecutar = abs(pokenest.x - entrenador.ubicacion.x) + abs(pokenest.y - entrenador.ubicacion.y);
+	void _armarEstructuraPlanificador(t_entrenador* entrenador)
+	{
+		t_estructuraPlanificador* estructuraPlanificador;
+		estructuraPlanificador = malloc(sizeof(t_estructuraPlanificador));
+
+		calcularFaltante(entrenador);
+
+		estructuraPlanificador->faltante = entrenador->faltaEjecutar;
+		estructuraPlanificador->index = countIndex;
+
+		list_add(estructurasPlanificador, estructuraPlanificador);
+		countIndex++;
+	}
+
+	bool _comparadorFaltanteIndice(t_estructuraPlanificador* estructura1, t_estructuraPlanificador* estructura2)
+	{
+		return estructura1->faltante < estructura2->faltante && estructura1->index < estructura2->index;
+	}
+
+	list_iterate(colaReady->elements, (void*) _armarEstructuraPlanificador);
+	list_sort(estructurasPlanificador, (void*) _comparadorFaltanteIndice);
+
+	t_estructuraPlanificador* estructuraElegida = list_get(estructurasPlanificador, 0);
+
+	entrenadorPlanificado = list_get(colaReady->elements, estructuraElegida->index);
+
+	list_destroy_and_destroy_elements(estructurasPlanificador, (void*) free);
+
+	return entrenadorPlanificado;
+}
+
+void calcularFaltante(t_entrenador* entrenador) {
+	t_ubicacion pokenest = buscarPokenest(items, entrenador->idPokenestActual);
+	entrenador->faltaEjecutar = abs(pokenest.x - entrenador->ubicacion.x) + abs(pokenest.y - entrenador->ubicacion.y);
 }
 
 //FUNCIONES PARA COLAS DE PLANIFICACIÓN
@@ -2431,17 +2476,23 @@ t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo) {
 
 			return entrenador;
 		}
+		else
+		{
+			entrenador = obtenerEntrenadorPlanificado();
+		}
 	}
-
-	pthread_mutex_lock(&mutexReady);
-	pthread_mutex_lock(&mutexLog);
-	log_info(logger, "Cola ready antes del pop: %d", list_size(colaReady->elements));
-	pthread_mutex_unlock(&mutexLog);
-	entrenador = queue_pop(colaReady);
-	pthread_mutex_lock(&mutexLog);
-	log_info(logger, "Cola ready después del pop: %d", list_size(colaReady->elements));
-	pthread_mutex_unlock(&mutexLog);
-	pthread_mutex_unlock(&mutexReady);
+	else
+	{
+		pthread_mutex_lock(&mutexReady);
+		pthread_mutex_lock(&mutexLog);
+		log_info(logger, "Cola ready antes del pop: %d", list_size(colaReady->elements));
+		pthread_mutex_unlock(&mutexLog);
+		entrenador = queue_pop(colaReady);
+		pthread_mutex_lock(&mutexLog);
+		log_info(logger, "Cola ready después del pop: %d", list_size(colaReady->elements));
+		pthread_mutex_unlock(&mutexLog);
+		pthread_mutex_unlock(&mutexReady);
+	}
 
 	pthread_mutex_lock(&mutexLog);
 	log_info(logger, "El entrenador a ejecutar es %s (%c).", entrenador->nombre, entrenador->id);

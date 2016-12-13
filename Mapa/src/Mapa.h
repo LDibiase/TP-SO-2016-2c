@@ -62,6 +62,10 @@ typedef struct metadataPokemon {
 	char id;
 } t_metadataPokemon;
 
+typedef struct estructuraPlanificador{
+	int index;
+	int faltante;
+}t_estructuraPlanificador;
 
 /* Constantes */
 
@@ -75,7 +79,7 @@ typedef struct metadataPokemon {
 
 void encolarEntrenador(t_entrenador* entrenador);
 void reencolarEntrenador(t_entrenador* entrenador);
-void calcularFaltante(t_entrenador entrenador);
+void calcularFaltante(t_entrenador* entrenador);
 void insertarOrdenado(t_entrenador* entrenador, t_queue* cola);
 void insertarAlFinal(t_entrenador* entrenador, t_queue* cola);
 void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa);

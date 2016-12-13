@@ -642,7 +642,7 @@ t_entrenador* obtenerEntrenadorPlanificado()
 {
 	t_entrenador* entrenadorPlanificado;
 	t_list* estructurasPlanificador;
-	list_create(estructurasPlanificador);
+	estructurasPlanificador = list_create();
 	int countIndex = 0;
 
 	void _armarEstructuraPlanificador(t_entrenador* entrenador)
@@ -650,7 +650,11 @@ t_entrenador* obtenerEntrenadorPlanificado()
 		t_estructuraPlanificador* estructuraPlanificador;
 		estructuraPlanificador = malloc(sizeof(t_estructuraPlanificador));
 
+		log_info(logger, "La posición del entrenador %s es X = %d ; Y = %d", entrenador->nombre, entrenador->ubicacion.x, entrenador->ubicacion.y);
+
 		calcularFaltante(entrenador);
+
+		log_info(logger, "El faltante de %s es %d", entrenador->nombre, entrenador->faltaEjecutar);
 
 		estructuraPlanificador->faltante = entrenador->faltaEjecutar;
 		estructuraPlanificador->index = countIndex;
@@ -664,12 +668,15 @@ t_entrenador* obtenerEntrenadorPlanificado()
 		return estructura1->faltante < estructura2->faltante && estructura1->index < estructura2->index;
 	}
 
+	pthread_mutex_lock(&mutexReady);
 	list_iterate(colaReady->elements, (void*) _armarEstructuraPlanificador);
+	pthread_mutex_unlock(&mutexReady);
+
 	list_sort(estructurasPlanificador, (void*) _comparadorFaltanteIndice);
 
 	t_estructuraPlanificador* estructuraElegida = list_get(estructurasPlanificador, 0);
 
-	entrenadorPlanificado = list_get(colaReady->elements, estructuraElegida->index);
+	entrenadorPlanificado = list_remove(colaReady->elements, estructuraElegida->index);
 
 	list_destroy_and_destroy_elements(estructurasPlanificador, (void*) free);
 
@@ -1438,16 +1445,23 @@ t_list* algoritmoDeteccion() {
 	//VERIFICO QUE EL ENTRENADOR TENGA RECURSOS ASIGNADOS
 	bool _tieneRecursos(t_entrenador* entrenador)
 	{
-		bool _esEntrenadorBuscado(t_entrenador* entrenadorABuscar)
+		bool _recursosEntrenador(t_recursosEntrenador* recursosEntrenador)
 		{
-			return entrenadorABuscar->id == entrenador->id;
+			return recursosEntrenador->id == entrenador->id;
 		}
 
+		bool _mayorACero(t_mapa_pokenest* recurso)
+		{
+			return recurso->cantidad > 0;
+		}
+
+		t_recursosEntrenador* recursosEntrenadorAnalizado;
+
 		pthread_mutex_lock(&mutexAsignados);
-		t_entrenador* entrenadorConRecursos = list_find(recursosAsignados, (void*) _esEntrenadorBuscado);
+		recursosEntrenadorAnalizado = list_find(recursosAsignados, (void*) _recursosEntrenador);
 		pthread_mutex_unlock(&mutexAsignados);
 
-		return entrenadorConRecursos != NULL;
+		return list_any_satisfy(recursosEntrenadorAnalizado->recursos, (void*) _mayorACero);
 	}
 
 	//VERIFICO QUE TODAS LAS SOLICITUDES DEL ENTRENADOR SEAN POSIBLES
@@ -2272,6 +2286,9 @@ void capturarPokemon(t_entrenador* entrenador) {
  		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Se le confirma al entrenador la captura del Pokémon solicitado (%c)", entrenador->idPokenestActual);
  		pthread_mutex_unlock(&mutexLog);
+
+ 		//REINICIO LA POKENEST PARA QUE LUEGO CALCULE EL FALTANTE CORRECTAMENTE
+ 		entrenador->idPokenestActual = ' ';
 
 		//VUELVO A ENCOLAR AL ENTRENADOR
 		pthread_mutex_lock(&mutexReady);

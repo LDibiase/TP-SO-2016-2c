@@ -42,6 +42,9 @@ int main(int argc, char **argv) {
 	int objetivosCompletados;
 	int victima;
 
+	// Se almacena la fecha de ingreso
+	configEntrenador.FechaIngreso = obtenerFechaActual();
+
 	// Variables para la creación del hilo para el manejo de señales
 	pthread_t hiloSignalHandler;
 	pthread_attr_t atributosHiloSignalHandler;
@@ -361,7 +364,6 @@ int cargarConfiguracion(t_entrenador_config* structConfig) {
 			structConfig->Nombre = strdup(config_get_string_value(config, "nombre"));
 			structConfig->Simbolo = strdup(config_get_string_value(config, "simbolo"));
 			structConfig->Vidas = config_get_int_value(config, "vidas");
-			structConfig->FechaIngreso = obtenerFechaActual();
 
 			//SE BUSCAN LOS OBJETIVOS DE CADA CIUDAD
 			string_iterate_lines(hojaDeViaje, (void*) _auxIterate);
@@ -777,6 +779,8 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 
 	if(mensajeConfirmaCaptura.tipoMensaje == CONFIRMA_CAPTURA)
 	{
+		configEntrenador.TiempoBloqueado = configEntrenador.TiempoBloqueado + obtenerDiferenciaTiempo(configEntrenador.FechaUltimoBloqueo);
+
 		log_info(logger, "Socket %d: ha capturado el Pokémon solicitado", mapa_s->descriptor);
 
 		t_metadataPokemon* pokemon;
@@ -787,8 +791,6 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 		pokemon->rutaArchivo = strdup(mensajeConfirmaCaptura.nombreArchivoMetadata);
 
 		list_add(pokemonesAtrapados, pokemon);
-
-		configEntrenador.TiempoBloqueado = configEntrenador.TiempoBloqueado + obtenerDiferenciaTiempo(configEntrenador.FechaUltimoBloqueo);
 
 		//SE COPIA EL ARCHIVO DE METADATA DEL POKEMON AL DIRECTORIO DEL ENTRENADOR
 		char* rutaPokemon = strdup(puntoMontajeOsada);
@@ -817,6 +819,8 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 	}
 	else if(mensajeConfirmaCaptura.tipoMensaje == INFORMA_MUERTE)
 	{
+		configEntrenador.TiempoBloqueado = configEntrenador.TiempoBloqueado + obtenerDiferenciaTiempo(configEntrenador.FechaUltimoBloqueo);
+
 		t_list* pokemonesCiudad;
 
 		bool _esPokemonCiudad(t_metadataPokemon* pokemon) {

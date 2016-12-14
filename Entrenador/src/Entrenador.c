@@ -1064,9 +1064,9 @@ void validarVidas() {
 			{
 				activo = 1;
 
-				free(ip);
-				free(puerto);
-				free(nombreCiudad);
+				//free(ip);
+				//free(puerto);
+				//free(nombreCiudad);
 
 				if (cargarConfiguracion(&configEntrenador) == 1)
 				{

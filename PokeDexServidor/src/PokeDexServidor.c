@@ -589,13 +589,21 @@ int truncate_callback(const char *path, int size) {
 		int sumSize = 0;
 		int bloque = primerBloque;
 		int bloqueAnterior = bloque;
+		int limite = 0;
 
 		if (size > tablaArchivos[archivoID].file_size) {
+
 			//Movimientos hasta el size
 			while (sumSize<tablaArchivos[archivoID].file_size) {
 				bloqueAnterior = bloque;
 				bloque = tablaAsignaciones[bloque];
 				sumSize = sumSize + OSADA_BLOCK_SIZE;
+			}
+
+			//Si el archivo tiene un solo bloque seteo variables para caracteres null
+			if (size < OSADA_BLOCK_SIZE) {
+				limite = tablaArchivos[archivoID].file_size;
+				bloque = bloqueAnterior;
 			}
 
 			//Agrego bloques faltantes
@@ -618,8 +626,20 @@ int truncate_callback(const char *path, int size) {
 					}
 					tablaAsignaciones[bloque] = -1;
 					sumSize = sumSize + OSADA_BLOCK_SIZE;
+
+					//Calculo la cantidad de bytes utiles del ultimo bloque
+					if (size - sumSize < OSADA_BLOCK_SIZE && size - sumSize > 0) {
+						limite = size - sumSize;
+					}
+
+					//Setea el bloque con caracteres null
+					memset(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE], '\0', sizeof(char) * OSADA_BLOCK_SIZE);
+
 				}
 			}
+			//Seteo final del archivo con caracteres null
+			memset(&pmapFS[(inicioBloqueDatos + bloque) * OSADA_BLOCK_SIZE + limite], '\0', sizeof(char) * (OSADA_BLOCK_SIZE-limite));
+
 		} else {
 
 			//Borro bloques

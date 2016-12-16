@@ -37,6 +37,8 @@ char* nombreCiudad;						// Nombre del mapa
 t_list* pokemonesAtrapados;				// Pokémones atrapados
 
 int main(int argc, char **argv) {
+
+
 	t_ubicacion ubicacion;
 	char ejeAnterior;
 	int objetivosCompletados;
@@ -46,8 +48,8 @@ int main(int argc, char **argv) {
 	configEntrenador.FechaIngreso = obtenerFechaActual();
 
 	// Variables para la creación del hilo para el manejo de señales
-	pthread_t hiloSignalHandler;
-	pthread_attr_t atributosHiloSignalHandler;
+	/*pthread_t hiloSignalHandler;
+	pthread_attr_t atributosHiloSignalHandler;*/
 
 	// Se almacenan los parámetros recibidos
 	puntoMontajeOsada = strdup(argv[2]);
@@ -68,6 +70,29 @@ int main(int argc, char **argv) {
 	logger = log_create(nombreLog, "ENTRENADOR", true, LOG_LEVEL_INFO);
 
 	free(nombreLog);
+
+	struct sigaction sa;
+
+	// Print PID
+	log_info(logger, "PID del proceso entrenador: %d", getpid());
+
+	// Setup the sighub handler
+	sa.sa_handler = &signal_termination_handler;
+
+	// Restart the system call
+	//sa.sa_flags = SA_RESTART;
+
+	// Block every signal received during the handler execution
+	sigfillset(&sa.sa_mask);
+
+	if (sigaction(SIGUSR1, &sa, NULL) == -1)
+		log_info(logger, "Error: no se puede manejar la señal SIGUSR1"); // Should not happen
+
+	if (sigaction(SIGTERM, &sa, NULL) == -1)
+		log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
+
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+		log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
 
 	void _obtenerObjetivo(char* objetivo) {
 		if(!victima)
@@ -244,8 +269,12 @@ int main(int argc, char **argv) {
 				}
 				else
 				{
-					configEntrenador.Vidas--;
-					configEntrenador.Muertes++;
+					if(configEntrenador.Vidas > 0)
+					{
+						configEntrenador.Vidas--;
+						configEntrenador.Muertes++;
+					}
+
 					victima = 0;
 				}
 
@@ -294,9 +323,9 @@ int main(int argc, char **argv) {
 	activo = 1;
 
 	// Se crea el hilo para el manejo de señales
-	pthread_attr_init(&atributosHiloSignalHandler);
+	/*pthread_attr_init(&atributosHiloSignalHandler);
 	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
-	pthread_attr_destroy(&atributosHiloSignalHandler);
+	pthread_attr_destroy(&atributosHiloSignalHandler);*/
 
 	// Se inicializa el flag de objetivos completados
 	objetivosCompletados = 0;
@@ -757,24 +786,44 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 	mensaje9_t mensajeConfirmaCaptura;
 
 	mensajeConfirmaCaptura.tipoMensaje = CONFIRMA_CAPTURA;
-	recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
-	if(mapa_s->errorCode != NO_ERROR)
+
+	while(activo)
 	{
-		switch(mapa_s->errorCode) {
-		case ERR_PEER_DISCONNECTED:
-			log_info(logger, "El socket del servidor se encuentra desconectado");
+		recibirMensaje(mapa_s, &mensajeConfirmaCaptura);
+		if(mapa_s->errorCode != NO_ERROR)
+		{
+			switch(mapa_s->errorCode) {
+			case ERR_PEER_DISCONNECTED:
+				log_info(logger, "El socket del servidor se encuentra desconectado");
 
-			break;
-		case ERR_MSG_CANNOT_BE_RECEIVED:
-			log_info(logger, "No se ha podido enviar un mensaje");
+				break;
+			case ERR_MSG_CANNOT_BE_RECEIVED:
+				log_info(logger, "No se ha podido enviar un mensaje");
 
+				break;
+			}
+
+			if(mapa_s->errorCode == ERR_SIGNAL_RECEIVED)
+			{
+				if(configEntrenador.Vidas > 0)
+					continue;
+				else
+				{
+					*victima = 1;
+					return;
+				}
+			}
+
+			log_info(logger, mapa_s->error);
+			log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
+
+			return;
+		}
+		else
+		{
 			break;
 		}
 
-		log_info(logger, mapa_s->error);
-		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea");
-
-		return;
 	}
 
 	if(mensajeConfirmaCaptura.tipoMensaje == CONFIRMA_CAPTURA)
@@ -908,7 +957,7 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 		log_info(logger, "Se esperaba un mensaje distinto como respuesta del socket %d", mapa_s->descriptor);
 }
 
-void signal_handler() {
+/*void signal_handler() {
  	 struct sigaction sa;
 
  	 // Print PID
@@ -931,7 +980,7 @@ void signal_handler() {
 
  	 if (sigaction(SIGINT, &sa, NULL) == -1)
  	    log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
-}
+}*/
 
 void signal_termination_handler(int signum) {
  	switch (signum) {

@@ -67,5 +67,7 @@ void capturaConfirmada(mensaje9_t* mensajeConfirmacion, char* objetivo);
 void solicitudDesconexion(int* victima);
 void elegirPokemon();
 char* obtenerNombrePokemon(t_metadataPokemon* pokemon);
+void obtenerObjetivo(char* objetivo);
+void cumplirObjetivosCiudad(t_ciudad_objetivos* ciudad);
 
 #endif /* ENTRENADOR_H_ */

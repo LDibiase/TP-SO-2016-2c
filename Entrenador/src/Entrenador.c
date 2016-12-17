@@ -29,175 +29,33 @@
 // VARIABLES GLOBALES
 t_log* logger;							// Archivo de log
 t_entrenador_config configEntrenador;	// Datos de configuración
-int activo;							 	// Flag de actividad del entrenador
-int interbloqueo;						// Flag de interbloqueo del entrenador
+
+int activo;							 	// Flag que indica si el entrenador se encuentra activo
+int interbloqueo;						// Flag que indica si el entrenador se encuentra involucrado en un interbloqueo
+int victima;							// Flag que indica si el entrenador resultó víctima en un Combate Pokémon
+int objetivosCompletados;				// Flag que indica si el entrenador completó los objetivos del mapa en el que se encuentra
+
 char* puntoMontajeOsada;         	  	// Punto de montaje del FS
 char* rutaDirectorioEntrenador;         // Ruta del directorio del entrenador
+
 t_list* pokemonesAtrapados;				// Pokémones atrapados
 
-char* ip;								// IP del mapa
-char* puerto;							// Puerto del mapa
-socket_t* mapa_s;						// Socket del mapa
-char* nombreCiudad;						// Nombre del mapa
+char* ip;								// IP del mapa actual
+char* puerto;							// Puerto del mapa actual
+char* nombreCiudad;						// Nombre del mapa actual
+socket_t* mapa_s;						// Socket del mapa actual
 
-//SEMÁFORO PARA SINCRONIZAR EL PROCESO DE DESBLOQUEO DE ENTRENADORES
-pthread_mutex_t mutexRecursos;
+t_ubicacion ubicacion;					// Ubicación del entrenador dentro del mapa actual
+char ejeAnterior;						// Eje de desplazamiento anterior
 
 int main(int argc, char** argv) {
-	t_ubicacion ubicacion;
-	char ejeAnterior;
-	int objetivosCompletados;
-	int victima;
 	struct sigaction sa;
-
-	void _obtenerObjetivo(char* objetivo) {
-		if(activo && !victima)
-		{
-			// Inicializar ubicación de la PokéNest a la que se desea llegar
-			t_ubicacion ubicacionPokeNest;
-
-			ubicacionPokeNest.x = 0;
-			ubicacionPokeNest.y = 0;
-
-			// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
-			while((ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y)) {
-				if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
-				{
-					// Determinar ubicación de la PokéNest a la que se desea llegar
-					solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
-					if(mapa_s->error != NULL)
-					{
-						activo = 0;
-
-						break;
-					}
-				}
-				else
-				{
-					// Desplazar entrenador
-					solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
-					if(mapa_s->error != NULL)
-					{
-						activo = 0;
-
-						break;
-					}
-				}
-			}
-
-			if(activo)
-			{
-				// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
-				solicitarCaptura(mapa_s, &victima, objetivo);
-				if(!victima && mapa_s->errorCode != NO_ERROR)
-					activo = 0;
-			}
-		}
-	}
-
-	void _cumplirObjetivosCiudad(t_ciudad_objetivos* ciudad) {
-		if(activo && objetivosCompletados)
-		{
-			objetivosCompletados = 0;
-			victima = 0;
-			nombreCiudad = strdup(ciudad->Nombre);
-
-			log_info(logger, "Se recuperan los datos de conexión del mapa %s.", nombreCiudad);
-
-			// Obtener datos de conexión del mapa
-			obtenerDatosConexion(nombreCiudad);
-
-			while(configEntrenador.Vidas > 0 && !objetivosCompletados) {
-				// Conexión al mapa
-				mapa_s = conectarAMapa(ip, puerto);
-				if(mapa_s->errorCode != NO_ERROR)
-				{
-					activo = 0;
-
-					break;
-				}
-
-				// Determinar la ubicación inicial del entrenador en el mapa
-				ubicacion.x = 1;
-				ubicacion.y = 1;
-
-				log_info(logger, "Mi ubicación inicial es (%d,%d).", ubicacion.x, ubicacion.y);
-
-				// Determinar el eje de movimiento anterior arbitrariamente
-				ejeAnterior = 'x';
-
-				string_iterate_lines(ciudad->Objetivos, (void*) _obtenerObjetivo);
-
-				if(!activo)
-					break;
-
-				if(!victima)
-				{
-					log_info(logger, "He completado mis objetivos dentro del mapa %s.", nombreCiudad);
-					log_info(logger, "Se copia la medalla correspondiente al directorio del entrenador.");
-
-					objetivosCompletados = 1;
-
-					//Se copia la medalla del mapa al directorio del entrenador
-					char* sysCall = strdup("cp ");
-
-					string_append(&sysCall, puntoMontajeOsada);
-					string_append(&sysCall, "/Mapas/");
-					string_append(&sysCall, nombreCiudad);
-					string_append(&sysCall, "/");
-					string_append(&sysCall, "medalla-");
-					string_append(&sysCall, nombreCiudad);
-					string_append(&sysCall, ".jpg");
-
-					string_append(&sysCall, " ");
-
-					string_append(&sysCall, rutaDirectorioEntrenador);
-					string_append(&sysCall, "medallas/");
-
-					system(sysCall);
-
-					free(sysCall);
-
-					pthread_mutex_lock(&mutexRecursos);
-					eliminarSocket(mapa_s);
-
-					mapa_s = NULL;
-
-					free(ip);
-					free(puerto);
-					free(nombreCiudad);
-
-					ip = NULL;
-					puerto = NULL;
-					nombreCiudad = NULL;
-					pthread_mutex_unlock(&mutexRecursos);
-				}
-				else
-				{
-					if(configEntrenador.Vidas > 0)
-					{
-						configEntrenador.Vidas--;
-						configEntrenador.Muertes++;
-					}
-
-					victima = 0;
-
-					validarVidas();
-
-					break;
-				}
-			}
-		}
-	}
 
 	puntoMontajeOsada = strdup(argv[2]);
 	rutaDirectorioEntrenador = strdup(argv[2]);
 	string_append(&rutaDirectorioEntrenador, "/Entrenadores/");
 	string_append(&rutaDirectorioEntrenador, argv[1]);
 	string_append(&rutaDirectorioEntrenador, "/");
-
-	//Inicialización de los semáforos
-	pthread_mutex_init(&mutexRecursos, NULL);
 
 	// Se almacena la fecha de ingreso
 	configEntrenador.FechaIngreso = obtenerFechaActual();
@@ -211,30 +69,30 @@ int main(int argc, char** argv) {
 	nombreLog = strdup(argv[1]);
 	string_append(&nombreLog, LOG_FILE_PATH);
 
-	logger = log_create(nombreLog, "ENTRENADOR", true, LOG_LEVEL_INFO);
+	logger = log_create(nombreLog, argv[1], true, LOG_LEVEL_INFO);
 
 	free(nombreLog);
 
-	// Print PID
-	log_info(logger, "PID del proceso entrenador: %d", getpid());
+	// Se loggea el PID del proceso
+	log_info(logger, "PID del proceso Entrenador: %d", getpid());
 
-	// Setup the sighub handler
+	// Se setea la función con la cual se manejarán las señales
 	sa.sa_handler = &signal_termination_handler;
 
-	// Restart the system call
-	//sa.sa_flags = SA_RESTART;
+	// Se activa la reinicialización de las llamadas al sistema bloqueantes
+	sa.sa_flags = SA_RESTART;
 
-	// Block every signal received during the handler execution
+	// Se activa el bloqueo de señales durante la ejecución de la función de manejo de señales
 	sigfillset(&sa.sa_mask);
 
 	if (sigaction(SIGUSR1, &sa, NULL) == -1)
-		log_info(logger, "Error: no se puede manejar la señal SIGUSR1"); // Should not happen
+		log_info(logger, "Error: no se puede manejar la señal SIGUSR1");
 
 	if (sigaction(SIGTERM, &sa, NULL) == -1)
-		log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
+		log_info(logger, "Error: no se puede manejar la señal SIGTERM");
 
 	if (sigaction(SIGINT, &sa, NULL) == -1)
-		log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
+		log_info(logger, "Error: no se puede manejar la señal SIGINT");
 
 	// Se carga el archivo de metadata
 	log_info(logger, "Cargando archivo de metadata...");
@@ -243,7 +101,6 @@ int main(int argc, char** argv) {
 	{
 		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea.");
 
-		pthread_mutex_lock(&mutexRecursos);
 		liberarRecursos();
 		return EXIT_FAILURE;
 	}
@@ -252,19 +109,9 @@ int main(int argc, char** argv) {
 	log_info(logger, "Símbolo del entrenador: %s", configEntrenador.Simbolo);
 	log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
-	// Se setea en 0 (off) el flag de interbloqueo del entrenador
 	interbloqueo = 0;
-
-	// Se setea en 1 (on) el flag de actividad del entrenador
-	activo = 1;
-
-	// Se crea el hilo para el manejo de señales
-	/*pthread_attr_init(&atributosHiloSignalHandler);
-	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
-	pthread_attr_destroy(&atributosHiloSignalHandler);*/
-
-	// Se inicializa el flag de objetivos completados
 	objetivosCompletados = 0;
+	activo = 1;
 
 	while(activo && !objetivosCompletados) {
 		// Se activa el flag únicamente para entrar a la iteración
@@ -273,20 +120,29 @@ int main(int argc, char** argv) {
 		configEntrenador.Intentos++;
 
 		// Se cumple con los objetivos de cada ciudad incluida en la Hoja de Viaje
-		list_iterate(configEntrenador.CiudadesYObjetivos, (void*) _cumplirObjetivosCiudad);
+		list_iterate(configEntrenador.CiudadesYObjetivos, (void*) cumplirObjetivosCiudad);
 	}
 
 	if(!activo)
 	{
-		log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea.");
+		if(interbloqueo)
+		{
+			log_info(logger, "El entrenador ha abandonado el juego.");
 
-		pthread_mutex_lock(&mutexRecursos);
-		liberarRecursos();
-		return EXIT_FAILURE;
+			liberarRecursos();
+			exit(EXIT_SUCCESS);
+		}
+		else
+		{
+			log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea.");
+
+			liberarRecursos();
+			return EXIT_FAILURE;
+		}
 	}
 
-	log_info(logger, "Has cumplido con todos los objetivos especificados en tu Hoja de Viaje.");
-	log_info(logger, "Ahora eres un Maestro Pokémon.");
+	log_info(logger, "El entrenador ha cumplido con todos los objetivos especificados en su Hoja de Viaje.");
+	log_info(logger, "Ahora es un Maestro Pokémon.");
 
 	// Se informan los tiempos de la aventura
 	double tiempoTotal;
@@ -297,7 +153,6 @@ int main(int argc, char** argv) {
 	log_info(logger, "Cantidad de intentos realizados: %d", configEntrenador.Intentos);
 	log_info(logger, "Cantidad de muertes: %d", configEntrenador.Muertes);
 
-	pthread_mutex_lock(&mutexRecursos);
 	liberarRecursos();
 	return EXIT_SUCCESS;
 }
@@ -378,7 +233,7 @@ int cargarConfiguracion(t_entrenador_config* structConfig) {
 
 socket_t* conectarAMapa(char* ip, char* puerto) {
 	mapa_s = conectarAServidor(ip, puerto);
-	if(mapa_s->errorCode != 0)
+	if(mapa_s->errorCode != NO_ERROR)
 	{
 		switch(mapa_s->errorCode) {
 		case ERR_SERVER_DISCONNECTED:
@@ -390,8 +245,6 @@ socket_t* conectarAMapa(char* ip, char* puerto) {
 
 			break;
 		}
-
-		log_info(logger, mapa_s->error);
 
 		return mapa_s;
 	}
@@ -417,6 +270,7 @@ socket_t* conectarAMapa(char* ip, char* puerto) {
 		mapa_s->errorCode = ERR_MSG_CANNOT_BE_SENT;
 		log_info(logger, "No se ha podido alocar memoria para el mensaje a enviarse.");
 
+		free(mensajeConexionEntrenador.nombreEntrenador);
 		return mapa_s;
 	}
 
@@ -434,8 +288,6 @@ socket_t* conectarAMapa(char* ip, char* puerto) {
 
 			break;
 		}
-
-		log_info(logger, mapa_s->error);
 
 		return mapa_s;
 	}
@@ -458,17 +310,13 @@ socket_t* conectarAMapa(char* ip, char* puerto) {
 			break;
 		}
 
-		log_info(logger, mapa_s->error);
-
 		return mapa_s;
 	}
 
 	switch(mensajeAceptaConexion.tipoMensaje) {
 	case RECHAZA_CONEXION:
 		mapa_s->errorCode = RECHAZA_CONEXION;
-
 		log_info(logger, "Mapa %s (socket %d): tu conexión ha sido rechazada.", nombreCiudad, mapa_s->descriptor);
-		log_info(logger, mapa_s->error);
 
 		break;
 	case ACEPTA_CONEXION:
@@ -511,8 +359,6 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 			break;
 		}
 
-		log_info(logger, mapa_s->error);
-
 		return;
 	}
 
@@ -535,8 +381,6 @@ void solicitarUbicacionPokeNest(socket_t* mapa_s, char idPokeNest, t_ubicacion* 
 
 			break;
 		}
-
-		log_info(logger, mapa_s->error);
 
 		return;
 	}
@@ -626,8 +470,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 			break;
 		}
 
-		log_info(logger, mapa_s->error);
-
 		return;
 	}
 
@@ -667,8 +509,6 @@ void solicitarDesplazamiento(socket_t* mapa_s, t_ubicacion* ubicacion, t_ubicaci
 
 			break;
 		}
-
-		log_info(logger, mapa_s->error);
 
 		return;
 	}
@@ -718,8 +558,6 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 			break;
 		}
 
-		log_info(logger, mapa_s->error);
-
 		return;
 	}
 
@@ -759,7 +597,6 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 					{
 						log_info(logger, "El entrenador ha abandonado el juego.");
 
-						pthread_mutex_lock(&mutexRecursos);
 						liberarRecursos();
 						exit(EXIT_SUCCESS);
 					}
@@ -767,8 +604,6 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 					return;
 				}
 			}
-
-			log_info(logger, mapa_s->error);
 
 			return;
 		}
@@ -842,7 +677,6 @@ void signal_termination_handler(int signum) {
 	case SIGINT:
 		log_info(logger, "El entrenador ha abandonado el juego.");
 
-		pthread_mutex_lock(&mutexRecursos);
 		liberarRecursos();
 		exit(EXIT_SUCCESS);
 
@@ -920,6 +754,7 @@ void eliminarEntrenador(t_entrenador_config* entrenador) {
 }
 
 void liberarRecursos() {
+	eliminarEntrenador(&configEntrenador);
 	free(puntoMontajeOsada);
 	free(rutaDirectorioEntrenador);
 
@@ -936,7 +771,7 @@ void liberarRecursos() {
 		free(nombreCiudad);
 
 	list_destroy_and_destroy_elements(pokemonesAtrapados, (void*) eliminarPokemon);
-	eliminarEntrenador(&configEntrenador);
+
 	log_destroy(logger);
 }
 
@@ -976,7 +811,6 @@ void validarVidas() {
 				{
 					log_info(logger, "La ejecución del proceso Entrenador finaliza de manera errónea.");
 
-					pthread_mutex_lock(&mutexRecursos);
 					liberarRecursos();
 					exit(EXIT_FAILURE);
 				}
@@ -993,7 +827,6 @@ void validarVidas() {
 		{
 			log_info(logger, "El entrenador ha abandonado el juego.");
 
-			pthread_mutex_lock(&mutexRecursos);
 			liberarRecursos();
 			exit(EXIT_SUCCESS);
 		}
@@ -1134,22 +967,16 @@ void solicitudDesconexion(int* victima) {
 			break;
 		}
 
-		log_info(logger, mapa_s->error);
-
 		return;
 	}
 
-	pthread_mutex_lock(&mutexRecursos);
 	eliminarSocket(mapa_s);
-
 	mapa_s = NULL;
-	pthread_mutex_unlock(&mutexRecursos);
 
 	*victima = 1;
 
 	log_info(logger, "Me he desconectado del mapa %s.", nombreCiudad);
 
-	pthread_mutex_lock(&mutexRecursos);
 	free(ip);
 	free(puerto);
 	free(nombreCiudad);
@@ -1157,7 +984,6 @@ void solicitudDesconexion(int* victima) {
 	ip = NULL;
 	puerto = NULL;
 	nombreCiudad = NULL;
-	pthread_mutex_unlock(&mutexRecursos);
 }
 
 void elegirPokemon() {
@@ -1201,8 +1027,6 @@ void elegirPokemon() {
 			break;
 		}
 
-		log_info(logger, mapa_s->error);
-
 		return;
 	}
 
@@ -1228,4 +1052,141 @@ char* obtenerNombrePokemon(t_metadataPokemon* pokemon)
 	free(nombreArchivoMetadataInvertido);
 
 	return nombrePokemon;
+}
+
+void obtenerObjetivo(char* objetivo) {
+	if(activo && !victima)
+	{
+		// Inicializar ubicación de la PokéNest a la que se desea llegar
+		t_ubicacion ubicacionPokeNest;
+
+		ubicacionPokeNest.x = 0;
+		ubicacionPokeNest.y = 0;
+
+		// Mientras que no se haya alcanzado la ubicación de la PokéNest a la que se desea llegar
+		while((ubicacion.x != ubicacionPokeNest.x || ubicacion.y != ubicacionPokeNest.y)) {
+			if(ubicacionPokeNest.x == 0 && ubicacionPokeNest.y == 0)
+			{
+				// Determinar ubicación de la PokéNest a la que se desea llegar
+				solicitarUbicacionPokeNest(mapa_s, *objetivo, &ubicacionPokeNest);
+				if(mapa_s->error != NULL)
+				{
+					activo = 0;
+
+					break;
+				}
+			}
+			else
+			{
+				// Desplazar entrenador
+				solicitarDesplazamiento(mapa_s, &ubicacion, ubicacionPokeNest, &ejeAnterior);
+				if(mapa_s->error != NULL)
+				{
+					activo = 0;
+
+					break;
+				}
+			}
+		}
+
+		if(activo)
+		{
+			// Una vez alcanzada la ubicación de la PokéNest, capturar Pokémon
+			solicitarCaptura(mapa_s, &victima, objetivo);
+			if(!victima && mapa_s->errorCode != NO_ERROR)
+				activo = 0;
+		}
+	}
+}
+
+void cumplirObjetivosCiudad(t_ciudad_objetivos* ciudad) {
+	if(activo && objetivosCompletados)
+	{
+		objetivosCompletados = 0;
+		victima = 0;
+		nombreCiudad = strdup(ciudad->Nombre);
+
+		log_info(logger, "Se recuperan los datos de conexión del mapa %s.", nombreCiudad);
+
+		// Obtener datos de conexión del mapa
+		obtenerDatosConexion(nombreCiudad);
+
+		while(configEntrenador.Vidas > 0 && !objetivosCompletados) {
+			// Conexión al mapa
+			mapa_s = conectarAMapa(ip, puerto);
+			if(mapa_s->errorCode != NO_ERROR)
+			{
+				activo = 0;
+
+				break;
+			}
+
+			// Determinar la ubicación inicial del entrenador en el mapa
+			ubicacion.x = 1;
+			ubicacion.y = 1;
+
+			log_info(logger, "Mi ubicación inicial es (%d,%d).", ubicacion.x, ubicacion.y);
+
+			// Determinar el eje de movimiento anterior arbitrariamente
+			ejeAnterior = 'x';
+
+			string_iterate_lines(ciudad->Objetivos, (void*) obtenerObjetivo);
+
+			if(!activo)
+				break;
+
+			if(!victima)
+			{
+				log_info(logger, "He completado mis objetivos dentro del mapa %s.", nombreCiudad);
+				log_info(logger, "Se copia la medalla correspondiente al directorio del entrenador.");
+
+				objetivosCompletados = 1;
+
+				//Se copia la medalla del mapa al directorio del entrenador
+				char* sysCall = strdup("cp ");
+
+				string_append(&sysCall, puntoMontajeOsada);
+				string_append(&sysCall, "/Mapas/");
+				string_append(&sysCall, nombreCiudad);
+				string_append(&sysCall, "/");
+				string_append(&sysCall, "medalla-");
+				string_append(&sysCall, nombreCiudad);
+				string_append(&sysCall, ".jpg");
+
+				string_append(&sysCall, " ");
+
+				string_append(&sysCall, rutaDirectorioEntrenador);
+				string_append(&sysCall, "medallas/");
+
+				system(sysCall);
+
+				free(sysCall);
+
+				eliminarSocket(mapa_s);
+				mapa_s = NULL;
+
+				free(ip);
+				free(puerto);
+				free(nombreCiudad);
+
+				ip = NULL;
+				puerto = NULL;
+				nombreCiudad = NULL;
+			}
+			else
+			{
+				if(configEntrenador.Vidas > 0)
+				{
+					configEntrenador.Vidas--;
+					configEntrenador.Muertes++;
+				}
+
+				victima = 0;
+
+				validarVidas();
+
+				break;
+			}
+		}
+	}
 }

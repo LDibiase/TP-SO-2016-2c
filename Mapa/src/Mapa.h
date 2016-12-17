@@ -79,7 +79,6 @@ typedef struct estructuraPlanificador{
 void encolarEntrenador(t_entrenador* entrenador);
 void reencolarEntrenador(t_entrenador* entrenador);
 void calcularFaltante(t_entrenador* entrenador);
-void insertarOrdenado(t_entrenador* entrenador, t_queue* cola);
 void insertarAlFinal(t_entrenador* entrenador, t_queue* cola);
 void realizar_movimiento(t_list* items, t_entrenador personaje, char * mapa);
 t_ubicacion calcularMovimiento(t_ubicacion ubicacionActual, t_ubicacion ubicacionFinal);

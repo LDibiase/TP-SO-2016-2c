@@ -31,6 +31,7 @@ typedef struct entrenador {
 } t_entrenador_config;
 
 typedef struct metadataPokemon {
+	char id;
 	char* rutaArchivo;
 	int nivel;
 	char* ciudad;
@@ -62,5 +63,9 @@ void liberarRecursos();
 void validarVidas();
 time_t obtenerFechaActual();
 double obtenerDiferenciaTiempo(time_t tiempoInicial);
+void capturaConfirmada(mensaje9_t* mensajeConfirmacion, char* objetivo);
+void solicitudDesconexion(int* victima);
+void elegirPokemon();
+char* obtenerNombrePokemon(t_metadataPokemon* pokemon);
 
 #endif /* ENTRENADOR_H_ */

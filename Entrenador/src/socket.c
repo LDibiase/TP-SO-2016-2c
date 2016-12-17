@@ -350,6 +350,73 @@ void crearPaquete(void* mensaje, paquete_t* paquete) {
 		offset = offset + tamanioOperando;
 
 		break;
+	case INFORMA_POKEMON_ELEGIDO:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje12_t*) mensaje)->tamanioNombrePokemon) + ((mensaje12_t*) mensaje)->tamanioNombrePokemon + sizeof(((mensaje12_t*) mensaje)->nivel);
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje12_t*) mensaje)->tamanioNombrePokemon);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje12_t*) mensaje)->tamanioNombrePokemon), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje12_t*) mensaje)->tamanioNombrePokemon;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje12_t*) mensaje)->nombrePokemon, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = sizeof(((mensaje12_t*) mensaje)->nivel);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje12_t*) mensaje)->nivel), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		break;
+	case INFORMA_VICTORIA:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje13_t*) mensaje)->tamanioNombreAdversario) + ((mensaje13_t*) mensaje)->tamanioNombreAdversario;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje13_t*) mensaje)->tamanioNombreAdversario);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje13_t*) mensaje)->tamanioNombreAdversario), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje13_t*) mensaje)->tamanioNombreAdversario;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje13_t*) mensaje)->nombreAdversario, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		break;
+	case INFORMA_DERROTA:
+		punteroAuxiliar = paquete->paqueteSerializado;
+
+		paquete->tamanioPaquete = paquete->tamanioPaquete + sizeof(((mensaje14_t*) mensaje)->tamanioNombreAdversario) + ((mensaje14_t*) mensaje)->tamanioNombreAdversario;
+		paquete->paqueteSerializado = (char*) realloc((void*) paquete->paqueteSerializado, paquete->tamanioPaquete);
+		if(paquete->paqueteSerializado == NULL)
+		{
+			free(punteroAuxiliar);
+			paquete->tamanioPaquete = 0;
+			return;
+		}
+
+		tamanioOperando = sizeof(((mensaje14_t*) mensaje)->tamanioNombreAdversario);
+		memcpy(paquete->paqueteSerializado + offset, &(((mensaje14_t*) mensaje)->tamanioNombreAdversario), tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		tamanioOperando = ((mensaje14_t*) mensaje)->tamanioNombreAdversario;
+		memcpy(paquete->paqueteSerializado + offset, ((mensaje14_t*) mensaje)->nombreAdversario, tamanioOperando);
+		offset = offset + tamanioOperando;
+
+		break;
 	}
 }
 
@@ -551,6 +618,91 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 
 			((mensaje9_t*) mensaje)->nombreArchivoMetadata = malloc(tamanioBuffer);
 			memcpy(((mensaje9_t*) mensaje)->nombreArchivoMetadata, buffer, tamanioBuffer);
+
+			free(buffer);
+
+			break;
+		case INFORMA_POKEMON_ELEGIDO:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje12_t*) mensaje)->tamanioNombrePokemon);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			memcpy(&(((mensaje12_t*) mensaje)->tamanioNombrePokemon), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje12_t*) mensaje)->tamanioNombrePokemon;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			((mensaje12_t*) mensaje)->nombrePokemon = malloc(tamanioBuffer);
+			memcpy(((mensaje12_t*) mensaje)->nombrePokemon, buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje12_t*) mensaje)->nivel);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			memcpy(&(((mensaje12_t*) mensaje)->nivel), buffer, tamanioBuffer);
+
+			free(buffer);
+
+			break;
+		case INFORMA_VICTORIA:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje13_t*) mensaje)->tamanioNombreAdversario);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			memcpy(&(((mensaje13_t*) mensaje)->tamanioNombreAdversario), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje13_t*) mensaje)->tamanioNombreAdversario;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			((mensaje13_t*) mensaje)->nombreAdversario = malloc(tamanioBuffer);
+			memcpy(((mensaje13_t*) mensaje)->nombreAdversario, buffer, tamanioBuffer);
+
+			free(buffer);
+
+			break;
+		case INFORMA_DERROTA:
+			free(buffer);
+			tamanioBuffer = sizeof(((mensaje14_t*) mensaje)->tamanioNombreAdversario);
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			memcpy(&(((mensaje14_t*) mensaje)->tamanioNombreAdversario), buffer, tamanioBuffer);
+
+			free(buffer);
+			tamanioBuffer = ((mensaje14_t*) mensaje)->tamanioNombreAdversario;
+			buffer = malloc(tamanioBuffer);
+
+			bytesRecibidos = recv(socket->descriptor, buffer, tamanioBuffer, 0);
+			if(_hayError(bytesRecibidos) == 1)
+				return;
+
+			((mensaje14_t*) mensaje)->nombreAdversario = malloc(tamanioBuffer);
+			memcpy(((mensaje14_t*) mensaje)->nombreAdversario, buffer, tamanioBuffer);
 
 			free(buffer);
 

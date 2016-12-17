@@ -48,7 +48,6 @@ typedef struct recursosEntrenador {
 } t_recursosEntrenador;
 
 typedef struct pokemonEntrenador {
-	char id;
 	char* nombre;
 	int nivel;
 	char idEntrenador;
@@ -113,5 +112,6 @@ char* obtenerNombrePokemon(char idPokemon);
 void eliminarPokemonEntrenador(t_pokemonEntrenador* entrenador);
 void eliminarRecurso(t_mapa_pokenest* recurso);
 t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo);
+int informarResultadoBatalla(t_pokemonEntrenador* ganador, t_pokemonEntrenador* perdedor);
 
 #endif /* MAPA_H_ */

@@ -262,7 +262,7 @@ int main(int argc, char** argv) {
 				continue;
 			}
 
-			//HAGO UN SWITCH PARA DETERMINAR QUÉ ACCIÓN DESEA REALIZAR EL ENTRENADOR
+			//MEDIANTE UN SWITCH SE DETERMINA QUÉ ACCIÓN DESEA REALIZAR EL ENTRENADOR
 			t_ubicacion pokeNestSolicitada;
 			switch(((mensaje_t*) mensajeSolicitud)->tipoMensaje) {
 			case SOLICITA_UBICACION:
@@ -608,31 +608,6 @@ void encolarEntrenador(t_entrenador* entrenador) {
 	log_info(logger, "Cola ready después del push: %d", list_size(colaReady->elements));
 	pthread_mutex_unlock(&mutexLog);
 
-	/*//SI EL ALGORITMO ES ROUND ROBIN, LO AGREGO AL FINAL DE LA COLA DE READY
-	if(string_equals_ignore_case(configMapa.Algoritmo, "RR"))
-	{
-		pthread_mutex_lock(&mutexLog);
-		log_info(logger, "Cola ready antes del push: %d", list_size(colaReady->elements));
-		pthread_mutex_unlock(&mutexLog);
-		insertarAlFinal(entrenador, colaReady);
-		pthread_mutex_lock(&mutexLog);
-		log_info(logger, "Cola ready después del push: %d", list_size(colaReady->elements));
-		pthread_mutex_unlock(&mutexLog);
-	}
-	//SI ES SRDF, INSERTO ORDENADO DE MENOR A MAYOR, DE ACUERDO A CUÁNTO LE FALTE EJECUTAR AL ENTRENADOR
-	else
-	{
-		calcularFaltante(entrenador);
-
-		pthread_mutex_lock(&mutexLog);
-		log_info(logger, "Cola ready antes del add: %d", list_size(colaReady->elements));
-		pthread_mutex_unlock(&mutexLog);
-		insertarOrdenado(entrenador, colaReady);
-		pthread_mutex_lock(&mutexLog);
-		log_info(logger, "Cola ready después del add: %d", list_size(colaReady->elements));
-		pthread_mutex_unlock(&mutexLog);
-	}*/
-
 	pthread_mutex_lock(&mutexLog);
 	log_info(logger, "Se planificó al entrenador %s (%c)", entrenador->nombre, entrenador->id);
 	pthread_mutex_unlock(&mutexLog);
@@ -642,8 +617,8 @@ t_entrenador* obtenerEntrenadorPlanificado()
 {
 	t_entrenador* entrenadorPlanificado;
 	t_list* estructurasPlanificador;
-	estructurasPlanificador = list_create();
-	int countIndex = 0;
+	t_estructuraPlanificador* estructuraElegida;
+	int countIndex;
 
 	void _armarEstructuraPlanificador(t_entrenador* entrenador)
 	{
@@ -668,14 +643,16 @@ t_entrenador* obtenerEntrenadorPlanificado()
 		return estructura1->faltante < estructura2->faltante && estructura1->index < estructura2->index;
 	}
 
+	estructurasPlanificador = list_create();
+	countIndex = 0;
+
 	pthread_mutex_lock(&mutexReady);
 	list_iterate(colaReady->elements, (void*) _armarEstructuraPlanificador);
 	pthread_mutex_unlock(&mutexReady);
 
 	list_sort(estructurasPlanificador, (void*) _comparadorFaltanteIndice);
 
-	t_estructuraPlanificador* estructuraElegida = list_get(estructurasPlanificador, 0);
-
+	estructuraElegida = list_get(estructurasPlanificador, 0);
 	entrenadorPlanificado = list_remove(colaReady->elements, estructuraElegida->index);
 
 	list_destroy_and_destroy_elements(estructurasPlanificador, (void*) free);
@@ -903,7 +880,7 @@ int obtenerCantidadRecursos(char* nombrePokemon, char* rutaPokenest, t_list* met
 		}
 	}
 
-	list_remove(metadatasPokemones, 0); // TODO Mejora en lectura
+	list_remove(metadatasPokemones, 0); // TODO Bucar alternativas para que no pase dos veces por la posición 0
 
 	free(numeroPokemon);
 	free(nombreArchivoPokemon);
@@ -1610,10 +1587,6 @@ void liberarMemoriaAlocada() {
 }
 
 void eliminarEntrenadorMapa(t_entrenador* entrenadorAEliminar) {
-	bool _esEntrenadorBuscado(t_entrenador* entrenador) {
-		return entrenador->id == entrenadorAEliminar->id;
-	}
-
 	BorrarItem(items, entrenadorAEliminar->id);
 	nivel_gui_dibujar(items, nombreMapa);
 
@@ -1706,7 +1679,6 @@ void chequearDeadlock() {
 		pthread_mutex_lock(&mutexLog);
 		log_info(logger, "Se intenta realizar un WAIT a semBlocked (chequeo de interbloqueo)");
 		pthread_mutex_unlock(&mutexLog);
-//		sem_wait(&semBlocked);
 		if(sem_trywait(&semBlocked) == -1 && errno == EAGAIN)
 		{
 			pthread_mutex_lock(&mutexLog);
@@ -1750,138 +1722,154 @@ void chequearDeadlock() {
 				{
 					t_entrenador* entrenadorAux = list_get(entrenadoresEnInterbloqueo, i);
 
-					//OBTENGO EL POKÉMON DE MAYOR NIVEL DEL ENTRENADOR PARA PELEAR
+					//OBTENGO EL POKÉMON DE MAYOR NIVEL DEL ENTRENADOR
 					t_pokemonEntrenador* pokemonConEntrenador;
 					pokemonConEntrenador = obtenerPokemonMayorNivel(entrenadorAux);
 
-					char* nombrePokemon = strdup(pokemonConEntrenador->nombre);
+					if(pokemonConEntrenador != NULL)
+					{
+						char* nombrePokemon = strdup(pokemonConEntrenador->nombre);
 
-					//CREO EL POKÉMON DE LA "CLASE" DE LA BIBLIOTECA
-					t_pokemon* pokemon = create_pokemon(pokemon_factory, nombrePokemon, pokemonConEntrenador->nivel);
-					pokemonConEntrenador->pokemon = pokemon;
+						//CREO EL POKÉMON DE LA "CLASE" DE LA BIBLIOTECA
+						pokemonConEntrenador->pokemon = create_pokemon(pokemon_factory, nombrePokemon, pokemonConEntrenador->nivel);
 
-					list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
+						list_add(entrenadoresConPokemonesAPelear, pokemonConEntrenador);
+					}
+					else
+					{
+						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
+						list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) _eliminarEntrenador);
+
+						if(!activo)
+						{
+							//destroy_pkmn_factory(pokemon_factory);
+
+							pthread_mutex_lock(&mutexLog);
+							log_error(logger, "Ha surgido un incoveniente durante la simulación del o los Combates Pokémon.");
+							log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea.");
+							pthread_mutex_unlock(&mutexLog);
+
+							liberarMemoriaAlocada();
+							nivel_gui_terminar();
+							exit(EXIT_FAILURE);
+						}
+						else
+							continue;
+					}
 				}
 
 				//YA TENGO LOS POKÉMONES DE CADA ENTRENADOR, AHORA A PELEAR
 				t_pokemonEntrenador* entrenadorAEliminar;
 				entrenadorAEliminar = obtenerEntrenadorAEliminar(entrenadoresConPokemonesAPelear);
 
-				//ARMO EL MENSAJE PARA MANDAR A LIBERAR RECURSOS
-				mensaje_t mensajeLiberaRecursos;
-				mensajeLiberaRecursos.tipoMensaje = INFORMA_MUERTE;
-
-				paquete_t paqueteEliminarRecursos;
-				crearPaquete((void*) &mensajeLiberaRecursos, &paqueteEliminarRecursos);
-
-				if(paqueteEliminarRecursos.tamanioPaquete == 0)
+				if(entrenadorAEliminar != NULL)
 				{
-					activo = 0;
+					//ARMO EL MENSAJE PARA MANDAR A LIBERAR RECURSOS
+					mensaje_t mensajeSolicitaDesconexion;
+					mensajeSolicitaDesconexion.tipoMensaje = SOLICITA_DESCONEXION;
 
-					eliminarPokemonEntrenador(entrenadorAEliminar);
-					list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
-					list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) eliminarEntrenador);
+					paquete_t paqueteEliminarRecursos;
+					crearPaquete((void*) &mensajeSolicitaDesconexion, &paqueteEliminarRecursos);
 
-					pthread_mutex_lock(&mutexLog);
-					log_error(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
-					log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
-					pthread_mutex_unlock(&mutexLog);
-
-					liberarMemoriaAlocada();
-					nivel_gui_terminar();
-					exit(EXIT_FAILURE);
-				}
-
-				bool _esEntrenador(t_entrenador* entrenador)
-				{
-					return entrenador->id == entrenadorAEliminar->idEntrenador;
-				}
-
-				t_entrenador* entrenadorAux;
-
-				pthread_mutex_unlock(&mutexReady);
-				informarEstadoCola("Cola Ready", colaReady->elements);
-				pthread_mutex_unlock(&mutexReady);
-
-				pthread_mutex_lock(&mutexBlocked);
-				entrenadorAux = list_remove_by_condition(colaBlocked->elements, (void*) _esEntrenador);
-
-				informarEstadoCola("Cola Blocked", colaBlocked->elements);
-
-				pthread_mutex_lock(&mutexLog);
-				log_info(logger, "El entrenador víctima es %s (%c) - socket %d", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
-				pthread_mutex_unlock(&mutexLog);
-				pthread_mutex_unlock(&mutexBlocked);
-
-				enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
-				free(paqueteEliminarRecursos.paqueteSerializado);
-
-				if(entrenadorAux->socket->errorCode != NO_ERROR)
-				{
-					switch(entrenadorAux->socket->errorCode) {
-					case ERR_PEER_DISCONNECTED:
-						pthread_mutex_lock(&mutexLog);
-						log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
-						log_info(logger, entrenadorAux->socket->error);
-						pthread_mutex_unlock(&mutexLog);
-
-						eliminarPokemonEntrenador(entrenadorAEliminar);
-						eliminarEntrenadorMapa(entrenadorAux);
-						eliminarEntrenador(entrenadorAux);
-
-						pthread_mutex_lock(&mutexReady);
-						informarEstadoCola("Cola Ready", colaReady->elements);
-						pthread_mutex_unlock(&mutexReady);
-						pthread_mutex_lock(&mutexBlocked);
-						informarEstadoCola("Cola Blocked", colaBlocked->elements);
-						pthread_mutex_unlock(&mutexBlocked);
-
-						pthread_mutex_unlock(&mutexDesbloqueo);
-						desbloquearJugadores();
-						pthread_mutex_lock(&mutexDesbloqueo);
-
-						continue;
-					case ERR_MSG_CANNOT_BE_SENT:
+					if(paqueteEliminarRecursos.tamanioPaquete == 0)
+					{
 						activo = 0;
 
 						eliminarPokemonEntrenador(entrenadorAEliminar);
 						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
-						list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) eliminarEntrenador);
+						list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) _eliminarEntrenador);
 
 						pthread_mutex_lock(&mutexLog);
-						log_error(logger, "No se ha podido enviar un mensaje");
-						log_error(logger, entrenadorAux->socket->error);
+						log_error(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
 						log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
 						pthread_mutex_unlock(&mutexLog);
 
-						eliminarEntrenador(entrenadorAux);
 						liberarMemoriaAlocada();
 						nivel_gui_terminar();
-
 						exit(EXIT_FAILURE);
 					}
-				}
 
-				mensaje_t mensajeDesconexionEntrenador;
-				mensajeDesconexionEntrenador.tipoMensaje = DESCONEXION_ENTRENADOR;
+					bool _esEntrenador(t_entrenador* entrenador)
+					{
+						return entrenador->id == entrenadorAEliminar->idEntrenador;
+					}
 
-				recibirMensaje(entrenadorAux->socket, &mensajeDesconexionEntrenador);
-				if(entrenadorAux->socket->errorCode != NO_ERROR)
-				{
-					switch(entrenadorAux->socket->errorCode) {
-					case ERR_PEER_DISCONNECTED:
-						pthread_mutex_lock(&mutexLog);
-						log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
-						log_info(logger, entrenadorAux->socket->error);
-						pthread_mutex_unlock(&mutexLog);
+					t_entrenador* entrenadorAux;
 
-						break;
-					case ERR_MSG_CANNOT_BE_RECEIVED:
+					pthread_mutex_unlock(&mutexReady);
+					informarEstadoCola("Cola Ready", colaReady->elements);
+					pthread_mutex_unlock(&mutexReady);
+
+					pthread_mutex_lock(&mutexBlocked);
+					entrenadorAux = list_remove_by_condition(colaBlocked->elements, (void*) _esEntrenador);
+
+					informarEstadoCola("Cola Blocked", colaBlocked->elements);
+
+					pthread_mutex_lock(&mutexLog);
+					log_info(logger, "El entrenador víctima es %s (%c) - socket %d", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
+					pthread_mutex_unlock(&mutexLog);
+					pthread_mutex_unlock(&mutexBlocked);
+
+					enviarMensaje(entrenadorAux->socket, paqueteEliminarRecursos);
+					free(paqueteEliminarRecursos.paqueteSerializado);
+
+					if(entrenadorAux->socket->errorCode != NO_ERROR)
+					{
+						switch(entrenadorAux->socket->errorCode) {
+						case ERR_PEER_DISCONNECTED:
+							pthread_mutex_lock(&mutexLog);
+							log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
+							log_info(logger, entrenadorAux->socket->error);
+							pthread_mutex_unlock(&mutexLog);
+
+							eliminarPokemonEntrenador(entrenadorAEliminar);
+							eliminarEntrenadorMapa(entrenadorAux);
+							eliminarEntrenador(entrenadorAux);
+
+							pthread_mutex_lock(&mutexReady);
+							informarEstadoCola("Cola Ready", colaReady->elements);
+							pthread_mutex_unlock(&mutexReady);
+							pthread_mutex_lock(&mutexBlocked);
+							informarEstadoCola("Cola Blocked", colaBlocked->elements);
+							pthread_mutex_unlock(&mutexBlocked);
+
+							pthread_mutex_unlock(&mutexDesbloqueo);
+							desbloquearJugadores();
+							pthread_mutex_lock(&mutexDesbloqueo);
+
+							continue;
+						case ERR_MSG_CANNOT_BE_SENT:
+							activo = 0;
+
+							eliminarPokemonEntrenador(entrenadorAEliminar);
+							list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
+							list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) _eliminarEntrenador);
+
+							pthread_mutex_lock(&mutexLog);
+							log_error(logger, "No se ha podido enviar un mensaje");
+							log_error(logger, entrenadorAux->socket->error);
+							log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+							pthread_mutex_unlock(&mutexLog);
+
+							eliminarEntrenador(entrenadorAux);
+							liberarMemoriaAlocada();
+							nivel_gui_terminar();
+
+							exit(EXIT_FAILURE);
+						}
+					}
+
+					mensaje_t mensajeDesconexionEntrenador;
+					mensajeDesconexionEntrenador.tipoMensaje = DESCONEXION_ENTRENADOR;
+
+					recibirMensaje(entrenadorAux->socket, &mensajeDesconexionEntrenador);
+					if(entrenadorAux->socket->errorCode != NO_ERROR && entrenadorAux->socket->errorCode == ERR_MSG_CANNOT_BE_RECEIVED)
+					{
 						activo = 0;
 
 						eliminarPokemonEntrenador(entrenadorAEliminar);
 						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
-						list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) eliminarEntrenador);
+						list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) _eliminarEntrenador);
 
 						pthread_mutex_lock(&mutexLog);
 						log_error(logger, "No se ha podido recibir un mensaje");
@@ -1895,21 +1883,38 @@ void chequearDeadlock() {
 
 						exit(EXIT_FAILURE);
 					}
+
+					pthread_mutex_lock(&mutexLog);
+					log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
+					pthread_mutex_unlock(&mutexLog);
+
+					eliminarPokemonEntrenador(entrenadorAEliminar);
+					eliminarEntrenadorMapa(entrenadorAux);
+					eliminarEntrenador(entrenadorAux);
+
+					pthread_mutex_unlock(&mutexDesbloqueo);
+					desbloquearJugadores();
+					pthread_mutex_lock(&mutexDesbloqueo);
+
+					list_destroy(entrenadoresConPokemonesAPelear);
 				}
+				else
+				{
+					if(!activo)
+					{
+						list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) _eliminarEntrenador);
+						//destroy_pkmn_factory(pokemon_factory);
 
-				pthread_mutex_lock(&mutexLog);
-				log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorAux->nombre, entrenadorAux->id, entrenadorAux->socket->descriptor);
-				pthread_mutex_unlock(&mutexLog);
+						pthread_mutex_lock(&mutexLog);
+						log_error(logger, "Ha surgido un incoveniente durante la simulación del o los Combates Pokémon.");
+						log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea.");
+						pthread_mutex_unlock(&mutexLog);
 
-				eliminarPokemonEntrenador(entrenadorAEliminar);
-				eliminarEntrenadorMapa(entrenadorAux);
-				eliminarEntrenador(entrenadorAux);
-
-				pthread_mutex_unlock(&mutexDesbloqueo);
-				desbloquearJugadores();
-				pthread_mutex_lock(&mutexDesbloqueo);
-
-				list_destroy(entrenadoresConPokemonesAPelear);
+						liberarMemoriaAlocada();
+						nivel_gui_terminar();
+						exit(EXIT_FAILURE);
+					}
+				}
 			}
 
 			list_destroy_and_destroy_elements(entrenadoresEnInterbloqueo, (void*) _eliminarEntrenador);
@@ -1928,6 +1933,7 @@ void chequearDeadlock() {
 	destroy_pkmn_factory(pokemon_factory);
 }
 
+/*
 char* obtenerNombrePokemon(char idPokemon)
 {
 	char* nombrePokemon = string_new();
@@ -1959,10 +1965,17 @@ char* obtenerNombrePokemon(char idPokemon)
 
 	return nombrePokemon;
 }
+*/
 
 t_pokemonEntrenador* obtenerPokemonMayorNivel(t_entrenador* entrenador) {
-	t_pokemonEntrenador* entrenadorYPokemon = NULL;
+	bool _esEntrenador(t_entrenador* entrenadorAux)
+	{
+		return entrenadorAux->id == entrenador->id;
+	}
 
+	t_pokemonEntrenador* pokemonEntrenador;
+
+/*
 	t_list* pokemones = list_create();
 
 	void _eliminarMetadata(t_metadataPokemon* metadata) {
@@ -2000,19 +2013,131 @@ t_pokemonEntrenador* obtenerPokemonMayorNivel(t_entrenador* entrenador) {
 	if(!list_is_empty(pokemones))
 	{
 		t_metadataPokemon* pokemonAux = list_get(pokemones, 0);
+*/
 
-		entrenadorYPokemon = malloc(sizeof(t_pokemonEntrenador));
+	pokemonEntrenador = NULL;
 
-		//ME GUARDO EL ID DEL ENTRENADOR DEL POKEMON, PARA SABER CUAL ES EL PERDEDOR
-		entrenadorYPokemon->id = pokemonAux->id;
-		entrenadorYPokemon->idEntrenador = entrenador->id;
-		entrenadorYPokemon->nivel = pokemonAux->nivel;
-		entrenadorYPokemon->nombre = obtenerNombrePokemon(pokemonAux->id);
+	mensaje_t mensajeSolicitaEleccionPokemon;
+	mensajeSolicitaEleccionPokemon.tipoMensaje = SOLICITA_ELECCION_POKEMON;
+
+	paquete_t paquete;
+
+	crearPaquete((void*) &mensajeSolicitaEleccionPokemon, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		activo = 0;
+
+		pthread_mutex_lock(&mutexLog);
+		log_error(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+		pthread_mutex_unlock(&mutexLog);
+
+		return pokemonEntrenador;
+	}
+
+	enviarMensaje(entrenador->socket, paquete);
+	free(paquete.paqueteSerializado);
+	if(entrenador->socket->errorCode != NO_ERROR)
+	{
+		switch(entrenador->socket->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenador->nombre, entrenador->id, entrenador->socket->descriptor);
+			log_info(logger, entrenador->socket->error);
+			pthread_mutex_unlock(&mutexLog);
+
+			eliminarEntrenadorMapa(entrenador);
+			list_remove_and_destroy_by_condition(colaBlocked->elements, (void*) _esEntrenador, (void*) eliminarEntrenador);
+
+			pthread_mutex_lock(&mutexReady);
+			informarEstadoCola("Cola Ready", colaReady->elements);
+			pthread_mutex_unlock(&mutexReady);
+			pthread_mutex_lock(&mutexBlocked);
+			informarEstadoCola("Cola Blocked", colaBlocked->elements);
+			pthread_mutex_unlock(&mutexBlocked);
+
+			pthread_mutex_unlock(&mutexDesbloqueo);
+			desbloquearJugadores();
+			pthread_mutex_lock(&mutexDesbloqueo);
+
+			return pokemonEntrenador;
+		case ERR_MSG_CANNOT_BE_SENT:
+			activo = 0;
+
+			pthread_mutex_lock(&mutexLog);
+			log_error(logger, "No se ha podido enviar un mensaje");
+			log_error(logger, entrenador->socket->error);
+			log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+			pthread_mutex_unlock(&mutexLog);
+
+			return pokemonEntrenador;
+		}
+	}
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Se le solicita al entrenador %s (%c) que elija al pokémon con el cual participará del o los Combates Pokémon.", entrenador->nombre, entrenador->id);
+	pthread_mutex_unlock(&mutexLog);
+
+	mensaje12_t mensajeInformaPokemonElegido;
+	mensajeInformaPokemonElegido.tipoMensaje = INFORMA_POKEMON_ELEGIDO;
+
+	recibirMensaje(entrenador->socket, &mensajeInformaPokemonElegido);
+	if(entrenador->socket->errorCode != NO_ERROR)
+	{
+		switch(entrenador->socket->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenador->nombre, entrenador->id, entrenador->socket->descriptor);
+			log_info(logger, entrenador->socket->error);
+			pthread_mutex_unlock(&mutexLog);
+
+			eliminarEntrenadorMapa(entrenador);
+			list_remove_and_destroy_by_condition(colaBlocked->elements, (void*) _esEntrenador, (void*) eliminarEntrenador);
+
+			pthread_mutex_lock(&mutexReady);
+			informarEstadoCola("Cola Ready", colaReady->elements);
+			pthread_mutex_unlock(&mutexReady);
+			pthread_mutex_lock(&mutexBlocked);
+			informarEstadoCola("Cola Blocked", colaBlocked->elements);
+			pthread_mutex_unlock(&mutexBlocked);
+
+			pthread_mutex_unlock(&mutexDesbloqueo);
+			desbloquearJugadores();
+			pthread_mutex_lock(&mutexDesbloqueo);
+
+			return pokemonEntrenador;
+		case ERR_MSG_CANNOT_BE_RECEIVED:
+			activo = 0;
+
+			pthread_mutex_lock(&mutexLog);
+			log_error(logger, "No se ha podido enviar un mensaje");
+			log_error(logger, entrenador->socket->error);
+			log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+			pthread_mutex_unlock(&mutexLog);
+
+			return pokemonEntrenador;
+		}
+	}
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Entrenador %s (socket %d): el pokémon que he elegido para participar del o los Combates Pokémon es mi %s de nivel %d.", entrenador->nombre, entrenador->socket->descriptor, mensajeInformaPokemonElegido.nombrePokemon, mensajeInformaPokemonElegido.nivel);
+	pthread_mutex_unlock(&mutexLog);
+
+	pokemonEntrenador = malloc(sizeof(t_pokemonEntrenador));
+
+	pokemonEntrenador->nivel = mensajeInformaPokemonElegido.nivel;
+	pokemonEntrenador->nombre = strdup(mensajeInformaPokemonElegido.nombrePokemon);
+	pokemonEntrenador->idEntrenador = entrenador->id;
+
+/*
 	}
 
 	list_destroy_and_destroy_elements(pokemones, (void*) _eliminarMetadata);
+*/
 
-	return entrenadorYPokemon;
+	free(mensajeInformaPokemonElegido.nombrePokemon);
+
+	return pokemonEntrenador;
 }
 
 void eliminarPokemonEntrenador(t_pokemonEntrenador* entrenador) {
@@ -2024,7 +2149,9 @@ void eliminarPokemonEntrenador(t_pokemonEntrenador* entrenador) {
 
 t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemonesAPelear) {
 	t_pokemonEntrenador* entrenadorPerdedor;
-	bool noHayEntrenadorAEliminar = true;
+	bool noHayEntrenadorAEliminar;
+
+	noHayEntrenadorAEliminar = true;
 
 	while(noHayEntrenadorAEliminar)
 	{
@@ -2041,13 +2168,30 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 				//HACER PELEAR A LOS ENTRENADORES
 				t_pokemon* loser = pkmn_battle(entrenador1->pokemon, entrenador2->pokemon);
 
-				if(entrenador1->pokemon == loser)
+				if(string_equals_ignore_case(entrenador1->pokemon->species, loser->species) &&
+						entrenador1->pokemon->type == loser->type &&
+						entrenador1->pokemon->second_type == loser->second_type &&
+						entrenador1->pokemon->level == loser->level)
 				{
+					if(informarResultadoBatalla(entrenador2, entrenador1))
+					{
+						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
+
+						entrenadorPerdedor = NULL;
+					}
+
 					entrenadorPerdedor = entrenador1;
 					eliminarPokemonEntrenador(entrenador2);
 				}
 				else
 				{
+					if(informarResultadoBatalla(entrenador1, entrenador2))
+					{
+						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
+
+						entrenadorPerdedor = NULL;
+					}
+
 					entrenadorPerdedor = entrenador2;
 					eliminarPokemonEntrenador(entrenador1);
 				}
@@ -2055,13 +2199,23 @@ t_pokemonEntrenador* obtenerEntrenadorAEliminar(t_list* entrenadoresConPokemones
 			else
 			{
 				t_pokemonEntrenador* entrenadorRestante;
-				entrenadorRestante = (t_pokemonEntrenador*)list_remove(entrenadoresConPokemonesAPelear, 0);
+				entrenadorRestante = list_remove(entrenadoresConPokemonesAPelear, 0);
 
 				//HACER PELEAR AL YA PERDEDOR, CON ESTE ÚLTIMO ENTRENADOR Y ASÍ SABER QUIÉN ES EL PERDEDOR
 				t_pokemon* loser = pkmn_battle(entrenadorPerdedor->pokemon, entrenadorRestante->pokemon);
 
-				if(entrenadorRestante->pokemon == loser)
+				if(string_equals_ignore_case(entrenadorRestante->pokemon->species, loser->species) &&
+						entrenadorRestante->pokemon->type == loser->type &&
+						entrenadorRestante->pokemon->second_type == loser->second_type &&
+						entrenadorRestante->pokemon->level == loser->level)
 				{
+					if(informarResultadoBatalla(entrenadorPerdedor, entrenadorRestante))
+					{
+						list_destroy_and_destroy_elements(entrenadoresConPokemonesAPelear, (void*) eliminarPokemonEntrenador);
+
+						entrenadorPerdedor = NULL;
+					}
+
 					eliminarPokemonEntrenador(entrenadorPerdedor);
 					entrenadorPerdedor = entrenadorRestante;
 				}
@@ -2474,11 +2628,11 @@ void informarEstadoRecursos() {
 }
 
 t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo) {
-	t_entrenador* entrenador;
-
 	bool _noConoceUbicacion(t_entrenador* entrenador) {
 		return entrenador->idPokenestActual == ' ';
 	}
+
+	t_entrenador* entrenador;
 
 	if(string_equals_ignore_case(algoritmo, "SRDF"))
 	{
@@ -2523,4 +2677,186 @@ t_entrenador* tomarEntrenadorAEjecutar(char* algoritmo) {
 	pthread_mutex_unlock(&mutexLog);
 
 	return entrenador;
+}
+
+int informarResultadoBatalla(t_pokemonEntrenador* ganador, t_pokemonEntrenador* perdedor) {
+	bool _esEntrenadorGanador(t_entrenador* entrenador)
+	{
+		return entrenador->id == ganador->idEntrenador;
+	}
+
+	bool _esEntrenadorPerdedor(t_entrenador* entrenador)
+	{
+		return entrenador->id == perdedor->idEntrenador;
+	}
+
+	t_entrenador* entrenadorGanador;
+	t_entrenador* entrenadorPerdedor;
+
+	pthread_mutex_lock(&mutexBlocked);
+	entrenadorGanador = list_find(colaBlocked->elements, (void*) _esEntrenadorGanador);
+	entrenadorPerdedor = list_find(colaBlocked->elements, (void*) _esEntrenadorPerdedor);
+	pthread_mutex_unlock(&mutexBlocked);
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Los entrenadores %s (%c) y %s (%c) han peleado en un Combate Pokémon. El ganador ha sido %s (%c).", entrenadorGanador->nombre, entrenadorGanador->id, entrenadorPerdedor->nombre, entrenadorPerdedor->id);
+	pthread_mutex_unlock(&mutexLog);
+
+	paquete_t paquete;
+
+	mensaje13_t mensajeInformaVictoria;
+	mensajeInformaVictoria.tipoMensaje = INFORMA_VICTORIA;
+	mensajeInformaVictoria.tamanioNombreAdversario = strlen(entrenadorPerdedor->nombre) + 1;
+	mensajeInformaVictoria.nombreAdversario = strdup(entrenadorPerdedor->nombre);
+
+	crearPaquete((void*) &mensajeInformaVictoria, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		activo = 0;
+
+		free(mensajeInformaVictoria.nombreAdversario);
+
+		eliminarPokemonEntrenador(ganador);
+		eliminarPokemonEntrenador(perdedor);
+
+		pthread_mutex_lock(&mutexLog);
+		log_error(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+		pthread_mutex_unlock(&mutexLog);
+
+		return 1;
+	}
+
+	enviarMensaje(entrenadorGanador->socket, paquete);
+	free(mensajeInformaVictoria.nombreAdversario);
+	free(paquete.paqueteSerializado);
+	if(entrenadorGanador->socket->errorCode != NO_ERROR)
+	{
+		switch(entrenadorGanador->socket->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			free(mensajeInformaVictoria.nombreAdversario);
+
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorGanador->nombre, entrenadorGanador->id, entrenadorGanador->socket->descriptor);
+			log_info(logger, entrenadorGanador->socket->error);
+			pthread_mutex_unlock(&mutexLog);
+
+			eliminarPokemonEntrenador(ganador);
+			eliminarPokemonEntrenador(perdedor);
+
+			eliminarEntrenadorMapa(entrenadorGanador);
+			list_remove_and_destroy_by_condition(colaBlocked->elements, (void*) _esEntrenadorGanador, (void*) eliminarEntrenador);
+
+			pthread_mutex_lock(&mutexReady);
+			informarEstadoCola("Cola Ready", colaReady->elements);
+			pthread_mutex_unlock(&mutexReady);
+			pthread_mutex_lock(&mutexBlocked);
+			informarEstadoCola("Cola Blocked", colaBlocked->elements);
+			pthread_mutex_unlock(&mutexBlocked);
+
+			pthread_mutex_unlock(&mutexDesbloqueo);
+			desbloquearJugadores();
+			pthread_mutex_lock(&mutexDesbloqueo);
+
+			return 1;
+		case ERR_MSG_CANNOT_BE_SENT:
+			activo = 0;
+
+			free(mensajeInformaVictoria.nombreAdversario);
+
+			eliminarPokemonEntrenador(ganador);
+			eliminarPokemonEntrenador(perdedor);
+
+			pthread_mutex_lock(&mutexLog);
+			log_error(logger, "No se ha podido enviar un mensaje");
+			log_error(logger, entrenadorGanador->socket->error);
+			log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+			pthread_mutex_unlock(&mutexLog);
+
+			return 1;
+		}
+	}
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Se le ha informado al entrenador %s (%c) que ha resultado ganador en un Combate Pokémon.", entrenadorGanador->nombre, entrenadorGanador->id);
+	pthread_mutex_unlock(&mutexLog);
+
+	mensaje14_t mensajeInformaDerrota;
+	mensajeInformaDerrota.tipoMensaje = INFORMA_DERROTA;
+	mensajeInformaDerrota.tamanioNombreAdversario = strlen(entrenadorGanador->nombre) + 1;
+	mensajeInformaDerrota.nombreAdversario = strdup(entrenadorGanador->nombre);
+
+	crearPaquete((void*) &mensajeInformaDerrota, &paquete);
+	if(paquete.tamanioPaquete == 0)
+	{
+		activo = 0;
+
+		free(mensajeInformaDerrota.nombreAdversario);
+
+		eliminarPokemonEntrenador(ganador);
+		eliminarPokemonEntrenador(perdedor);
+
+		pthread_mutex_lock(&mutexLog);
+		log_error(logger, "No se ha podido alocar memoria para el mensaje a enviarse");
+		log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+		pthread_mutex_unlock(&mutexLog);
+
+		return 1;
+	}
+
+	enviarMensaje(entrenadorPerdedor->socket, paquete);
+	free(mensajeInformaDerrota.nombreAdversario);
+	free(paquete.paqueteSerializado);
+	if(entrenadorPerdedor->socket->errorCode != NO_ERROR)
+	{
+		switch(entrenadorPerdedor->socket->errorCode) {
+		case ERR_PEER_DISCONNECTED:
+			free(mensajeInformaDerrota.nombreAdversario);
+
+			pthread_mutex_lock(&mutexLog);
+			log_info(logger, "El entrenador %s (%c) ha abandonado el juego (socket %d)", entrenadorPerdedor->nombre, entrenadorPerdedor->id, entrenadorPerdedor->socket->descriptor);
+			log_info(logger, entrenadorPerdedor->socket->error);
+			pthread_mutex_unlock(&mutexLog);
+
+			eliminarPokemonEntrenador(ganador);
+			eliminarPokemonEntrenador(perdedor);
+
+			eliminarEntrenadorMapa(entrenadorPerdedor);
+			list_remove_and_destroy_by_condition(colaBlocked->elements, (void*) _esEntrenadorPerdedor, (void*) eliminarEntrenador);
+
+			pthread_mutex_lock(&mutexReady);
+			informarEstadoCola("Cola Ready", colaReady->elements);
+			pthread_mutex_unlock(&mutexReady);
+			pthread_mutex_lock(&mutexBlocked);
+			informarEstadoCola("Cola Blocked", colaBlocked->elements);
+			pthread_mutex_unlock(&mutexBlocked);
+
+			pthread_mutex_unlock(&mutexDesbloqueo);
+			desbloquearJugadores();
+			pthread_mutex_lock(&mutexDesbloqueo);
+
+			return 1;
+		case ERR_MSG_CANNOT_BE_SENT:
+			activo = 0;
+
+			free(mensajeInformaDerrota.nombreAdversario);
+
+			eliminarPokemonEntrenador(ganador);
+			eliminarPokemonEntrenador(perdedor);
+
+			pthread_mutex_lock(&mutexLog);
+			log_error(logger, "No se ha podido enviar un mensaje");
+			log_error(logger, entrenadorPerdedor->socket->error);
+			log_error(logger, "La ejecución del proceso Mapa finaliza de manera errónea");
+			pthread_mutex_unlock(&mutexLog);
+
+			return 1;
+		}
+	}
+
+	pthread_mutex_lock(&mutexLog);
+	log_info(logger, "Se le ha informado al entrenador %s (%c) que ha resultado perdedor en un Combate Pokémon.", entrenadorPerdedor->nombre, entrenadorPerdedor->id);
+	pthread_mutex_unlock(&mutexLog);
+
+	return 0;
 }

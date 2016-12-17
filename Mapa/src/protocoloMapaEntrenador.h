@@ -39,10 +39,25 @@
  *	Mensaje 9: Informa al entrenador que el mapa ha confirmado la captura del Pokémon solicitado
  *	-->	mensaje9_t
  *
- *	Mensaje 10: Informa al entrenador que el mapa lo ha declarado víctima en un combate Pokémon
+ *	Mensaje 10: Informa al entrenador que se encuentra involucrado en un interbloqueo con otro entrenador a causa de la solicitud realizada
  *	-->	mensaje_t
  *
- *	Mensaje 11: Informa al mapa que el entrenador se ha desconectado
+ *	Mensaje 11: Informa al entrenador que debe elegir un Pokémon con el cual participar del o los Combates Pokémon
+ *	-->	mensaje_t
+ *
+ *	Mensaje 12: Informa al mapa qué Pokémon ha elegido el entrenador para participar del o los Combates Pokémon
+ *	-->	mensaje12_t
+ *
+ *	Mensaje 13: Informa al entrenador que ha ganado un Combate Pokémon
+ *	-->	mensaje13_t
+ *
+ *	Mensaje 14: Informa al entrenador que ha perdido un Combate Pokémon
+ *	-->	mensaje14_t
+ *
+ *	Mensaje 15: Informa al entrenador que ha resultado víctima en el o los Combates Pokémon
+ *	-->	mensaje_t
+ *
+ *	Mensaje 16: Informa al mapa que el entrenador se ha desconectado
  *	-->	mensaje_t
  */
 
@@ -62,7 +77,12 @@ typedef enum tipoMensaje {
 	CONFIRMA_DESPLAZAMIENTO,
 	SOLICITA_CAPTURA,
 	CONFIRMA_CAPTURA,
-	INFORMA_MUERTE,
+	INFORMA_INTERBLOQUEO,
+	SOLICITA_ELECCION_POKEMON,
+	INFORMA_POKEMON_ELEGIDO,
+	INFORMA_VICTORIA,
+	INFORMA_DERROTA,
+	SOLICITA_DESCONEXION,
 	DESCONEXION_ENTRENADOR
 } tipoMensaje_t;
 
@@ -112,6 +132,28 @@ typedef struct mensaje9 {
 	uint32_t tamanioNombreArchivoMetadata;
 	char* nombreArchivoMetadata;
 } mensaje9_t;
+
+// Mensaje 12
+typedef struct mensaje12 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioNombrePokemon;
+	char* nombrePokemon;
+	uint32_t nivel;
+} mensaje12_t;
+
+// Mensaje 13
+typedef struct mensaje13 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioNombreAdversario;
+	char* nombreAdversario;
+} mensaje13_t;
+
+// Mensaje 14
+typedef struct mensaje14 {
+	uint32_t tipoMensaje;
+	uint32_t tamanioNombreAdversario;
+	char* nombreAdversario;
+} mensaje14_t;
 
 // Direcciones de movimiento
 typedef enum direccion {IZQUIERDA, DERECHA, ARRIBA, ABAJO} direccion_t;

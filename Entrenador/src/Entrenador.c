@@ -825,33 +825,33 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 
 void signal_termination_handler(int signum) {
 	switch (signum) {
- 	case SIGUSR1:
- 		configEntrenador.Vidas++;
+	case SIGUSR1:
+		configEntrenador.Vidas++;
 
- 		log_info(logger, "SIGUSR1: Se ha obtenido una vida");
- 		log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
+		log_info(logger, "SIGUSR1: Se ha obtenido una vida");
+		log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
- 		break;
- 	case SIGTERM:
- 		configEntrenador.Vidas--;
+		break;
+	case SIGTERM:
+		configEntrenador.Vidas--;
 
- 		log_info(logger, "SIGTERM: Se ha perdido una vida");
- 		log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
+		log_info(logger, "SIGTERM: Se ha perdido una vida");
+		log_info(logger, "Vidas restantes: %d", configEntrenador.Vidas);
 
- 		break;
- 	case SIGINT:
+		break;
+	case SIGINT:
 		log_info(logger, "El entrenador ha abandonado el juego.");
 
 		pthread_mutex_lock(&mutexRecursos);
 		liberarRecursos();
 		exit(EXIT_SUCCESS);
 
- 		break;
- 	default:
- 		log_info(logger, "Código inválido: %d", signum);
+		break;
+	default:
+		log_info(logger, "Código inválido: %d", signum);
 
- 		return;
- 	}
+		return;
+	}
 }
 
 void obtenerDatosConexion(char* nombreCiudad) {

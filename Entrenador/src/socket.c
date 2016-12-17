@@ -446,7 +446,13 @@ void recibirMensaje(socket_t* socket, void* mensaje) {
 		if(valorRetornoRecv == 0 || valorRetornoRecv == -1)
 		{
 			if(valorRetornoRecv == 0 || errno == ECONNREFUSED || errno == ECONNRESET)
+			{
 				socket->errorCode = ERR_PEER_DISCONNECTED;
+			}
+			else if(errno == EINTR)
+			{
+				socket->errorCode = ERR_SIGNAL_RECEIVED;
+			}
 			else
 			{
 				socket->errorCode = ERR_MSG_CANNOT_BE_RECEIVED;

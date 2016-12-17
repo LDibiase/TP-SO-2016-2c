@@ -48,10 +48,7 @@ int main(int argc, char** argv) {
 	char ejeAnterior;
 	int objetivosCompletados;
 	int victima;
-
-	// Variables para la creación del hilo para el manejo de señales
-	pthread_t hiloSignalHandler;
-	pthread_attr_t atributosHiloSignalHandler;
+	struct sigaction sa;
 
 	void _obtenerObjetivo(char* objetivo) {
 		if(activo && !victima)
@@ -177,8 +174,12 @@ int main(int argc, char** argv) {
 				}
 				else
 				{
-					configEntrenador.Vidas--;
-					configEntrenador.Muertes++;
+					if(configEntrenador.Vidas > 0)
+					{
+						configEntrenador.Vidas--;
+						configEntrenador.Muertes++;
+					}
+
 					victima = 0;
 
 					validarVidas();
@@ -214,6 +215,27 @@ int main(int argc, char** argv) {
 
 	free(nombreLog);
 
+	// Print PID
+	log_info(logger, "PID del proceso entrenador: %d", getpid());
+
+	// Setup the sighub handler
+	sa.sa_handler = &signal_termination_handler;
+
+	// Restart the system call
+	//sa.sa_flags = SA_RESTART;
+
+	// Block every signal received during the handler execution
+	sigfillset(&sa.sa_mask);
+
+	if (sigaction(SIGUSR1, &sa, NULL) == -1)
+		log_info(logger, "Error: no se puede manejar la señal SIGUSR1"); // Should not happen
+
+	if (sigaction(SIGTERM, &sa, NULL) == -1)
+		log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
+
+	if (sigaction(SIGINT, &sa, NULL) == -1)
+		log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
+
 	// Se carga el archivo de metadata
 	log_info(logger, "Cargando archivo de metadata...");
 
@@ -237,9 +259,9 @@ int main(int argc, char** argv) {
 	activo = 1;
 
 	// Se crea el hilo para el manejo de señales
-	pthread_attr_init(&atributosHiloSignalHandler);
+	/*pthread_attr_init(&atributosHiloSignalHandler);
 	pthread_create(&hiloSignalHandler, &atributosHiloSignalHandler, (void*) signal_handler, NULL);
-	pthread_attr_destroy(&atributosHiloSignalHandler);
+	pthread_attr_destroy(&atributosHiloSignalHandler);*/
 
 	// Se inicializa el flag de objetivos completados
 	objetivosCompletados = 0;
@@ -725,6 +747,27 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 				break;
 			}
 
+			if(mapa_s->errorCode == ERR_SIGNAL_RECEIVED)
+			{
+				if(configEntrenador.Vidas > 0)
+					continue;
+				else
+				{
+					if(interbloqueo)
+						solicitudDesconexion(victima);
+					else
+					{
+						log_info(logger, "El entrenador ha abandonado el juego.");
+
+						pthread_mutex_lock(&mutexRecursos);
+						liberarRecursos();
+						exit(EXIT_SUCCESS);
+					}
+
+					return;
+				}
+			}
+
 			log_info(logger, mapa_s->error);
 
 			return;
@@ -780,31 +823,6 @@ void solicitarCaptura(socket_t* mapa_s, int* victima, char* objetivo) {
 	}
 }
 
-void signal_handler() {
- 	 struct sigaction sa;
-
- 	 // Print PID
- 	 log_info(logger, "PID del proceso entrenador: %d", getpid());
-
- 	 // Setup the sighub handler
- 	 sa.sa_handler = &signal_termination_handler;
-
- 	 // Restart the system call
- 	 sa.sa_flags = SA_RESTART;
-
- 	 // Block every signal received during the handler execution
- 	 sigfillset(&sa.sa_mask);
-
- 	 if (sigaction(SIGUSR1, &sa, NULL) == -1)
- 	    log_info(logger, "Error: no se puede manejar la señal SIGUSR1"); // Should not happen
-
- 	 if (sigaction(SIGTERM, &sa, NULL) == -1)
- 	    log_info(logger, "Error: no se puede manejar la señal SIGTERM"); // Should not happen
-
- 	 if (sigaction(SIGINT, &sa, NULL) == -1)
- 	    log_info(logger, "Error: no se puede manejar la señal SIGINT"); // Should not happen
-}
-
 void signal_termination_handler(int signum) {
 	switch (signum) {
  	case SIGUSR1:
@@ -826,7 +844,7 @@ void signal_termination_handler(int signum) {
 
 		pthread_mutex_lock(&mutexRecursos);
 		liberarRecursos();
-		exit(EXIT_FAILURE);
+		exit(EXIT_SUCCESS);
 
  		break;
  	default:
@@ -977,7 +995,7 @@ void validarVidas() {
 
 			pthread_mutex_lock(&mutexRecursos);
 			liberarRecursos();
-			exit(EXIT_FAILURE);
+			exit(EXIT_SUCCESS);
 		}
 
 		char* sysCall;
